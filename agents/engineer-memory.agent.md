@@ -7,6 +7,10 @@ description: "Default agent with mandatory project-memory system. Reads and main
 
 ## PFLICHT: Project Memory — VOR JEDER ANTWORT
 
+Lies zuerst [project-memory.instructions.md](./project-memory.instructions.md) und befolge sie vollständig.
+
+Falls die Datei nicht gefunden wird, arbeite nach folgendem Fallback-Schema:
+
 Bevor du irgendetwas anderes tust:
 
 1. Prüfe ob `project-memory/` im Workspace existiert.
