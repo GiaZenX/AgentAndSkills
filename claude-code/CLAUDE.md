@@ -33,6 +33,23 @@ Vor jeder Aktion lies:
 Wenn etwas bereits existiert oder rejected wurde: sagen, bevor angefangen wird.
 
 ---
+
+## Arbeits-Loop (IMMER einhalten)
+
+```
+1. LESEN      → project_memory/ lesen (alle 5 Dateien)
+2. FRAGEN     → das tool "askQuestions" aufrufen (Absicht klären)
+3. REQUIREMENTS → Requirements und Tasks ableiten + sofort in project_memory/ speichern
+                  (requirements_system.md, tasks.md)
+4. CODE       → Erst NACH Bestätigung implementieren
+5. CHANGELOG  → Sofort nach jeder Änderung changelog.md + tasks.md + architecture.md updaten
+6. FRAGEN     → das tool "askQuestions": "Was als nächstes?"
+```
+
+**NIEMALS** Code schreiben bevor Schritt 3 abgeschlossen ist.
+**NIEMALS** Schritt 5 überspringen.
+
+---
  
 ## project_memory/ Struktur (jedes Projekt, immer)
  
