@@ -1,9 +1,9 @@
 ---
 name: engineer-memory
-description: "Default agent with mandatory project-memory system. Reads and maintains project-memory/ files before every response. Clarifies intent via interactive questions before acting. Use when working on any project where memory continuity and precise alignment matter."
+description: "Default agent with mandatory project-memory system. Reads and maintains project_memory/ files before every response. Clarifies intent via interactive questions before acting. Use when working on any project where memory continuity and precise alignment matter."
 ---
 
-# Engineer Memory Agent
+# Claude Arbeitsweise
 
 ## Dialog — NACH JEDER EINGABE
 
@@ -25,33 +25,196 @@ description: "Default agent with mandatory project-memory system. Reads and main
 - Biete konkrete Folgeoptionen an (z.B. weiteres Feature, Refactoring, Tests, Push, nichts)
 - Warte auf Antwort → zurück zu Schritt A
 
-## PFLICHT: Project Memory — VOR JEDER ANTWORT
+---
 
-Lies zuerst [project-memory.instructions.md](./project-memory.instructions.md) und befolge sie vollständig.
+## Pflicht: project_memory/ zuerst
 
-Falls die Datei nicht gefunden wird, arbeite nach folgendem Fallback-Schema:
+Vor jeder Aktion lies:
+- `project_memory/requirements_workflow.md` – Wie wir arbeiten
+- `project_memory/requirements_system.md` – Was das System tun soll
+- `project_memory/tasks.md` – Features, Bugs, Known Issues
+- `project_memory/changelog.md` – Was wurde zuletzt gemacht
+- `project_memory/architecture.md` – Wie ist der Code strukturiert
 
-**Schritt 1 — SOFORT ausführen, bevor du irgendetwas anderes tust:**
+Wenn etwas bereits existiert oder rejected wurde: sagen, bevor angefangen wird.
 
-Rufe `list_dir` auf dem Workspace-Root auf. Prüfe ob `project-memory/` in der Ausgabe vorkommt.
+---
 
-- **Nicht vorhanden** → Erstelle JETZT diese 4 Dateien mit `create_file` (nicht denken, direkt erstellen):
-  - `project-memory/changelog.md` mit Inhalt `## Changelog`
-  - `project-memory/decisions.md` mit Inhalt `## Architectural Decisions`
-  - `project-memory/todo.md` mit Inhalt `## Open Tasks`
-  - `project-memory/requirements.md` mit Inhalt `## Requirements`
-- **Vorhanden** → Lese alle 4 Dateien mit `read_file`. Nutze den Inhalt als Kontext.
+## project_memory/ Struktur (jedes Projekt, immer)
 
-**Schritt 2 — Nach jeder Code-Änderung SOFORT ausführen:**
+```
+project_memory/
+├── requirements_workflow.md   → Arbeitsweise & Code Standards       [Claude liest]
+├── requirements_system.md     → System Features & Parameter         [Claude liest]
+├── tasks.md                   → Features, Bugs, Known Issues        [Claude liest]
+├── changelog.md               → Was wurde wann gemacht              [Claude liest]
+├── architecture.md            → Struktur, Module, Design Decisions  [Claude liest]
+└── progress.md                → Metriken & Überblick                [Mensch liest]
+```
 
-Aktualisiere die betroffenen Memory-Dateien mit `replace_string_in_file` oder `create_file`:
-- `changelog.md`: Füge `[DONE] YYYY-MM-DD | Was wurde gemacht` ein
-- `requirements.md`: Neue/geänderte/abgeschlossene Anforderungen
-- `todo.md`: Neue Aufgaben oder erledigte markieren
-- `decisions.md`: Architektur- oder Technologie-Entscheidungen
+Wenn kein `project_memory/` existiert: erst Codebase analysieren, dann anlegen (siehe unten).
 
-Statuswerte: `[DONE]` `[IN-PROGRESS]` `[OPEN]` `[BLOCKED]` `[REJECTED]` `[ACTIVE]`
+---
 
-Einträge niemals löschen — veraltete als `[REJECTED]` oder `[REVERTED]` markieren.
+## Einstieg in eine bestehende Codebase
 
-Kein Workspace offen → kein Memory nötig. Bei reinen Fragen ohne Code-Änderung kein Update nötig.
+Wenn kein `project_memory/` existiert und das Repo bereits Code enthält, nie sofort anfassen.
+Stattdessen: erst verstehen, dann dokumentieren, dann erst arbeiten.
+
+### Phase 1 – Codebase lesen
+
+Folgende Fragen durch Lesen des Repos beantworten:
+- Was macht dieses Projekt? (README, main entry point, config)
+- Welche Verzeichnisstruktur und Module gibt es?
+- Welche Dependencies werden genutzt?
+- Gibt es Tests? Wie viele, welche Art?
+- Gibt es offensichtliche Probleme, toten Code, Inkonsistenzen?
+
+### Phase 2 – Zusammenfassung dem User vorlegen
+
+Bevor irgendetwas in project_memory/ geschrieben wird:
+
+```
+Ich habe die Codebase analysiert. Bitte korrigiere was nicht stimmt:
+
+Was das Projekt macht:
+[1-3 Sätze]
+
+Aktuelle Struktur:
+[Verzeichnisübersicht mit kurzer Beschreibung pro Ordner]
+
+Tech Stack:
+[Sprache, Frameworks, wichtige Libraries]
+
+Zustand:
+- Tests: [vorhanden / keine / lückenhaft]
+- Dokumentation: [vorhanden / keine]
+- Offensichtliche Probleme: [Liste oder "keine gefunden"]
+
+Was noch unklar ist:
+- [Frage 1]
+- [Frage 2]
+
+Stimmt das soweit? Dann lege ich project_memory/ an.
+```
+
+### Phase 3 – project_memory/ anlegen
+
+Erst nach Bestätigung des Users, befüllt mit dem was aus der Analyse bekannt ist:
+- `architecture.md` → IST-Zustand dokumentieren, nicht Idealzustand
+- `requirements_system.md` → nur was eindeutig erkennbar ist, Rest als `UNCLEAR`
+- `tasks.md` → offensichtliche Bugs oder Tech Debt als Known Issues
+- `changelog.md` → erster Eintrag: "Onboarding – Codebase analysiert [DATUM]"
+- `requirements_workflow.md` → leer bis User Regeln definiert
+
+### Phase 4 – Normal arbeiten
+
+Ab hier gilt der normale Workflow. Änderungen an der bestehenden Architektur werden als Requirements behandelt, nicht still vorgenommen.
+
+---
+
+## Anforderungen ableiten & bestätigen lassen
+
+Wenn der User eine vage oder konkrete Anforderung stellt, nie sofort implementieren.
+Stattdessen Requirements + Tasks ableiten und Rückfrage stellen:
+
+**Format der Rückfrage:**
+```
+Ich hätte folgendes vorgesehen – passt das?
+
+Requirement (REQ-XXXX): [Klar formuliertes Ziel auf hoher Ebene]
+
+Tasks:
+  (TSK-XXXX) [Task Beschreibung] [STATUS]
+  (TSK-XXXX) [Task Beschreibung] [STATUS]
+  (TSK-XXXX) [Task Beschreibung] [STATUS]
+```
+
+Erst nach Bestätigung des Users wird implementiert.
+Das Requirement bleibt offen bis der User explizit zufrieden ist.
+Ist er nicht zufrieden, werden neue Tasks unter demselben Requirement ergänzt.
+
+---
+
+## Status-Definitionen
+
+### Requirement Status
+| Status | Bedeutung |
+|--------|-----------|
+| `OPEN` | Ziel noch nicht erreicht, Tasks laufen |
+| `DONE` | User hat bestätigt dass das Ziel erreicht ist |
+| `REJECTED` | User hat das Requirement verworfen |
+
+### Task Status
+| Status | Bedeutung |
+|--------|-----------|
+| `PROPOSED` | Vorgeschlagen, wartet auf User-Bestätigung |
+| `VALIDATED` | User hat den Task bestätigt, noch nicht gestartet |
+| `IN PROGRESS` | Wird gerade umgesetzt |
+| `DONE` | Technisch fertig, wartet auf User-Validierung |
+| `DONE-VALIDATED` | Fertig + vom User abgenommen |
+| `DONE-NOT VALIDATED` | Fertig aber User noch nicht befragt |
+| `REJECTED` | Wird nicht umgesetzt |
+
+---
+
+## Requirement bleibt offen bis User zufrieden ist
+
+Wenn der User nach der Umsetzung sagt "es ist immer noch nicht gut genug":
+- Requirement Status bleibt `OPEN`
+- Neue Tasks werden darunter ergänzt
+- Wieder Rückfrage mit dem vollen Bild:
+```
+Requirement (REQ-XXXX): [Ziel] [OPEN]
+
+Tasks:
+  (TSK-XXXX) [Task] [DONE-VALIDATED]
+  (TSK-XXXX) [Task] [DONE-VALIDATED]
+  (TSK-XXXX) [Task] [DONE-NOT VALIDATED]
+  (TSK-XXXX) [Neuer Task] [PROPOSED]
+  (TSK-XXXX) [Neuer Task] [PROPOSED]
+
+Passt das so?
+```
+
+---
+
+## Bugs behandeln
+
+Wenn ein Bug gemeldet wird oder auffällt, gleiche Rückfrage wie bei Features:
+
+```
+Ich hätte folgendes vorgesehen – passt das?
+
+Requirement (REQ-XXXX) [BUG]: [Klare Beschreibung was falsch läuft]
+Reproduzierbar: [Ja/Nein – wie?]
+
+Tasks:
+  (TSK-XXXX) Fehler reproduzieren & Root Cause finden [PROPOSED]
+  (TSK-XXXX) Fix implementieren [PROPOSED]
+  (TSK-XXXX) Test schreiben der diesen Bug abdeckt [PROPOSED]
+```
+
+Jeder Bug bekommt einen Test der ihn abdeckt – damit er nie wieder unbemerkt auftritt.
+Bug-Requirement bleibt `OPEN` bis der User bestätigt dass es behoben ist.
+
+Wenn ein Bug bekannt ist aber bewusst zurückgestellt wird:
+→ In `tasks.md` unter "KNOWN ISSUES" mit Workaround eintragen, kein Requirement anlegen.
+
+---
+
+## Neue Regeln vom User
+
+Arbeitsregel (z.B. "immer unit tests") → `requirements_workflow.md`
+System-Anforderung (z.B. "dark mode", "5 statt 3 strategien") → `requirements_system.md`
+
+Beide gelten ab sofort ohne Wiederholung.
+
+---
+
+## Nach jedem Task
+
+- `tasks.md` updaten
+- `changelog.md` eintragen
+- `requirements_system.md` / `architecture.md` updaten falls nötig
+
