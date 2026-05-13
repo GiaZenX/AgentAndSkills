@@ -2,7 +2,7 @@
 
 Userwide installierbare Skills und Custom Agents für **GitHub Copilot** und **Claude Code** in VS Code.
 
-Basiert auf [mattpocock/skills](https://github.com/mattpocock/skills) plus eigenem `engineer`-Agent.
+Basiert auf [mattpocock/skills](https://github.com/mattpocock/skills) plus eigenen Agents und einem globalen Workflow-Standard.
 
 ---
 
@@ -11,7 +11,7 @@ Basiert auf [mattpocock/skills](https://github.com/mattpocock/skills) plus eigen
 ### Windows (PowerShell)
 
 ```powershell
-git clone https://github.com/<DEIN-USER>/agent-skills.git
+git clone https://github.com/GiaZenX/CopilotAgentAndSkills.git agent-skills
 cd agent-skills
 .\install.ps1
 ```
@@ -19,7 +19,7 @@ cd agent-skills
 ### macOS / Linux
 
 ```bash
-git clone https://github.com/<DEIN-USER>/agent-skills.git
+git clone https://github.com/GiaZenX/CopilotAgentAndSkills.git agent-skills
 cd agent-skills
 chmod +x install.sh
 ./install.sh
@@ -32,11 +32,25 @@ VS Code anschließend neu starten.
 | Option | Beschreibung |
 |---|---|
 | `-Target both` (default) | Installiert für Claude Code **und** Copilot |
-| `-Target claude` | Nur Claude Code (`~/.claude/skills/`) |
-| `-Target copilot` | Nur Copilot (`~/.copilot/skills/` + VS Code Agents) |
-| `-Force` | Überschreibt bereits installierte Skills/Agents |
+| `-Target claude` | Nur Claude Code (`~/.claude/skills/` + `~/.claude/CLAUDE.md`) |
+| `-Target copilot` | Nur Copilot (`~/.copilot/skills/` + VS Code Agents + Instructions) |
+| `-Force` | Überschreibt bereits installierte Dateien |
 
 Linux/Mac entsprechend `--target` und `--force`.
+
+---
+
+## Parität: Claude Code ↔ Copilot
+
+Beide Tools sind identisch konfiguriert:
+
+| Komponente | Claude Code | Copilot |
+|---|---|---|
+| Globale Anweisungen | `~/.claude/CLAUDE.md` | `prompts/project-memory.instructions.md` (`applyTo: **`) |
+| Workflow | Identisch – `# Deine Arbeitsweise` | Identisch – `# Deine Arbeitsweise` |
+| Tool-Syntax | `das tool "askQuestions"` | `#tool:vscode_askQuestions` |
+| Skills | `~/.claude/skills/` | `~/.copilot/skills/` |
+| Agent | – | `prompts/memory-engineer.agent.md` |
 
 ---
 
@@ -45,25 +59,36 @@ Linux/Mac entsprechend `--target` und `--force`.
 | Komponente | Pfad |
 |---|---|
 | Claude Code Skills | `~/.claude/skills/<skill>/` |
+| Claude Code Anweisungen | `~/.claude/CLAUDE.md` |
 | Copilot Skills | `~/.copilot/skills/<skill>/` |
 | Custom Agents (VS Code) | Windows: `%APPDATA%\Code\User\prompts\` <br> macOS: `~/Library/Application Support/Code/User/prompts/` <br> Linux: `~/.config/Code/User/prompts/` |
+| Global Instructions | Gleicher Ordner wie Agents, mit `applyTo: "**"` |
 
 ---
 
-## Custom Agent: `engineer`
+## Custom Agents
 
-**Aufruf:** `@engineer <dein Prompt>` im Copilot Chat (oder Agent-Dropdown → engineer wählen).
+### `memory-engineer` — Hauptagent mit Gedächtnis
 
-Ein professioneller Full-Stack-Engineer mit folgenden Eigenschaften:
+**Aufruf:** `@memory-engineer` oder Agent-Dropdown → memory-engineer
 
-- **Repo-Management:** Legt fehlendes Repo automatisch an (`git init`, `.gitignore`, `README.md`, `src/`, `ProjectRequirements.md`)
-- **Requirement-Tracking:** Liest und pflegt `ProjectRequirements.md` bei jedem Prompt. Status: `ACTIVE`, `DONE`, `REJECTED`, `TO BE NOTED`
-- **Git-Workflow:** Committet automatisch lokal. Pusht **nur** wenn du explizit "push" sagst
-- **Clean Code:** Selbstdokumentierender Code, keine Kommentare, klare Namen (z.B. `kapitalAmount` statt `K`)
-- **Dead-Code-Removal:** Löscht obsoleten Code sofort und dokumentiert ihn im `Removed Code Log`
-- **Modular & effizient:** Eine Verantwortung pro Funktion/Modul, optimiert auf Rechenzeit
-- **Token-effizient:** Genau eine strukturierte Ausgabe am Ende (Changes, Requirements Update, Removed Code, Git Status)
-- **Domain-Expertise:** Robotik, Trading, Maschinenbau, UI-Design, Systems Programming, Data Engineering
+Mandatory Dialog-Loop + vollständiges Projekt-Memory-System:
+
+- **Dialog vor Umsetzung:** Fragt immer zuerst per `askQuestions` — nie sofort implementieren
+- **project_memory/ System:** Liest und pflegt `project_memory/` (requirements, tasks, changelog, architecture, progress) bei jedem Prompt
+- **Codebase-Onboarding:** Bei neuen Repos: analysieren → Zusammenfassung vorlegen → bestätigen → anlegen
+- **REQ/TSK-Format:** Anforderungen mit `REQ-XXXX` / `TSK-XXXX`, Status `PROPOSED → VALIDATED → IN PROGRESS → DONE-VALIDATED`
+- **Bug-Workflow:** Jeder Bug bekommt ein Requirement + Test
+- **Neue Regeln:** Direkt in `requirements_workflow.md` / `requirements_system.md`
+
+### `engineer` — Full-Stack Engineer ohne Dialog-Loop
+
+**Aufruf:** `@engineer <dein Prompt>`
+
+- **Repo-Management:** Legt fehlendes Repo automatisch an
+- **Requirement-Tracking:** Liest und pflegt `ProjectRequirements.md`
+- **Git-Workflow:** Committet automatisch; pusht nur auf explizite Anfrage
+- **Clean Code:** Selbstdokumentierend, keine Kommentare, modularer Aufbau
 
 ---
 
