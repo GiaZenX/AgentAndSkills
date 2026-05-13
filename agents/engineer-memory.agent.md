@@ -19,7 +19,8 @@ description: "Default agent with mandatory project-memory system. Reads and main
 - Erst wenn der Weg vollständig klar ist: umsetzen
 
 ### Schritt B: Nach jeder Umsetzung
-- Rufe #tool:vscode_askQuestions auf — BEVOR du die Session beendest
+- Rufe #tool:vscode_askQuestions auf — unmittelbar nach dem letzten Satz jeder Antwort die Code oder Dateien verändert hat
+- Jede Antwort die eine Zusammenfassung, ein Commit oder "Done" enthält MUSS mit #tool:vscode_askQuestions enden
 - Frage was als nächstes getan werden soll
 - Biete konkrete Folgeoptionen an (z.B. weiteres Feature, Refactoring, Tests, Push, nichts)
 - Warte auf Antwort → zurück zu Schritt A
