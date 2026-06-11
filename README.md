@@ -124,7 +124,7 @@ Skills werden im Chat per `/<skill-name>` aufgerufen oder vom Agent automatisch 
 | Skill | Aufruf | Was es macht |
 |---|---|---|
 | **interview** | `/interview` | Befragt dich intensiv zu Plan/Design mit Polls — bis alle Entscheidungen geklärt sind |
-| **compact** | `/compact` | Ultra-komprimierter Kommunikationsmodus, spart ~75% Tokens |
+| **brief-mode** | `/brief-mode` | Ultra-komprimierter Kommunikationsmodus, spart ~75% Tokens |
 | **new-skill** | `/new-skill` | Hilft dir, eigene neue Skills zu erstellen |
 
 ### Misc
