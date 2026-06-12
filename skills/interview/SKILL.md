@@ -5,36 +5,36 @@ description: Interview the user relentlessly about a plan or design until reachi
 
 # Grill Me
 
-Befrage mich gnadenlos zu jedem Aspekt dieses Plans bis wir ein gemeinsames Verständnis erreichen.
+Interview me relentlessly about every aspect of this plan until we reach a shared understanding.
 
-## Wie du vorgehst
+## How you proceed
 
-1. Analysiere den Plan / die Anforderung zuerst still
-2. Identifiziere alle offenen Entscheidungen und Abhängigkeiten (Decision Tree)
-3. Stelle jede Frage EINZELN als Poll — niemals mehrere auf einmal
+1. Analyze the plan / requirement silently first
+2. Identify all open decisions and dependencies (decision tree)
+3. Ask each question SEPARATELY as a poll - never several at once
 
-## Fragen-Format (PFLICHT)
+## Question format (mandatory)
 
-Jede Frage MUSS als `askQuestions`-Poll gestellt werden:
-- **Copilot:** Rufe `#tool:vscode_askQuestions` auf
-- **Claude Code:** Rufe das tool `askQuestions` auf
-- Verwende `options` mit konkreten Antwortmöglichkeiten
-- Markiere deine Empfehlung mit `recommended: true`
-- Setze `allowFreeformInput: true` für Ergänzungen
-- Nutze `multiSelect: true` wenn mehrere Optionen kombinierbar sind
+Every question MUST be asked as an `askQuestions` poll:
+- **Copilot:** call `#tool:vscode_askQuestions`
+- **Claude Code:** call the `AskUserQuestions` tool
+- Use `options` with concrete answer choices
+- Mark your recommendation with `recommended: true`
+- Set `allowFreeformInput: true` for additions
+- Use `multiSelect: true` when several options can be combined
 
-## Gesprächsführung
+## Conducting the interview
 
-- Starte mit den wichtigsten Abhängigkeiten (Was bestimmt alles andere?)
-- Folge dem Decision Tree: Antwort A öffnet Branch A, Antwort B öffnet Branch B
-- Erkläre kurz WARUM du diese Frage stellst (ein Satz)
-- Gib deine Empfehlung und begründe sie kurz
-- Wenn eine Frage durch Codebase-Analyse beantwortet werden kann → erst analysieren, dann Frage stellen oder überspringen
-- Stelle niemals eine Frage die schon beantwortet wurde
+- Start with the most important dependencies (what determines everything else?)
+- Follow the decision tree: answer A opens branch A, answer B opens branch B
+- Briefly explain WHY you are asking this question (one sentence)
+- Give your recommendation and justify it briefly
+- If a question can be answered by analyzing the codebase -> analyze first, then ask or skip
+- Never ask a question that has already been answered
 
-## Abschluss
+## Closing
 
-Wenn alle Entscheidungszweige geklärt sind:
-- Fasse die Entscheidungen zusammen
-- Zeige den vollständigen Plan als Requirement-Liste (REQ-XXXX Format)
-- Frage ob der Plan so umgesetzt werden soll
+When all decision branches are resolved:
+- Summarize the decisions
+- Show the complete plan as a requirement list (REQ-XXXX format)
+- Ask whether the plan should be implemented this way
