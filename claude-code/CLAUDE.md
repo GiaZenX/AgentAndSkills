@@ -2,20 +2,20 @@
 
 ## Dialog — NACH JEDER EINGABE
 
-**REGEL: Du darfst NIEMALS eine Antwort als Fließtext ausgeben ohne vorher oder danach das tool "askQuestions" aufzurufen. Keine Ausnahmen.**
+**REGEL: Du darfst NIEMALS eine Antwort als Fließtext ausgeben ohne vorher oder danach AskUserQuestions aufzurufen. Keine Ausnahmen.**
 
 ### Schritt A: Absicht klären (vor der Umsetzung)
-- Rufe das tool "askQuestions" auf — BEVOR du irgendetwas tust
+- Rufe AskUserQuestions auf — BEVOR du irgendetwas tust
 - Stelle 1–3 gezielte Fragen zur Eingabe des Users
 - Biete konkrete Antwortoptionen an (options-Array)
 - Nutze `multiSelect: true` wenn mehrere Optionen kombinierbar sind
 - Erlaube immer Freitext (`allowFreeformInput: true`)
-- Nach der Antwort: falls noch Unklarheiten bestehen, nochmals das tool "askQuestions"
+- Nach der Antwort: falls noch Unklarheiten bestehen, nochmals AskUserQuestions
 - Erst wenn der Weg vollständig klar ist: umsetzen
 
 ### Schritt B: Nach jeder Umsetzung
-- Rufe das tool "askQuestions" auf — unmittelbar nach dem letzten Satz jeder Antwort die Code oder Dateien verändert hat
-- Jede Antwort die eine Zusammenfassung, ein Commit oder "Done" enthält MUSS mit das tool "askQuestions" enden
+- Rufe AskUserQuestions auf — unmittelbar nach dem letzten Satz jeder Antwort die Code oder Dateien verändert hat
+- Jede Antwort die eine Zusammenfassung, ein Commit oder "Done" enthält MUSS mit AskUserQuestions enden
 - Frage was als nächstes getan werden soll
 - Biete konkrete Folgeoptionen an (z.B. weiteres Feature, Refactoring, Tests, Push, nichts)
 - Warte auf Antwort → zurück zu Schritt A
@@ -38,23 +38,27 @@ Wenn etwas bereits existiert oder rejected wurde: sagen, bevor angefangen wird.
 
 ```
 1. LESEN      → project_memory/ lesen (alle 5 Dateien)
-2. FRAGEN     → das tool "askQuestions" aufrufen (Absicht klären)
-3. REQUIREMENTS → Requirements und Tasks ableiten und dem User als Vorschlag zeigen
-                  Format: REQ-XXXX + Tasks mit Status PROPOSED
-                  → NICHT speichern bevor der User bestätigt hat
+2. FRAGEN     → AskUserQuestions aufrufen (Absicht klären)
+3. PLAN       → Plan als Text ausgeben (BEVOR AskUserQuestions):
+                  "Ich hätte folgendes vorgesehen – passt das?
+                  REQ-XXXX: [Ziel]
+                  (TSK-XXXX) [Task] [PROPOSED]
+                  (TSK-XXXX) [Task] [PROPOSED]"
+                  → Dann AskUserQuestions: "Passt das so?"
+                  → NICHT in project_memory/ schreiben vor Bestätigung
 4. BESTÄTIGUNG → User sagt "ja" → sofort in project_memory/ schreiben:
                   requirements_system.md (REQ-XXXX [OPEN])
                   tasks.md (TSK-XXXX [VALIDATED])
 5. CODE       → Implementieren
-6. MEMORY     → Gesamten project_memory/ Ordner aktualisieren:
-                  changelog.md  → [DONE] YYYY-MM-DD | Was wurde gemacht
-                  tasks.md      → Status auf DONE / DONE-NOT VALIDATED setzen
-                  architecture.md → Struktur-/Design-Änderungen eintragen
-7. FRAGEN     → das tool "askQuestions": "Was als nächstes?"
+6. MEMORY     → Gesamten project_memory/ Ordner aktualisieren (PFLICHT, nie überspringen):
+                  changelog.md  → str_replace: [DONE] YYYY-MM-DD | Was wurde gemacht
+                  tasks.md      → str_replace: Status auf DONE / DONE-NOT VALIDATED
+                  architecture.md → str_replace: Struktur-/Design-Änderungen
+7. FRAGEN     → AskUserQuestions: "Was als nächstes?"
 ```
 
 **NIEMALS** in project_memory/ schreiben bevor der User bestätigt hat (Schritt 4).
-**NIEMALS** Schritt 6 überspringen.
+**NIEMALS** Schritt 6 überspringen — sofort nach dem Code ausführen, kein Fließtext dazwischen.
 
 ---
  
