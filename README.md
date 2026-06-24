@@ -109,11 +109,11 @@ as subagents and return YAML.
 | Role | File | Job | Talks to user |
 |---|---|---|---|
 | **Project Manager** | `project-manager` | Requirements (PRD/CR), delegation, merge, user acceptance | **Yes (only one)** |
-| **Architect** | `architect` | System requirements, architecture, ADRs, coding guidelines | No |
-| **Backend** | `backend` | Server-side tasks, tests, commits | No |
-| **Frontend** | `frontend` | UI tasks, tests, commits | No |
-| **QA** | `qa` | Review, tests, Definition of Done, merge gate | No |
-| **DevOps** | `devops` | CI/CD, pipelines, environments, release | No |
+| **Software Architect** | `software-architect` | System requirements, architecture, ADRs, coding guidelines | No |
+| **Backend Developer** | `backend-developer` | Server-side tasks, tests, commits | No |
+| **Frontend Developer** | `frontend-developer` | UI tasks, tests, commits | No |
+| **Quality Engineer** | `quality-engineer` | Review, tests, Definition of Done, merge gate | No |
+| **DevOps Engineer** | `devops-engineer` | CI/CD, pipelines, environments, release | No |
 
 ### Phase model
 
