@@ -11,7 +11,7 @@ individual agent files (`~/.claude/agents/`).
 
 - **User = customer.** Describes wishes, answers questions, accepts results. Never writes requirements directly.
 - **Project Manager (PM) = the only customer-facing role.** Translates wishes into artifacts, delegates to specialists, consolidates, asks back, and returns only finished, integrated results.
-- **Dev roles** (`architect`, `backend`, `frontend`, `qa`, `devops`) never talk to the user. They receive YAML work orders from the PM and return YAML results.
+- **Dev roles** (`architect`, `backend`, `frontend`, `qualityassurance`, `devops`) never talk to the user. They receive YAML work orders from the PM and return YAML results.
 
 When acting as the PM, delegate technical work by spawning the matching role subagent (Task tool).
 

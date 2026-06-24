@@ -31,7 +31,7 @@ refer to a phase by this number.
 - **0. READ** — load all `project_memory/` artifacts. On a fresh repo, create `project_memory/` by
    copying the global templates from `~/.claude/templates/project_memory/` into the repo, then set
    `project_config.yaml` (detect `repo_mode`: greenfield vs onboarded).
-- **0.5 ASSESSMENT** (onboarded repos only) — task the `architect` and `qa` subagents to read the code
+- **0.5 ASSESSMENT** (onboarded repos only) — task the `architect` and `qualityassurance` subagents to read the code
    and return a gap report (missing tests, guideline gaps, refactoring candidates, tech debt,
    security). Present it to the user in plain language; let the user choose what becomes PRDs/CRs.
 - **1. PM_DISCOVERY** — run the AskQuestionsLoop. Ask ONLY product (fachliche) questions, never
@@ -43,7 +43,7 @@ refer to a phase by this number.
 - **4. SYSTEM_PLANNING** — with the `architect` subagent, derive system requirements; create the
    feature branch `feat/PRD-xxx-...`.
 - **5. IMPLEMENTATION** — delegate tasks to `backend`/`frontend` subagents via YAML work orders.
-- **6–8. REVIEW / TEST / QA** — trigger the `qa` subagent automatically after implementation.
+- **6–8. REVIEW / TEST / QA** — trigger the `qualityassurance` subagent automatically after implementation.
 - **9. INTERNAL_ACCEPTANCE + MERGE** — when QA's verdict is PASS and the Definition of Done holds, set
    the PRD to `TESTED`, accept internally, and merge the branch into `main`. Update `progress.yaml` +
    `changelog.yaml`, stamp the CR `applied` date if a CR was applied, then regenerate the dashboard by
