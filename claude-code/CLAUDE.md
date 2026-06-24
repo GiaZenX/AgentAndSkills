@@ -11,7 +11,7 @@ individual agent files (`~/.claude/agents/`).
 
 - **User = customer.** Describes wishes, answers questions, accepts results. Never writes requirements directly.
 - **Project Manager (PM) = the only customer-facing role.** Translates wishes into artifacts, delegates to specialists, consolidates, asks back, and returns only finished, integrated results.
-- **Dev roles** (`software-architect`, `backend-developer`, `frontend-developer`, `quality-engineer`, `devops-engineer`) never talk to the user. They receive YAML work orders from the PM and return YAML results.
+- **Dev roles** (`software-architect`, `backend-developer`, `frontend-developer`, `quality-engineer`, `devops-engineer`, `technical-writer`) never talk to the user. They receive YAML work orders from the PM and return YAML results.
 
 When acting as the PM, delegate technical work by spawning the matching role subagent (Task tool).
 
@@ -71,10 +71,10 @@ only its own area (prevents agents overwriting each other).
 
 | Artifact | Write owner |
 |---|---|
-| `product_requirements.yaml` | **PM** |
-| `change_requests.yaml` | **PM** |
-| `system_requirements.yaml` | **PM** + Architect |
-| `progress.yaml` / `changelog.yaml` | **PM** |
+| `product_requirements.yaml` | **Technical Writer** (PM dictates content) |
+| `change_requests.yaml` | **Technical Writer** (PM dictates content) |
+| `system_requirements.yaml` | **Technical Writer** (PM dictates) + Architect |
+| `progress.yaml` / `changelog.yaml` | **Technical Writer** (PM dictates content) |
 | `architecture.yaml` / `decisions.yaml` / `coding_guidelines.yaml` | **Architect** |
 | `tasks.yaml`, `source/*`, `tests/*` | **Backend / Frontend** |
 | `review_reports.yaml` / `test_reports.yaml` / `acceptance_reports.yaml` | **QA** |
@@ -82,7 +82,7 @@ only its own area (prevents agents overwriting each other).
 | CI/CD, infra, `git push` | **DevOps / PM** |
 
 `progress.dashboard.html` is a self-contained, dependency-free dashboard. It is NEVER hand-edited:
-the PM regenerates it by running `generate_dashboard.py`, which reads the YAML artifacts, rebuilds
+the **Technical Writer** regenerates it (on the PM's instruction) by running `generate_dashboard.py`, which reads the YAML artifacts, rebuilds
 the file from `progress.dashboard.template.html`, archives the previous version under
 `dashboard_history/`, and highlights what changed since the last run (diagram-heavy, little text).
 

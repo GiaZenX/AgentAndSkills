@@ -114,6 +114,7 @@ as subagents and return YAML.
 | **Frontend Developer** | `frontend-developer` | UI tasks, tests, commits | No |
 | **Quality Engineer** | `quality-engineer` | Review, tests, Definition of Done, merge gate | No |
 | **DevOps Engineer** | `devops-engineer` | CI/CD, pipelines, environments, release | No |
+| **Technical Writer** | `technical-writer` | PRDs/CRs, progress, changelog, docs, dashboard (on the PM's instruction) | No |
 
 ### Phase model
 
@@ -129,10 +130,12 @@ as subagents and return YAML.
 
 ### Artifacts (`project_memory/`)
 
-Structured YAML files in the repo. Each role writes only its own area (no overwriting). The PM creates
-`project_memory/` on the first run from the globally installed templates.
+Structured YAML files in the repo. Each role writes only its own area (no overwriting). The Technical
+Writer creates `project_memory/` on the first run from the globally installed templates (on the PM's
+instruction).
 
-A user-facing **dashboard** (`progress.dashboard.html`) is generated, never hand-edited: the PM runs
+A user-facing **dashboard** (`progress.dashboard.html`) is generated, never hand-edited: the Technical
+Writer (on the PM's instruction) runs
 `generate_dashboard.py`, which reads the PRD/task/CR YAML files, rebuilds the dashboard from a static
 shell, archives the previous version under `dashboard_history/`, and lists what changed since the last
 run. Bars expand to reveal the items behind each status (id, title, owner, origin, start/end dates).
