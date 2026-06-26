@@ -4,8 +4,20 @@
 > code and artifacts (variable names, comments, function names, YAML keys) must be written in
 > English. Your replies to the user are in German.
 
-This is the shared foundation for a role-based multi-agent process. Role details live in the
-individual agent files (`~/.claude/agents/`).
+This is the shared foundation for a role-based multi-agent process. This is the **dev-team's local
+constitution**: it was installed into this repository by the `group-leader` and governs this project
+only. Role details live in the individual agent files (`./.claude/agents/`).
+
+## 0. Local bootstrap & entry rules
+
+- This kit is installed **locally** in the repo (`./.claude/agents/`, this `./CLAUDE.md`). The
+  staging copy of templates lives at `~/.claude/team-kits/dev-team/templates/project_memory/`.
+- **The PM is the only valid entry point for team work.** If a non-PM role agent is invoked directly
+  by the user, it MUST NOT write code or artifacts; it MUST briefly explain that work runs through
+  the Project Manager and point the user to start the `project-manager`.
+- **Hard gate:** no dev subagent may be spawned before `project_config.yaml` exists with a
+  **user-confirmed** team preset AND the local agents' `model:` frontmatter has been synced to the
+  `model_map` (see §10). The PM enforces this in Phase 0.
 
 ## 1. Roles — who talks to whom
 
@@ -131,6 +143,10 @@ Then the normal phase model applies.
   **MUST** propose expanding the team. Preset changes happen **only after user confirmation**, NEVER automatically.
 - **Model ladder:** `haiku` < `sonnet` < `opus`. **All roles start on `haiku`.** Up- AND
   down-scaling happen **only on user confirmation** — NEVER silent, NEVER automatic.
+- **Model sync (mechanism):** a subagent always runs on the `model:` in its own frontmatter; the PM
+  CANNOT override it at call time. So `model_map` in `project_config.yaml` is the source of truth,
+  but it only takes effect once the `technical-writer` rewrites the `model:` line of each agent in
+  `./.claude/agents/*.md` to match. The PM verifies `model:` == `model_map` before delegating.
 - **Escalation triggers:** a task fails QA **twice**, OR the **user reports dissatisfaction**. The PM
   then **MUST propose** an upgrade (role + target model, temporary or permanent in `model_map`);
   applied only after user OK.

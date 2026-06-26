@@ -5,8 +5,15 @@ Userwide-installable skills, a global **constitution**, and a **multi-agent role
 
 Instead of a single assistant, this repo simulates a small software team: you are the **customer**,
 a **Project Manager (PM)** is your only point of contact, and below it specialized dev roles
-(Architect, Backend, Frontend, QA, DevOps) work as subagents. No matter which tool you code with, the
-AI behaves identically.
+(Architect, Backend, Frontend, QA, DevOps, Technical Writer) work as subagents. No matter which tool
+you code with, the AI behaves identically.
+
+**Two-tier entry.** A single global agent, the **Group-Leader**, is installed user-wide. When you
+start structured work it classifies the effort, **installs the matching team kit locally into the
+repository** (`./.claude/agents/` + a local `./CLAUDE.md`), and hands off to that repo's
+`project-manager`. Because the team lives in the repo, each project can run its own models
+(per-project `model:` frontmatter) without touching anything global. If you don't want the process,
+you simply don't invoke the Group-Leader and work freely.
 
 Based on [mattpocock/skills](https://github.com/mattpocock/skills) plus a custom role model and a
 global workflow standard.
@@ -55,13 +62,17 @@ same:
 
 | Component | Claude Code | Copilot |
 |---|---|---|
-| Global instructions | `~/.claude/CLAUDE.md` | `prompts/COPILOT.instructions.md` (`applyTo: **`) |
-| Workflow | Identical — `# Working Method` | Identical — `# Working Method` |
+| Global gate | `~/.claude/CLAUDE.md` | `prompts/COPILOT.instructions.md` (`applyTo: **`) |
+| Global entry agent | `~/.claude/agents/group-leader.md` | `prompts/group-leader.agent.md` |
+| Team kit staging | `~/.claude/team-kits/<team>/` | `~/.claude/team-kits/<team>/` (shared) |
+| Local team (per repo) | `./.claude/agents/*.md` + `./CLAUDE.md` | same `./.claude/agents/*.md` + `./CLAUDE.md` |
 | Tool syntax | `AskUserQuestions` | `#tool:vscode_askQuestions` |
-| Agents | `~/.claude/agents/*.md` | VS Code prompts folder `*.agent.md` |
 | Subagent call | Task tool | `runSubagent` |
-| Templates | `~/.claude/templates/project_memory/` | `~/.copilot/templates/project_memory/` |
+| Templates | `~/.claude/team-kits/<team>/templates/project_memory/` | same (shared staging) |
 | Skills | `~/.claude/skills/` | `~/.copilot/skills/` |
+
+The local team is installed in **Claude format** (`./.claude/agents/*.md` + root `./CLAUDE.md`), which
+**both** VS Code Copilot and Claude Code read — one copy serves both ecosystems.
 
 ---
 
@@ -69,32 +80,54 @@ same:
 
 | Component | Path |
 |---|---|
+| Global gate (Claude Code) | `~/.claude/CLAUDE.md` |
+| Global gate (Copilot, VS Code) | `<vscode prompts>/COPILOT.instructions.md` (`applyTo: "**"`) |
+| Global entry agent (Claude Code) | `~/.claude/agents/group-leader.md` |
+| Global entry agent (Copilot, VS Code) | `<vscode prompts>/group-leader.agent.md` |
+| Team kit staging (shared) | `~/.claude/team-kits/<team>/` (agents, constitution, templates) + scaffold scripts |
+| Local team (per repo, created on demand) | `./.claude/agents/*.md` + `./CLAUDE.md` |
 | Claude Code skills | `~/.claude/skills/<skill>/` |
-| Claude Code instructions | `~/.claude/CLAUDE.md` |
-| Claude Code agents | `~/.claude/agents/*.md` |
-| Claude Code templates | `~/.claude/templates/project_memory/` |
 | Copilot skills | `~/.copilot/skills/<skill>/` |
-| Copilot templates | `~/.copilot/templates/project_memory/` |
-| Copilot agents + global instructions (VS Code) | Windows: `%APPDATA%\Code\User\prompts\` <br> macOS: `~/Library/Application Support/Code/User/prompts/` <br> Linux: `~/.config/Code/User/prompts/` <br> Files `*.agent.md` + `COPILOT.instructions.md` (`applyTo: "**"`) |
+| VS Code prompts folder | Windows: `%APPDATA%\Code\User\prompts\` <br> macOS: `~/Library/Application Support/Code/User/prompts/` <br> Linux: `~/.config/Code/User/prompts/` |
 
 ---
 
 ## Repo structure
 
 ```
-agent-skills/
+agents-and-skills/
 ├── skills/                              ← shared skills (Claude + Copilot)
-├── claude-code/
-│   ├── CLAUDE.md                        ← constitution for Claude Code
-│   └── agents/                          ← 6 roles (project-manager, architect, …)
-├── github-copilot/
-│   ├── COPILOT.instructions.md          ← constitution (auto-loaded, applyTo: **)
-│   └── agents/                          ← 6 roles as *.agent.md
-├── templates/
-│   └── project_memory/                  ← YAML artifact templates (the PM copies them into the repo)
+├── global/
+│   ├── claude/
+│   │   ├── CLAUDE.md                    ← global thin gate (Claude Code)
+│   │   └── agents/group-leader.md       ← global entry agent (Claude Code)
+│   └── copilot/
+│       ├── COPILOT.instructions.md      ← global thin gate (applyTo: **)
+│       └── agents/group-leader.agent.md ← global entry agent (Copilot)
+├── team-kits/
+│   ├── scaffold_team.ps1 / .sh          ← installs a kit into the current repo
+│   └── dev-team/
+│       ├── agents/                      ← 7 roles (project-manager, architect, …)
+│       ├── constitution/CLAUDE.md       ← local constitution copied to ./CLAUDE.md
+│       └── templates/project_memory/    ← YAML artifact templates
 ├── install.ps1                          ← Windows installer
 └── install.sh                           ← macOS/Linux installer
 ```
+
+---
+
+## How it starts (two-tier flow)
+
+1. **Global gate asks** (best-effort): the global `CLAUDE.md` / `COPILOT.instructions.md` reminds you
+   that you may run structured work via the Group-Leader. If you decline, you work freely — no
+   bookkeeping.
+2. **Invoke the Group-Leader** (`@group-leader` in Claude Code, or pick it in the VS Code dropdown).
+   It classifies the effort and runs the scaffold script.
+3. **Local install:** the kit's agents are copied to `./.claude/agents/` and its constitution to
+   `./CLAUDE.md`. Both VS Code and Claude Code read these.
+4. **Hand off to the local `project-manager`.** The PM runs the **startup gate** (proposes team
+   preset + per-role models, you confirm, models are synced into the local agents' frontmatter) and
+   only then begins the phase model.
 
 ---
 
@@ -240,9 +273,10 @@ git pull
 ## Uninstall
 
 Delete the folders manually:
-- `~/.claude/skills/`, `~/.claude/agents/`, `~/.claude/templates/`
-- `~/.copilot/skills/`, `~/.copilot/templates/`
-- VS Code prompts folder (see the path table above): the files `*.agent.md` and `COPILOT.instructions.md`
+- `~/.claude/skills/`, `~/.claude/agents/`, `~/.claude/team-kits/`, `~/.claude/CLAUDE.md`
+- `~/.copilot/skills/`
+- VS Code prompts folder (see the path table above): the files `group-leader.agent.md` and `COPILOT.instructions.md`
+- In each project: the local `./.claude/agents/` and `./CLAUDE.md` (only if you want to remove the team there)
 
 ---
 

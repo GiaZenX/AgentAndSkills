@@ -1,9 +1,20 @@
-# Windows installer for agent-skills
+# Windows installer for agents-and-skills
 # Usage:
 #   .\install.ps1                 # Install for both Claude Code and Copilot
 #   .\install.ps1 -Target claude  # Only Claude Code
 #   .\install.ps1 -Target copilot # Only Copilot
 #   .\install.ps1 -Force          # Overwrite existing files
+#
+# Layout installed:
+#   ~/.claude/CLAUDE.md                      <- global thin gate (Claude Code)
+#   ~/.claude/agents/group-leader.md         <- global entry agent (Claude Code)
+#   ~/.claude/team-kits/                     <- staging: team kits + scaffold scripts
+#   <vscode prompts>/COPILOT.instructions.md <- global thin gate (Copilot)
+#   <vscode prompts>/group-leader.agent.md   <- global entry agent (Copilot)
+#   ~/.claude/skills, ~/.copilot/skills      <- shared skills
+#
+# Team kits are NOT installed into a project. The group-leader copies the
+# matching kit from ~/.claude/team-kits into the target repo on demand.
 
 [CmdletBinding()]
 param(
@@ -14,16 +25,16 @@ param(
 
 $ErrorActionPreference = "Stop"
 $repoRoot = $PSScriptRoot
-$skillsSrc      = Join-Path $repoRoot "skills"
-$claudeSrc      = Join-Path $repoRoot "claude-code"
-$copilotSrc     = Join-Path $repoRoot "github-copilot"
-$templatesSrc   = Join-Path $repoRoot "templates"
+$skillsSrc        = Join-Path $repoRoot "skills"
+$globalClaudeSrc  = Join-Path $repoRoot "global\claude"
+$globalCopilotSrc = Join-Path $repoRoot "global\copilot"
+$teamKitsSrc      = Join-Path $repoRoot "team-kits"
 
-$claudeSkills   = Join-Path $env:USERPROFILE ".claude\skills"
 $claudeGlobal   = Join-Path $env:USERPROFILE ".claude"
-$claudeTemplates = Join-Path $env:USERPROFILE ".claude\templates"
+$claudeSkills   = Join-Path $claudeGlobal "skills"
+$claudeAgents   = Join-Path $claudeGlobal "agents"
+$claudeTeamKits = Join-Path $claudeGlobal "team-kits"
 $copilotSkills  = Join-Path $env:USERPROFILE ".copilot\skills"
-$copilotTemplates = Join-Path $env:USERPROFILE ".copilot\templates"
 $vscodePrompts  = Join-Path $env:APPDATA "Code\User\prompts"
 
 function Install-Skills {
@@ -52,49 +63,48 @@ function Install-File {
     Write-Host "  [ok]   $Label" -ForegroundColor Green
 }
 
-function Install-Templates {
-    param([string]$Destination, [string]$Label)
-    if (-not (Test-Path $templatesSrc)) { return }
-    if (-not (Test-Path $Destination)) { New-Item -ItemType Directory -Path $Destination -Force | Out-Null }
-    Get-ChildItem -Path $templatesSrc -Directory | ForEach-Object {
-        $dest = Join-Path $Destination $_.Name
-        if ((Test-Path $dest) -and -not $Force) {
-            Write-Host "  [skip] $Label : $($_.Name)" -ForegroundColor Yellow; return
-        }
-        if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }
-        Copy-Item -Path $_.FullName -Destination $dest -Recurse -Force
-        Write-Host "  [ok]   $Label : $($_.Name)" -ForegroundColor Green
+function Install-TeamKits {
+    # Stage the whole team-kits tree (kits + scaffold scripts) so the group-leader
+    # can copy a kit into any repo on demand.
+    if (-not (Test-Path $teamKitsSrc)) { Write-Host "  [warn] not found: $teamKitsSrc" -ForegroundColor Yellow; return }
+    if ((Test-Path $claudeTeamKits) -and -not $Force) {
+        Write-Host "  [skip] team-kits staging (use -Force to overwrite)" -ForegroundColor Yellow; return
     }
+    if (Test-Path $claudeTeamKits) { Remove-Item $claudeTeamKits -Recurse -Force }
+    Copy-Item -Path $teamKitsSrc -Destination $claudeTeamKits -Recurse -Force
+    Write-Host "  [ok]   team-kits -> ~/.claude/team-kits" -ForegroundColor Green
 }
 
-Write-Host "Installing agent-skills..." -ForegroundColor Cyan
+Write-Host "Installing agents-and-skills..." -ForegroundColor Cyan
+
+# Team kits are ecosystem-neutral staging used by both group-leaders.
+Write-Host "`n-> Team kits (shared staging)"
+Install-TeamKits
 
 if ($Target -eq "both" -or $Target -eq "claude") {
     Write-Host "`n-> Claude Code"
     Install-Skills -Destination $claudeSkills -Label "skill"
-    Install-File -Src (Join-Path $claudeSrc "CLAUDE.md") -Dest (Join-Path $claudeGlobal "CLAUDE.md") -Label "CLAUDE.md -> ~/.claude/CLAUDE.md"
-    $claudeAgentsSrc = Join-Path $claudeSrc "agents"
+    Install-File -Src (Join-Path $globalClaudeSrc "CLAUDE.md") -Dest (Join-Path $claudeGlobal "CLAUDE.md") -Label "CLAUDE.md -> ~/.claude/CLAUDE.md"
+    $claudeAgentsSrc = Join-Path $globalClaudeSrc "agents"
     if (Test-Path $claudeAgentsSrc) {
         Get-ChildItem -Path $claudeAgentsSrc -Filter "*.md" | ForEach-Object {
-            Install-File -Src $_.FullName -Dest (Join-Path $claudeGlobal "agents\$($_.Name)") -Label "agent: $($_.Name)"
+            Install-File -Src $_.FullName -Dest (Join-Path $claudeAgents $_.Name) -Label "agent: $($_.Name)"
         }
     }
-    Install-Templates -Destination $claudeTemplates -Label "template"
 }
 
 if ($Target -eq "both" -or $Target -eq "copilot") {
     Write-Host "`n-> GitHub Copilot"
     Install-Skills -Destination $copilotSkills -Label "skill"
-    Get-ChildItem -Path $copilotSrc -Filter "*.instructions.md" | ForEach-Object {
+    Get-ChildItem -Path $globalCopilotSrc -Filter "*.instructions.md" | ForEach-Object {
         Install-File -Src $_.FullName -Dest (Join-Path $vscodePrompts $_.Name) -Label "instructions: $($_.Name)"
     }
-    $copilotAgentsSrc = Join-Path $copilotSrc "agents"
+    $copilotAgentsSrc = Join-Path $globalCopilotSrc "agents"
     if (Test-Path $copilotAgentsSrc) {
         Get-ChildItem -Path $copilotAgentsSrc -Filter "*.agent.md" | ForEach-Object {
             Install-File -Src $_.FullName -Dest (Join-Path $vscodePrompts $_.Name) -Label "agent: $($_.Name)"
         }
     }
-    Install-Templates -Destination $copilotTemplates -Label "template"
 }
 
 Write-Host "`nDone. Restart VS Code to pick up new skills/agents." -ForegroundColor Cyan

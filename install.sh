@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# Linux/macOS installer for agent-skills
+# Linux/macOS installer for agents-and-skills
 # Usage:
 #   ./install.sh                  # Install for both Claude Code and Copilot
 #   ./install.sh --target claude  # Only Claude Code
 #   ./install.sh --target copilot # Only Copilot
 #   ./install.sh --force          # Overwrite existing files
+#
+# Team kits are NOT installed into a project. The group-leader copies the
+# matching kit from ~/.claude/team-kits into the target repo on demand.
 
 set -euo pipefail
 
@@ -21,15 +24,15 @@ done
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILLS_SRC="$REPO_ROOT/skills"
-CLAUDE_SRC="$REPO_ROOT/claude-code"
-COPILOT_SRC="$REPO_ROOT/github-copilot"
-TEMPLATES_SRC="$REPO_ROOT/templates"
+GLOBAL_CLAUDE_SRC="$REPO_ROOT/global/claude"
+GLOBAL_COPILOT_SRC="$REPO_ROOT/global/copilot"
+TEAM_KITS_SRC="$REPO_ROOT/team-kits"
 
 CLAUDE_GLOBAL="$HOME/.claude"
 CLAUDE_SKILLS="$HOME/.claude/skills"
-CLAUDE_TEMPLATES="$HOME/.claude/templates"
+CLAUDE_AGENTS="$HOME/.claude/agents"
+CLAUDE_TEAM_KITS="$HOME/.claude/team-kits"
 COPILOT_SKILLS="$HOME/.copilot/skills"
-COPILOT_TEMPLATES="$HOME/.copilot/templates"
 
 # VS Code user prompts location differs per OS
 case "$(uname -s)" in
@@ -67,58 +70,55 @@ install_file() {
     echo "  [ok]   $label"
 }
 
-install_templates() {
-    local dest="$1"
-    local label="$2"
-    [[ -d "$TEMPLATES_SRC" ]] || return
-    mkdir -p "$dest"
-    for tpl in "$TEMPLATES_SRC"/*/; do
-        [[ -e "$tpl" ]] || continue
-        name="$(basename "$tpl")"
-        target_dir="$dest/$name"
-        if [[ -e "$target_dir" && $FORCE -eq 0 ]]; then
-            echo "  [skip] $label : $name"; continue
-        fi
-        rm -rf "$target_dir"
-        cp -R "$tpl" "$target_dir"
-        echo "  [ok]   $label : $name"
-    done
+install_team_kits() {
+    # Stage the whole team-kits tree (kits + scaffold scripts).
+    [[ -d "$TEAM_KITS_SRC" ]] || { echo "  [warn] not found: $TEAM_KITS_SRC"; return; }
+    if [[ -e "$CLAUDE_TEAM_KITS" && $FORCE -eq 0 ]]; then
+        echo "  [skip] team-kits staging (use --force to overwrite)"; return
+    fi
+    rm -rf "$CLAUDE_TEAM_KITS"
+    mkdir -p "$CLAUDE_TEAM_KITS"
+    cp -R "$TEAM_KITS_SRC/." "$CLAUDE_TEAM_KITS/"
+    echo "  [ok]   team-kits -> ~/.claude/team-kits"
 }
 
-echo "Installing agent-skills..."
+echo "Installing agents-and-skills..."
+
+# Team kits are ecosystem-neutral staging used by both group-leaders.
+echo
+echo "-> Team kits (shared staging)"
+install_team_kits
 
 if [[ "$TARGET" == "both" || "$TARGET" == "claude" ]]; then
     echo
     echo "-> Claude Code"
     install_skills "$CLAUDE_SKILLS" "skill"
-    install_file "$CLAUDE_SRC/CLAUDE.md" "$CLAUDE_GLOBAL/CLAUDE.md" "CLAUDE.md -> ~/.claude/CLAUDE.md"
-    if [[ -d "$CLAUDE_SRC/agents" ]]; then
-        for f in "$CLAUDE_SRC/agents"/*.md; do
+    install_file "$GLOBAL_CLAUDE_SRC/CLAUDE.md" "$CLAUDE_GLOBAL/CLAUDE.md" "CLAUDE.md -> ~/.claude/CLAUDE.md"
+    if [[ -d "$GLOBAL_CLAUDE_SRC/agents" ]]; then
+        for f in "$GLOBAL_CLAUDE_SRC/agents"/*.md; do
             [[ -e "$f" ]] || continue
             name="$(basename "$f")"
-            install_file "$f" "$CLAUDE_GLOBAL/agents/$name" "agent: $name"
+            install_file "$f" "$CLAUDE_AGENTS/$name" "agent: $name"
         done
     fi
-    install_templates "$CLAUDE_TEMPLATES" "template"
 fi
 
 if [[ "$TARGET" == "both" || "$TARGET" == "copilot" ]]; then
     echo
     echo "-> GitHub Copilot"
     install_skills "$COPILOT_SKILLS" "skill"
-    for f in "$COPILOT_SRC"/*.instructions.md; do
+    for f in "$GLOBAL_COPILOT_SRC"/*.instructions.md; do
         [[ -e "$f" ]] || continue
         name="$(basename "$f")"
         install_file "$f" "$VSCODE_PROMPTS/$name" "instructions: $name"
     done
-    if [[ -d "$COPILOT_SRC/agents" ]]; then
-        for f in "$COPILOT_SRC/agents"/*.agent.md; do
+    if [[ -d "$GLOBAL_COPILOT_SRC/agents" ]]; then
+        for f in "$GLOBAL_COPILOT_SRC/agents"/*.agent.md; do
             [[ -e "$f" ]] || continue
             name="$(basename "$f")"
             install_file "$f" "$VSCODE_PROMPTS/$name" "agent: $name"
         done
     fi
-    install_templates "$COPILOT_TEMPLATES" "template"
 fi
 
 echo
