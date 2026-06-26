@@ -102,28 +102,31 @@ The local team is installed in **Claude format** (`./.claude/agents/*.md` + root
 
 ```
 agents-and-skills/
-├── skills/                              ← shared skills (Claude + Copilot)
+├── skills/                              ← shared skills (Claude + Copilot), incl. pm-playbook
 ├── global/
 │   ├── claude/
 │   │   ├── CLAUDE.md                    ← global thin gate (Claude Code)
+│   │   ├── settings.json                ← global defaults merged into ~/.claude/settings.json
+│   │   ├── statusline.py                ← status line (model · context · cost · branch)
 │   │   └── agents/group-leader.md       ← global entry agent (Claude Code)
-│   └── copilot/
-│       ├── COPILOT.instructions.md      ← global thin gate (applyTo: **)
-│       └── agents/group-leader.agent.md ← global entry agent (Copilot)
+│   ├── copilot/
+│   │   ├── COPILOT.instructions.md      ← global thin gate (applyTo: **)
+│   │   └── agents/group-leader.agent.md ← global entry agent (Copilot)
+│   └── merge_settings.py                ← installer helper: merge keys, preserve personal settings
 ├── team-kits/
 │   ├── registry.yaml                    ← intent → kit routing (single source of truth)
-│   ├── scaffold_team.ps1 / .sh          ← installs a kit into the current repo
+│   ├── scaffold_team.ps1 / .sh          ← installs a kit into the current repo (backs up first)
 │   ├── dev-team/
-│   │   ├── agents/                      ← 5 specialist subagents (architect, backend, …); PM = main agent
+│   │   ├── agents/                      ← project-manager (session agent) + 5 specialist subagents
 │   │   ├── constitution/CLAUDE.md       ← local constitution → ./CLAUDE.md (carries team marker)
-│   │   ├── hooks/ + settings/           ← enforcement hooks → ./.claude/ on scaffold
+│   │   ├── hooks/ + settings/           ← 4 enforcement hooks + .claude/settings.json (agent, model, …)
 │   │   └── templates/project_memory/    ← YAML artifact templates
 │   └── research-team/
-│       ├── agents/                      ← 6 specialist subagents (methodologist, …, report-writer)
+│       ├── agents/                      ← project-manager (session agent) + 6 specialist subagents
 │       ├── constitution/CLAUDE.md       ← local research constitution (carries team marker)
-│       ├── hooks/ + settings/           ← enforcement hooks
+│       ├── hooks/ + settings/           ← enforcement hooks + .claude/settings.json
 │       └── templates/project_memory/    ← research artifacts + report template + bundled KaTeX
-├── install.ps1                          ← Windows installer
+├── install.ps1                          ← Windows installer (backup + confirm + overwrite)
 └── install.sh                           ← macOS/Linux installer
 ```
 
@@ -140,12 +143,13 @@ agents-and-skills/
 3. **Local install:** the kit's specialist agents are copied to `./.claude/agents/`, its constitution to
    `./CLAUDE.md` (with a team **marker**), and its enforcement **hooks** to `./.claude/`. `project_memory/`
    is **not** created yet.
-4. **The main agent becomes the PM.** Because `./CLAUDE.md` now carries the marker, the global gate **hands
-   over**: the same foreground agent you're talking to *is* the PM — full conversation memory, no relay, no
-   second identity to bypass. It runs the **startup gate** (creates `project_memory/` from the kit
-   templates, proposes preset + specialist models, you confirm, syncs the specialists' frontmatter), then
-   begins the phase model. The PM maintains `project_memory/` itself and delegates only implementation to
-   the stateless specialists.
+4. **The main agent becomes the PM.** The kit's `.claude/settings.json` sets `agent: project-manager`, so the
+   repo's main session agent **is** the PM (`model: opus`, persistent `memory: project`, a preloaded
+   `pm-playbook` skill) — one identity, no relay, nothing to bypass. (The first session right after install is
+   bridged in-session by the `./CLAUDE.md` marker handover; the `agent` setting takes over from the next
+   session.) The PM runs the **startup gate** (creates `project_memory/` from the kit templates, proposes
+   preset + specialist models, you confirm, syncs the specialists' frontmatter), then begins the phase model.
+   It maintains `project_memory/` itself and delegates only implementation to the stateless specialists.
 
 ---
 
@@ -160,7 +164,7 @@ return YAML. Roles below are the **`dev-team`**; the **`research-team`** mirrors
 
 | Role | File | Job | Talks to user |
 |---|---|---|---|
-| **Project Manager** | _main agent_ (foreground, via `./CLAUDE.md`) | Requirements (PRD/CR), `project_memory/` bookkeeping, delegation, merge, user acceptance | **Yes (only one)** |
+| **Project Manager** | `project-manager` (the repo's session agent — `agent` setting; opus + memory) | Requirements (PRD/CR), `project_memory/` bookkeeping, delegation, merge, user acceptance | **Yes (only one)** |
 | **Software Architect** | `software-architect` | System requirements, architecture, ADRs, coding guidelines | No |
 | **Backend Developer** | `backend-developer` | Server-side tasks, tests, commits | No |
 | **Frontend Developer** | `frontend-developer` | UI tasks, tests, commits | No |
@@ -175,7 +179,7 @@ the only customer-facing role.
 
 | Role | File | Job |
 |---|---|---|
-| **Research Lead (PM)** | _main agent_ (foreground, via `./CLAUDE.md`) | RQs/PAs, `project_memory/` + **FZulG** bookkeeping, delegation, merge, user acceptance |
+| **Research Lead (PM)** | `project-manager` (the repo's session agent — `agent` setting; opus + memory) | RQs/PAs, `project_memory/` + **FZulG** bookkeeping, delegation, merge, user acceptance |
 | **Methodologist** | `methodologist` | Hypotheses, experiment designs, MDRs, research guidelines, FZulG criteria |
 | **Researcher** | `researcher` | Runs experiments, collects raw data, analysis code |
 | **Data Analyst** | `data-analyst` | Statistics, effect sizes, visualization, interpretation |
@@ -214,19 +218,50 @@ by double-click.
 - **Branch per PRD** (`feat/PRD-xxx-…`), merge after internal QA, **push only on user confirmation**,
   no force-push, no work on a dirty tree.
 - **Team preset** (`solo` | `duo` | `team`) chosen once per project; escalation is user-gated only.
-- **Models:** the **PM runs on your session model** (`/model`); the **specialists** start on `haiku`,
-  controlled per repo via `project_config.yaml` (the PM syncs each specialist's `model:` frontmatter).
-  Upgrades only after a user OK (triggers: 2× QA fail or dissatisfaction).
+- **Models:** the **PM (session agent) runs on `opus`** (set in the kit's `.claude/settings.json` + the PM's
+  agent frontmatter); the **specialists** start on `haiku`, controlled per repo via `project_config.yaml`
+  (the PM syncs each specialist's `model:` frontmatter). Dial the PM to `sonnet` in the kit settings if opus
+  is too costly. Specialist upgrades only after a user OK (triggers: 2× QA fail or dissatisfaction).
+
+### Memory
+
+- **`project_memory/`** = the project's facts/state (authoritative single source of truth; the PM maintains it).
+- **Agent memory** (`memory: project` → `.claude/agent-memory/<role>/MEMORY.md`) — every role keeps reusable
+  **craft knowledge** across sessions (preferences, recurring patterns), kept strictly separate from project
+  state. This is Claude Code's native persistent-subagent-memory feature.
 
 ### Enforcement (hooks)
 
-Because instructions alone get skipped, each kit ships a small **deterministic** layer (Claude Code hooks
-in `./.claude/settings.json` + `./.claude/hooks/`, installed by the scaffold):
+Because instructions alone get skipped, each kit ships a small **deterministic** layer (Claude Code hooks in
+`./.claude/settings.json` + `./.claude/hooks/`, installed by the scaffold):
 
-- **No ad-hoc files** — blocks writing files outside the allowlist (`project_memory/**`, `src/**`,
-  `tests/**`, `docs/**`, configs).
-- **Commit / merge gate** — no merge/push without a passing QA report in the YAML.
-- **Auto-dashboard** — regenerates `progress.dashboard.html` whenever `project_memory/` changed.
+- **No ad-hoc files** (`guard_no_adhoc`) — blocks writing status/summary/report files outside the allowlist
+  (`project_memory/**`, `src/**`, `tests/**`, `docs/**`, configs).
+- **No rogue spawns** (`guard_agent_spawn`) — blocks spawning a generic/unnamed agent; only the installed
+  specialist roles may be spawned.
+- **Commit / merge gate** (`gate_git`) — always blocks force-push; blocks push/merge without a passing QA
+  report in the YAML.
+- **Auto-dashboard** (`auto_dashboard`) — regenerates `progress.dashboard.html` whenever `project_memory/`
+  changed.
+
+The kit's `.claude/settings.json` also sets `agent: project-manager`, `model: opus`, `plansDirectory: ./plans`,
+and `permissions` (allow common build commands; deny reading secrets).
+
+### Status line & install backup
+
+- The installer adds a **status line** (`~/.claude/statusline.py`) showing model · context-usage bar · cost ·
+  git branch · 5h rate-limit, and **merges** opinionated global defaults into `~/.claude/settings.json`
+  (telemetry off, no commit co-author trailer) — **your personal keys are preserved** and the previous file is
+  backed up under `~/.claude/backups/`.
+- Both the installer and the scaffold **back up** what they replace before overwriting (with a confirmation
+  prompt on install).
+
+### Agent Teams (optional, not default)
+
+This harness uses **subagents** (sequential, dependency-aware, cost-controlled). Claude Code's experimental
+**Agent Teams** (parallel teammates that message each other) are *not* enabled by default — our flow is
+sequential, where subagents fit better. Enable them yourself (`env: CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`)
+for parallel review / competing-hypothesis work if you want.
 
 ### Behavior
 

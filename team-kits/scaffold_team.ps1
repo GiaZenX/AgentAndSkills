@@ -17,6 +17,21 @@ if (-not (Test-Path $kit)) { throw "Team kit not found: $kit" }
 $repo = (Get-Location).Path
 Write-Host "Scaffolding team '$Team' into $repo" -ForegroundColor Cyan
 
+# Back up any existing local team files before overwriting (project_memory is left untouched).
+$stamp = Get-Date -Format "yyyyMMdd-HHmmss"
+$bdir = Join-Path $repo ".claude\backups\$stamp"
+function Backup-Local {
+    param([string]$p)
+    if (Test-Path $p) {
+        if (-not (Test-Path $bdir)) { New-Item -ItemType Directory -Force -Path $bdir | Out-Null }
+        Copy-Item $p (Join-Path $bdir (Split-Path $p -Leaf)) -Recurse -Force
+    }
+}
+Backup-Local (Join-Path $repo "CLAUDE.md")
+Backup-Local (Join-Path $repo ".claude\settings.json")
+Backup-Local (Join-Path $repo ".claude\agents")
+if (Test-Path $bdir) { Write-Host "  [ok] backed up existing team files -> .claude/backups/$stamp" -ForegroundColor Green }
+
 $agentsSrc = Join-Path $kit "agents"
 $agentsDst = Join-Path $repo ".claude\agents"
 if (-not (Test-Path $agentsDst)) { New-Item -ItemType Directory -Force -Path $agentsDst | Out-Null }
@@ -43,13 +58,8 @@ if (Test-Path $hooksSrc) {
 }
 $settingsSrc = Join-Path $kit "settings\settings.json"
 if (Test-Path $settingsSrc) {
-    $settingsDst = Join-Path $repo ".claude\settings.json"
-    if (Test-Path $settingsDst) {
-        Write-Host "  [skip] .claude/settings.json exists - merge hooks manually" -ForegroundColor Yellow
-    } else {
-        Copy-Item $settingsSrc $settingsDst -Force
-        Write-Host "  [ok] .claude/settings.json (enforcement hooks)" -ForegroundColor Green
-    }
+    Copy-Item $settingsSrc (Join-Path $repo ".claude\settings.json") -Force
+    Write-Host "  [ok] .claude/settings.json (session agent + enforcement hooks)" -ForegroundColor Green
 }
 
 Write-Host "Team '$Team' installed locally. The main agent is now your Project Manager - just keep prompting." -ForegroundColor Cyan

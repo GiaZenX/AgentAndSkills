@@ -20,6 +20,15 @@ fi
 REPO="$(pwd)"
 echo "Scaffolding team '$TEAM' into $REPO"
 
+# Back up any existing local team files before overwriting (project_memory is left untouched).
+STAMP="$(date +%Y%m%d-%H%M%S)"
+BDIR="$REPO/.claude/backups/$STAMP"
+backup_local() { [ -e "$1" ] || return 0; mkdir -p "$BDIR"; cp -R "$1" "$BDIR/$(basename "$1")"; }
+backup_local "$REPO/CLAUDE.md"
+backup_local "$REPO/.claude/settings.json"
+backup_local "$REPO/.claude/agents"
+[ -d "$BDIR" ] && echo "  [ok] backed up existing team files -> .claude/backups/$STAMP"
+
 mkdir -p "$REPO/.claude/agents"
 for f in "$KIT"/agents/*.md; do
   [ -e "$f" ] || continue
@@ -42,13 +51,9 @@ if [ -d "$KIT/hooks" ]; then
   done
 fi
 if [ -f "$KIT/settings/settings.json" ]; then
-  if [ -f "$REPO/.claude/settings.json" ]; then
-    echo "  [skip] .claude/settings.json exists — merge hooks manually"
-  else
-    mkdir -p "$REPO/.claude"
-    cp -f "$KIT/settings/settings.json" "$REPO/.claude/settings.json"
-    echo "  [ok] .claude/settings.json (enforcement hooks)"
-  fi
+  mkdir -p "$REPO/.claude"
+  cp -f "$KIT/settings/settings.json" "$REPO/.claude/settings.json"
+  echo "  [ok] .claude/settings.json (session agent + enforcement hooks)"
 fi
 
 echo "Team '$TEAM' installed locally. The main agent is now your Project Manager — just keep prompting."

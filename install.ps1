@@ -1,20 +1,14 @@
 # Windows installer for agents-and-skills
 # Usage:
-#   .\install.ps1                 # Install for both Claude Code and Copilot
+#   .\install.ps1                 # Install for both Claude Code and Copilot (asks to confirm)
 #   .\install.ps1 -Target claude  # Only Claude Code
 #   .\install.ps1 -Target copilot # Only Copilot
-#   .\install.ps1 -Force          # Overwrite existing files
+#   .\install.ps1 -Force          # Skip the confirmation prompt (still backs up first)
 #
-# Layout installed:
-#   ~/.claude/CLAUDE.md                      <- global thin gate (Claude Code)
-#   ~/.claude/agents/group-leader.md         <- global entry agent (Claude Code)
-#   ~/.claude/team-kits/                     <- staging: team kits + scaffold scripts
-#   <vscode prompts>/COPILOT.instructions.md <- global thin gate (Copilot)
-#   <vscode prompts>/group-leader.agent.md   <- global entry agent (Copilot)
-#   ~/.claude/skills, ~/.copilot/skills      <- shared skills
-#
-# Team kits are NOT installed into a project. The group-leader copies the
-# matching kit from ~/.claude/team-kits into the target repo on demand.
+# Behavior: BACKS UP the existing agents-and-skills artifacts to ~/.claude/backups/<timestamp>/,
+# shows a notice, asks to confirm, then OVERWRITES them. Your ~/.claude/settings.json is MERGED
+# (our keys added; your personal keys like model/theme/permissions are preserved) and the previous
+# file is backed up.
 
 [CmdletBinding()]
 param(
@@ -29,6 +23,7 @@ $skillsSrc        = Join-Path $repoRoot "skills"
 $globalClaudeSrc  = Join-Path $repoRoot "global\claude"
 $globalCopilotSrc = Join-Path $repoRoot "global\copilot"
 $teamKitsSrc      = Join-Path $repoRoot "team-kits"
+$mergeScript      = Join-Path $repoRoot "global\merge_settings.py"
 
 $claudeGlobal   = Join-Path $env:USERPROFILE ".claude"
 $claudeSkills   = Join-Path $claudeGlobal "skills"
@@ -37,14 +32,22 @@ $claudeTeamKits = Join-Path $claudeGlobal "team-kits"
 $copilotSkills  = Join-Path $env:USERPROFILE ".copilot\skills"
 $vscodePrompts  = Join-Path $env:APPDATA "Code\User\prompts"
 
+$stamp     = Get-Date -Format "yyyyMMdd-HHmmss"
+$backupDir = Join-Path $claudeGlobal ("backups\" + $stamp)
+
+function Backup-Item {
+    param([string]$Path)
+    if (-not (Test-Path $Path)) { return }
+    if (-not (Test-Path $backupDir)) { New-Item -ItemType Directory -Path $backupDir -Force | Out-Null }
+    $name = Split-Path $Path -Leaf
+    Copy-Item -Path $Path -Destination (Join-Path $backupDir $name) -Recurse -Force
+}
+
 function Install-Skills {
     param([string]$Destination, [string]$Label)
     if (-not (Test-Path $Destination)) { New-Item -ItemType Directory -Path $Destination -Force | Out-Null }
     Get-ChildItem -Path $skillsSrc -Directory | ForEach-Object {
         $dest = Join-Path $Destination $_.Name
-        if ((Test-Path $dest) -and -not $Force) {
-            Write-Host "  [skip] $Label : $($_.Name)" -ForegroundColor Yellow; return
-        }
         if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }
         Copy-Item -Path $_.FullName -Destination $dest -Recurse -Force
         Write-Host "  [ok]   $Label : $($_.Name)" -ForegroundColor Green
@@ -54,42 +57,62 @@ function Install-Skills {
 function Install-File {
     param([string]$Src, [string]$Dest, [string]$Label)
     if (-not (Test-Path $Src)) { Write-Host "  [warn] not found: $Src" -ForegroundColor Yellow; return }
-    if ((Test-Path $Dest) -and -not $Force) {
-        Write-Host "  [skip] $Label (use -Force to overwrite)" -ForegroundColor Yellow; return
-    }
     $dir = Split-Path $Dest
     if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
     [System.IO.File]::WriteAllText($Dest, (Get-Content $Src -Raw -Encoding UTF8), [System.Text.UTF8Encoding]::new($false))
     Write-Host "  [ok]   $Label" -ForegroundColor Green
 }
 
-function Install-TeamKits {
-    # Stage the whole team-kits tree (kits + scaffold scripts) so the group-leader
-    # can copy a kit into any repo on demand.
-    if (-not (Test-Path $teamKitsSrc)) { Write-Host "  [warn] not found: $teamKitsSrc" -ForegroundColor Yellow; return }
-    if ((Test-Path $claudeTeamKits) -and -not $Force) {
-        Write-Host "  [skip] team-kits staging (use -Force to overwrite)" -ForegroundColor Yellow; return
-    }
+# --- Notice + confirmation -------------------------------------------------
+Write-Host "agents-and-skills installer" -ForegroundColor Cyan
+Write-Host "This OVERWRITES the agents-and-skills files in ~/.claude (CLAUDE.md, agents, skills," -ForegroundColor Yellow
+Write-Host "team-kits, statusline) and MERGES ~/.claude/settings.json (your personal keys are kept)." -ForegroundColor Yellow
+Write-Host "A backup of the current files is saved to: $backupDir" -ForegroundColor Yellow
+if (-not $Force) {
+    $answer = Read-Host "Continue? (y/N)"
+    if ($answer -notmatch '^(y|yes|j|ja)$') { Write-Host "Aborted." -ForegroundColor Red; exit 1 }
+}
+
+# --- Backup existing artifacts --------------------------------------------
+Write-Host "`n-> Backing up to $backupDir"
+Backup-Item (Join-Path $claudeGlobal "CLAUDE.md")
+Backup-Item (Join-Path $claudeGlobal "settings.json")
+Backup-Item (Join-Path $claudeGlobal "statusline.py")
+Backup-Item $claudeAgents
+Backup-Item $claudeSkills
+Backup-Item $claudeTeamKits
+if (Test-Path $vscodePrompts) {
+    Get-ChildItem $vscodePrompts -Force | Where-Object { $_.Name -like '*.agent.md' -or $_.Name -eq 'COPILOT.instructions.md' } | ForEach-Object { Backup-Item $_.FullName }
+}
+Write-Host "  [ok]   backup complete" -ForegroundColor Green
+
+# --- Team kits (shared staging) -------------------------------------------
+Write-Host "`n-> Team kits (shared staging)"
+if (Test-Path $teamKitsSrc) {
     if (Test-Path $claudeTeamKits) { Remove-Item $claudeTeamKits -Recurse -Force }
     Copy-Item -Path $teamKitsSrc -Destination $claudeTeamKits -Recurse -Force
     Write-Host "  [ok]   team-kits -> ~/.claude/team-kits" -ForegroundColor Green
 }
 
-Write-Host "Installing agents-and-skills..." -ForegroundColor Cyan
-
-# Team kits are ecosystem-neutral staging used by both group-leaders.
-Write-Host "`n-> Team kits (shared staging)"
-Install-TeamKits
-
 if ($Target -eq "both" -or $Target -eq "claude") {
     Write-Host "`n-> Claude Code"
     Install-Skills -Destination $claudeSkills -Label "skill"
     Install-File -Src (Join-Path $globalClaudeSrc "CLAUDE.md") -Dest (Join-Path $claudeGlobal "CLAUDE.md") -Label "CLAUDE.md -> ~/.claude/CLAUDE.md"
+    Install-File -Src (Join-Path $globalClaudeSrc "statusline.py") -Dest (Join-Path $claudeGlobal "statusline.py") -Label "statusline.py -> ~/.claude/statusline.py"
     $claudeAgentsSrc = Join-Path $globalClaudeSrc "agents"
     if (Test-Path $claudeAgentsSrc) {
         Get-ChildItem -Path $claudeAgentsSrc -Filter "*.md" | ForEach-Object {
             Install-File -Src $_.FullName -Dest (Join-Path $claudeAgents $_.Name) -Label "agent: $($_.Name)"
         }
+    }
+    # Merge global settings (preserves your personal keys; python required).
+    $py = (Get-Command python -ErrorAction SilentlyContinue)
+    $oursSettings = Join-Path $globalClaudeSrc "settings.json"
+    if ($py -and (Test-Path $mergeScript) -and (Test-Path $oursSettings)) {
+        & $py.Source $mergeScript $oursSettings (Join-Path $claudeGlobal "settings.json")
+    } else {
+        Write-Host "  [warn] python not found or merge script missing - skipped settings.json merge." -ForegroundColor Yellow
+        Write-Host "         Add the keys from global/claude/settings.json to ~/.claude/settings.json manually." -ForegroundColor Yellow
     }
 }
 
@@ -107,4 +130,4 @@ if ($Target -eq "both" -or $Target -eq "copilot") {
     }
 }
 
-Write-Host "`nDone. Restart VS Code to pick up new skills/agents." -ForegroundColor Cyan
+Write-Host "`nDone. Backup at $backupDir. Restart VS Code to pick up new skills/agents." -ForegroundColor Cyan
