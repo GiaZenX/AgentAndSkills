@@ -1,0 +1,24 @@
+# research_guidelines.yaml — owned by: Methodologist · enforced by: Reviewer
+# Hard boundaries for how research is done. A violation MUST block internal acceptance.
+# Append-only: each rule is written once and stays. If a missing hard rule is noticed
+# during work, whoever notices MUST flag it and the Methodologist appends it.
+# The set only grows, never shrinks, and is not rewritten.
+
+# Always applies, method-agnostic (shipped defaults):
+global:
+  - All code, comments, names and notes in English
+  - Reproducibility first: record seeds, versions, environment for every run
+  - Data provenance: record what/when/conditions/instrument for all raw data
+  - Honest reporting: no p-hacking, no cherry-picking, no HARKing
+  - Pre-register the analysis plan in the EXP design before collecting data
+  - State and check statistical assumptions; report effect sizes + uncertainty, not just p-values
+  - Never silently drop outliers — flag them for review
+  - No secrets / no personal data in the repo
+
+# Per-method / per-domain rules. Starts EMPTY. The Methodologist adds a block the
+# first time a method is actually used. Example shape:
+#   statistics:
+#     - "correct for multiple comparisons when > 1 test per hypothesis"
+#   ml_experiments:
+#     - "fixed train/val/test split; report seeds; no test-set tuning"
+methods: {}

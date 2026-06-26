@@ -1,0 +1,20 @@
+# validity_criteria.yaml — owned by: Reviewer
+# The "Definition of Validity". A task/RQ is only internally accepted when ALL of
+# these hold. Shipped defaults.
+
+task_valid:
+  - Procedure followed the EXP design and research_guidelines.yaml
+  - Analysis matches the pre-registered analysis plan
+  - Results reproduce from recorded seeds/versions
+  - Statistical assumptions checked; effect sizes + uncertainty reported
+  - Data provenance complete (raw data + versions referenced)
+  - Conclusions are supported by the data (no overstatement)
+  - Committed with a Conventional Commit message
+  - Per-experiment report rendered (reports/EXP-xxxx.html)
+
+rq_accepted:
+  - All derived experiment tasks VALIDATED
+  - All acceptance_criteria of the RQ met
+  - Reviewer review/validation/acceptance reports green
+  - FZulG documentation current (novelty, uncertainty, systematic approach, effort)
+  - Feature branch merged into main (internal acceptance)

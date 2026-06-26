@@ -1,0 +1,20 @@
+# fzulg_documentation.yaml — owned by: Technical Writer
+# FZulG (Forschungszulagengesetz, German R&D tax credit) documentation layer.
+# Per RQ, captures the three eligibility pillars (assessed by the Methodologist)
+# plus the effort/cost bookkeeping the application needs (provided by the PM).
+# Kept current as experiments progress — NOT written once at the end.
+#
+# Schema:
+#   RQ-XXXX:
+#     novelty: <what is new vs. the state of the art; ref LIT-XXXX>
+#     technical_uncertainty: <what was genuinely unknown / risky at the outset>
+#     systematic_approach: <hypothesis-driven, documented method; ref HYP/EXP/TSK>
+#     effort:
+#       - role: researcher          # role involved
+#         person: ""                # optional person identifier
+#         hours: 0                  # personnel time spent
+#         period: YYYY-MM           # accounting period
+#     eligible_costs_note: <notes on eligible cost categories>
+#     status: DRAFT                 # DRAFT -> READY (ready for the application)
+
+fzulg_documentation: {}

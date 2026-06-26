@@ -1,0 +1,11 @@
+# literature.yaml — owned by: Methodologist
+# Prior art and state of the art. The evidence base for the FZulG novelty assessment.
+#
+# Schema:
+#   LIT-XXXX:
+#     citation: <author, year, title, venue / URL or DOI>
+#     relevance: <what it shows / why it matters>
+#     relates_to: [RQ-XXXX, HYP-XXXX]
+#     novelty_note: <what is already known vs. what is still open>
+
+literature: {}

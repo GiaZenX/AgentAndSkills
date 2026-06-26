@@ -1,0 +1,17 @@
+# methodology.yaml — owned by: Methodologist
+# Overall research approach, design rationale and threats to validity.
+# MUST stay up to date — never stale.
+#
+# Schema:
+#   approach: <overall method>
+#   design_rationale: <why this design>
+#   threats_to_validity:
+#     internal: [ ... ]
+#     external: [ ... ]
+#     construct: [ ... ]
+#   instruments: [ ... ]            # tools / measures / apparatus
+
+approach: ""
+design_rationale: ""
+threats_to_validity: {}
+instruments: []

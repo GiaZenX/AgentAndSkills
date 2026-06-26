@@ -8,12 +8,19 @@ a **Project Manager (PM)** is your only point of contact, and below it specializ
 (Architect, Backend, Frontend, QA, DevOps, Technical Writer) work as subagents. No matter which tool
 you code with, the AI behaves identically.
 
-**Two-tier entry.** A single global agent, the **Group-Leader**, is installed user-wide. When you
-start structured work it classifies the effort, **installs the matching team kit locally into the
-repository** (`./.claude/agents/` + a local `./CLAUDE.md`), and hands off to that repo's
-`project-manager`. Because the team lives in the repo, each project can run its own models
-(per-project `model:` frontmatter) without touching anything global. If you don't want the process,
-you simply don't invoke the Group-Leader and work freely.
+**Two-tier entry.** A user-wide **global gate** (`CLAUDE.md` / `COPILOT.instructions.md`) drives the
+default agent: on your first build/change wish it asks *structured or free*, classifies the effort via
+the **team registry**, **installs the matching team kit locally into the repository** (`./.claude/agents/`
++ a local `./CLAUDE.md`), and routes all further work through that repo's `project-manager`. A persistent
+guard re-routes to the PM on every later session, so a forgotten agent selection can't lead to
+unstructured edits. An optional **`group-leader`** agent does the same routing explicitly if you prefer to
+invoke it. Because the team lives in the repo, each project can run its own models (per-project `model:`
+frontmatter) without touching anything global. If you don't want the process, you choose *free* and work
+without bookkeeping.
+
+Two kits ship today: **`dev-team`** (software/product engineering) and **`research-team`** (research +
+experiments with an FZulG R&D-tax-credit documentation layer). The registry maps your intent to the right
+one.
 
 Based on [mattpocock/skills](https://github.com/mattpocock/skills) plus a custom role model and a
 global workflow standard.
@@ -105,11 +112,16 @@ agents-and-skills/
 │       ├── COPILOT.instructions.md      ← global thin gate (applyTo: **)
 │       └── agents/group-leader.agent.md ← global entry agent (Copilot)
 ├── team-kits/
+│   ├── registry.yaml                    ← intent → kit routing (single source of truth)
 │   ├── scaffold_team.ps1 / .sh          ← installs a kit into the current repo
-│   └── dev-team/
-│       ├── agents/                      ← 7 roles (project-manager, architect, …)
-│       ├── constitution/CLAUDE.md       ← local constitution copied to ./CLAUDE.md
-│       └── templates/project_memory/    ← YAML artifact templates
+│   ├── dev-team/
+│   │   ├── agents/                      ← 7 roles (project-manager, architect, …)
+│   │   ├── constitution/CLAUDE.md       ← local constitution copied to ./CLAUDE.md
+│   │   └── templates/project_memory/    ← YAML artifact templates
+│   └── research-team/
+│       ├── agents/                      ← 8 roles (project-manager, methodologist, …, report-writer)
+│       ├── constitution/CLAUDE.md       ← local research constitution
+│       └── templates/project_memory/    ← research artifacts + report template + bundled KaTeX
 ├── install.ps1                          ← Windows installer
 └── install.sh                           ← macOS/Linux installer
 ```
@@ -118,26 +130,30 @@ agents-and-skills/
 
 ## How it starts (two-tier flow)
 
-1. **Global gate asks** (best-effort): the global `CLAUDE.md` / `COPILOT.instructions.md` reminds you
-   that you may run structured work via the Group-Leader. If you decline, you work freely — no
+1. **Global gate asks** (non-coercive): on your first build/change wish the global `CLAUDE.md` /
+   `COPILOT.instructions.md` asks *structured (PM) or free?*. Choose *free* and you work without
    bookkeeping.
-2. **Invoke the Group-Leader** (`@group-leader` in Claude Code, or pick it in the VS Code dropdown).
-   It classifies the effort and runs the scaffold script.
+2. **Auto-init:** on *structured*, the default agent classifies your intent via `team-kits/registry.yaml`
+   and runs the scaffold script itself — no agent to remember. (You may instead invoke the optional
+   `group-leader` agent explicitly.)
 3. **Local install:** the kit's agents are copied to `./.claude/agents/` and its constitution to
-   `./CLAUDE.md`. Both VS Code and Claude Code read these.
-4. **Hand off to the local `project-manager`.** The PM runs the **startup gate** (proposes team
-   preset + per-role models, you confirm, models are synced into the local agents' frontmatter) and
-   only then begins the phase model.
+   `./CLAUDE.md`. Both VS Code and Claude Code read these. `project_memory/` is **not** created yet.
+4. **Route to the local `project-manager`.** On Copilot you pick `project-manager` in the dropdown (it
+   stays active); on Claude Code the default agent delegates structured requests to the `project-manager`
+   subagent (discovery questions are relayed). The PM then runs its **startup gate** (creates
+   `project_memory/` from the kit templates, proposes team preset + per-role models, you confirm, models
+   are synced into the local agents' frontmatter) and only then begins the phase model.
 
 ---
 
 ## Multi-agent role model
 
-The workflow lives in the **constitution** (`CLAUDE.md` / `COPILOT.instructions.md`) and is executed
-by **6 role agents**. The PM is the entry point and the only interface to the user; the dev roles work
-as subagents and return YAML.
+The workflow lives in each kit's **constitution** (`CLAUDE.md` / `COPILOT.instructions.md`) and is
+executed by role agents. The PM is the entry point and the only interface to the user; the other roles
+work as subagents and return YAML. The roles below are the **`dev-team`** (7 roles); the
+**`research-team`** mirrors the same machinery with 8 research roles (see below).
 
-### Roles
+### Roles (dev-team)
 
 | Role | File | Job | Talks to user |
 |---|---|---|---|
@@ -148,6 +164,23 @@ as subagents and return YAML.
 | **Quality Engineer** | `quality-engineer` | Review, tests, Definition of Done, merge gate | No |
 | **DevOps Engineer** | `devops-engineer` | CI/CD, pipelines, environments, release | No |
 | **Technical Writer** | `technical-writer` | PRDs/CRs, progress, changelog, docs, dashboard (on the PM's instruction) | No |
+
+### Roles (research-team)
+
+Same two-tier machinery, research-flavored. Hierarchy: **Research Question (RQ) → Hypothesis (HYP) +
+Experiment Design (EXP) → Tasks**; changes go through **Protocol Amendments (PA)**. The PM (lead) is again
+the only customer-facing role.
+
+| Role | File | Job |
+|---|---|---|
+| **Research Lead** | `project-manager` | RQs/PAs, delegation, merge, user acceptance (only one talking to the user) |
+| **Methodologist** | `methodologist` | Hypotheses, experiment designs, MDRs, research guidelines, FZulG criteria |
+| **Researcher** | `researcher` | Runs experiments, collects raw data, analysis code |
+| **Data Analyst** | `data-analyst` | Statistics, effect sizes, visualization, interpretation |
+| **Reviewer** | `reviewer` | Reproducibility + validity gate, peer review, merge gate |
+| **Research Engineer** | `research-engineer` | Data pipelines, environments, dataset versioning |
+| **Report Writer** | `report-writer` | Per-experiment HTML reports with offline LaTeX (KaTeX), fixed template |
+| **Technical Writer** | `technical-writer` | RQs/PAs, progress, changelog, **FZulG documentation**, dashboard |
 
 ### Phase model
 
