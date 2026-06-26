@@ -1,4 +1,23 @@
 {
+  "agent": "project-manager",
+  "model": "opus",
+  "plansDirectory": "./plans",
+  "permissions": {
+    "allow": [
+      "Bash(git *)",
+      "Bash(python *)",
+      "Bash(pytest *)",
+      "Bash(npm *)",
+      "Bash(node *)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(**/secrets/**)",
+      "Read(**/*.key)",
+      "Read(**/*.pem)"
+    ]
+  },
   "hooks": {
     "PreToolUse": [
       {
@@ -11,6 +30,12 @@
         "matcher": "Bash",
         "hooks": [
           { "type": "command", "command": "python .claude/hooks/gate_git.py" }
+        ]
+      },
+      {
+        "matcher": "Agent|Task",
+        "hooks": [
+          { "type": "command", "command": "python .claude/hooks/guard_agent_spawn.py" }
         ]
       }
     ],
