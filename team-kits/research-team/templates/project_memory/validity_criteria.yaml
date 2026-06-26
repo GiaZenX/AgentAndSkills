@@ -1,13 +1,24 @@
 # validity_criteria.yaml — owned by: Reviewer
 # The "Definition of Validity". A task/RQ is only internally accepted when ALL of
-# these hold. Shipped defaults.
+# these hold. Shipped defaults. Quality is enforced by TOOLS (the reproducibility
+# pipeline), not only by a reviewer reading code.
+
+# Reproducibility pipeline (the research-engineer sets it up; runs in CI + locally).
+# Every stage must pass for a task to be VALID.
+pipeline:
+  - format: analysis code auto-formatted (e.g. black/prettier) — no diff
+  - lint: linter clean (e.g. ruff/eslint)
+  - types: static type check clean where applicable (e.g. mypy)
+  - tests: analysis-code tests green
+  - reproduce: a clean re-run from recorded seeds/versions yields the same numbers
+  - dependencies: pinned (lockfile/env spec) and audited
+  - data_provenance: raw data + versions + seeds referenced
 
 task_valid:
   - Procedure followed the EXP design and research_guidelines.yaml
   - Analysis matches the pre-registered analysis plan
-  - Results reproduce from recorded seeds/versions
+  - "**Pipeline green**: every stage above passes (format, lint, types, tests, reproduce, deps, provenance)"
   - Statistical assumptions checked; effect sizes + uncertainty reported
-  - Data provenance complete (raw data + versions referenced)
   - Conclusions are supported by the data (no overstatement)
   - Committed with a Conventional Commit message
   - Per-experiment report rendered (reports/EXP-xxxx.html)

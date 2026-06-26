@@ -246,6 +246,16 @@ Because instructions alone get skipped, each kit ships a small **deterministic**
 The kit's `.claude/settings.json` also sets `agent: project-manager`, `model: opus`, `plansDirectory: ./plans`,
 and `permissions` (allow common build commands; deny reading secrets).
 
+### Quality pipeline (tools, not review)
+
+Clean code is enforced by **tools that block**, not by an agent reading code. The DevOps role sets up a CI +
+local pipeline at project start — **format → lint → type-check → unit + integration tests → coverage gate
+(≥ threshold) → security (SAST + secret scan) → dependency audit** — and "**pipeline green**" is a hard
+Definition-of-Done / merge requirement (QA verifies it; a red pipeline is an automatic FAIL). The research
+kit uses the same idea as a **reproducibility pipeline** (format/lint/type + a clean re-run reproducing the
+numbers + dependency audit). Any role may flag tech-debt/refactoring to the PM; the architect/methodologist
+owns the proposal.
+
 ### Status line & install backup
 
 - The installer adds a **status line** (`~/.claude/statusline.py`) showing model · context-usage bar · cost ·

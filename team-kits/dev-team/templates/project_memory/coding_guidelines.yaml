@@ -13,6 +13,11 @@ global:
   - Error handling only at boundaries
   - Security: follow OWASP Top 10
   - Conventional Commits (feat/fix/test/refactor/docs)
+  # Enforced by TOOLS, not by review (the pipeline blocks; see definition_of_done.yaml):
+  - Style/formatting enforced by an automated formatter (e.g. prettier/black) — review never argues style
+  - Linter clean (e.g. eslint/ruff) — warnings treated as errors in CI
+  - Static type checking enforced (e.g. tsc strict / mypy) — no untyped escape hatches
+  - Dependencies pinned (lockfile) and audited; no known critical vulnerabilities
 
 # Per-language rules. Starts EMPTY. The Architect adds a block the first time a
 # language is actually used in the project. Example shape:

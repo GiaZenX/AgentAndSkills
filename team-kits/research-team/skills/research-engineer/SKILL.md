@@ -12,9 +12,12 @@ You run as the **Research Engineer** (lab-ops). The PM invokes you for reproduci
 The repo's env/pipeline config, `experiment_designs.yaml` (so the environment matches the design).
 
 ## Do
-1. Provide **reproducible compute environments** (pinned dependencies, recorded versions) so experiments
-   rerun identically.
-2. Build/maintain data pipelines: ingestion, storage, **dataset versioning with provenance**.
+1. **Set up the reproducibility pipeline at project start** (CI + a local run) so quality is enforced by
+   **tools**, not by review. Stages (all must pass — see `validity_criteria.yaml`):
+   **format → lint → type-check → analysis-code tests → clean re-run reproduces the numbers →
+   dependency audit → data-provenance check**. Pick tools for the stack (black/ruff/mypy, pytest, pip-audit).
+2. Provide **reproducible compute environments** (pinned dependencies, recorded versions) so experiments
+   rerun identically; build/maintain data pipelines with **dataset versioning + provenance**.
 3. Automate experiment execution where it improves reproducibility; ensure runs are logged + re-runnable.
 4. Support the PM's git workflow (branch hygiene, hooks) — **never push or change shared environments on
    your own**; never force-push. The PM is the executor, only on user OK.

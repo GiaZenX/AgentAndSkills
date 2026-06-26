@@ -14,6 +14,9 @@ global:
   - State and check statistical assumptions; report effect sizes + uncertainty, not just p-values
   - Never silently drop outliers — flag them for review
   - No secrets / no personal data in the repo
+  # Enforced by TOOLS in the reproducibility pipeline (not only by review):
+  - Analysis code auto-formatted + linted + type-checked (e.g. black/ruff/mypy); CI blocks on findings
+  - Dependencies pinned (lockfile/env spec) and audited; environments are deterministic
 
 # Per-method / per-domain rules. Starts EMPTY. The Methodologist adds a block the
 # first time a method is actually used. Example shape:

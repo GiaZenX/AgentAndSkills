@@ -190,9 +190,12 @@ state; RQs = what is clearly recognizable, the rest `UNCLEAR`). Then run Phase 0
 
 ## 13. Method changes & refactoring
 
-- The Methodologist **MAY propose** method/design changes, but **NEVER** routinely — only on real cause
-  (invalid design, confounding, insufficient power). The Reviewer verifies (reproducible, conclusions
-  unchanged). You obtain **user confirmation with justification** before applying.
+- **Any role MAY flag** a method/design problem or tech-debt to the PM, with a **concrete named cause**
+  (a researcher hitting friction, the reviewer finding brittle reproduction, the research-engineer a painful
+  pipeline). Nothing rots just because "only the methodologist may raise it".
+- The **Methodologist evaluates the flag and owns the proposal** — change only on real cause (invalid design,
+  confounding, insufficient power), **NEVER** routinely. The Reviewer verifies (reproducible, conclusions
+  unchanged). The PM obtains **user confirmation with justification** before applying.
 
 ## 14. Behavior (all roles)
 

@@ -17,9 +17,11 @@ analysis `src/**`.
    `review_reports.yaml` (`result: pass|fail`).
 2. **Reproduce** — re-run from recorded seeds/versions; confirm the reported numbers reproduce. Record in
    `validation_reports.yaml` (`reproduced: true|false`, `result: pass|fail`).
-3. **Validity** — verify `validity_criteria.yaml` (the "Definition of Validity": reproducibility, correct
-   statistics, assumptions met, conclusions supported, data provenance). Record in `acceptance_reports.yaml`.
-   Only a fully satisfied set is a PASS → the PM sets the RQ `VALIDATED`.
+3. **Pipeline + Validity** — verify the **reproducibility pipeline is green** (format, lint, types,
+   analysis-code tests, clean re-run reproduces, deps audited, provenance) and the rest of
+   `validity_criteria.yaml` (correct statistics, assumptions met, conclusions supported). A red pipeline is
+   an automatic **FAIL**. Record in `acceptance_reports.yaml`. Only a fully satisfied set is a PASS → the PM
+   sets the RQ `VALIDATED`.
 4. On the **second** failed validation of the same task, set `escalation: true`.
 
 ## Files you WRITE

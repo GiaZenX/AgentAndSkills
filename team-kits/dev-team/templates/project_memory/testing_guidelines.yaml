@@ -7,6 +7,12 @@ global:
   - Every fixed bug MUST get a regression test
   - Tests MUST be deterministic (no reliance on time, network, ordering)
   - Cover the happy path AND the relevant edge cases
+  - Coverage MUST stay at or above the threshold below (CI fails below it)
+
+# Coverage gate (hard). The architect/QA may raise it; never lower it silently.
+coverage_gate:
+  threshold: 80          # percent; CI fails below this
+  scope: changed + core paths
 
 # Default tooling matrix. The Architect/QA pick the concrete tools per project and
 # may add/override per language under `languages`. These are recommendations, not law.

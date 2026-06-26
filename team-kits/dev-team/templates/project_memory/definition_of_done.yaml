@@ -1,15 +1,28 @@
 # definition_of_done.yaml — owned by: QA
 # A task/PRD is only internally accepted when ALL of these hold. Shipped defaults.
+# Philosophy: quality is enforced by TOOLS in the pipeline (deterministic), not by an agent
+# reading the code. "Pipeline green" is a hard merge gate — QA only PASSES when every check is green.
+
+# The quality pipeline (the DevOps role sets it up at project start; runs in CI + locally).
+# Every stage must pass for a task to be DONE. Adapt the tools to the stack (see testing_guidelines).
+pipeline:
+  - format: code auto-formatted (e.g. prettier / black) — no diff
+  - lint: linter clean (e.g. eslint / ruff) — no errors
+  - types: static type check clean (e.g. tsc / mypy) — no errors
+  - unit_tests: all green
+  - integration_tests: all green (where applicable)
+  - coverage: at or above the threshold in testing_guidelines.yaml
+  - security: SAST + secret scan clean (no high/critical findings)
+  - dependencies: dependency audit clean (no known critical vulnerabilities); deps pinned
 
 task_done:
   - Code follows coding_guidelines.yaml (global + relevant language)
-  - Tests written and green
-  - No new lint/type errors
+  - "**Pipeline green**: every stage above passes (format, lint, types, tests, coverage, security, deps)"
   - Committed with a Conventional Commit message
   - Owned artifacts updated (tasks.yaml, architecture/decisions if touched)
 
 prd_accepted:
   - All derived tasks VALIDATED
   - All acceptance_criteria met
-  - QA review/test/acceptance reports green
+  - QA review/test/acceptance reports green (pipeline green recorded)
   - Feature branch merged into main (internal acceptance)

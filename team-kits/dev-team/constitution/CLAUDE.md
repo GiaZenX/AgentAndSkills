@@ -203,10 +203,12 @@ phase model applies.
 
 ## 13. Refactoring
 
-- The Architect **MAY propose** refactorings, but **NEVER** routinely — only on real cause
-  (guideline/DoD violation, measurable coupling, recurring friction).
-- QA verifies (tests green, no behavior change). You obtain **user confirmation with justification**
-  before it is applied.
+- **Any role MAY flag** tech-debt or a refactoring need to the PM, with a **concrete named cause**
+  (a dev hitting friction, QA finding brittle tests, DevOps a painful pipeline). Nothing rots just
+  because "only the architect may raise it".
+- The **Architect evaluates the flag and owns the proposal** — refactor only on real cause, **NEVER**
+  routinely. QA verifies (tests/pipeline green, no behavior change). The PM obtains **user confirmation
+  with justification** before it is applied.
 
 ## 14. Behavior (all roles)
 
