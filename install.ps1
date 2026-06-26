@@ -19,7 +19,6 @@ param(
 
 $ErrorActionPreference = "Stop"
 $repoRoot = $PSScriptRoot
-$skillsSrc        = Join-Path $repoRoot "skills"
 $userClaudeSrc    = Join-Path $repoRoot "user\claude"
 $userCopilotSrc   = Join-Path $repoRoot "user\copilot"
 $teamKitsSrc      = Join-Path $repoRoot "team-kits"

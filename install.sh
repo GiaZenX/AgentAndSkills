@@ -23,7 +23,6 @@ while [[ $# -gt 0 ]]; do
 done
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SKILLS_SRC="$REPO_ROOT/skills"
 USER_CLAUDE_SRC="$REPO_ROOT/user/claude"
 USER_COPILOT_SRC="$REPO_ROOT/user/copilot"
 TEAM_KITS_SRC="$REPO_ROOT/team-kits"
