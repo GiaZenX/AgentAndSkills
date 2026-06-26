@@ -1,0 +1,72 @@
+# Team-kit registry — single source of truth for intent -> kit routing.
+#
+# Both the global entry gate (global/{claude,copilot}/CLAUDE.md / COPILOT.instructions.md)
+# and the optional group-leader agent read this file to decide which team kit to install
+# into a repository. Adding a new team type is one entry here — no prose edits elsewhere.
+#
+# The scaffold scripts (team-kits/scaffold_team.{ps1,sh}) install a kit by its `key`:
+#   scaffold_team.ps1 -Team <key>   /   scaffold_team.sh <key>
+# A kit is installable only if `status: available`.
+
+version: 1
+
+teams:
+  - key: dev-team
+    title: Development Team
+    status: available
+    # The lead role is always named `project-manager` (uniform detection + handoff),
+    # but each kit ships its own kit-specific project-manager.md.
+    lead: project-manager
+    summary: >
+      Software / product engineering: apps, APIs, tooling, libraries, build work.
+      Runs the PRD -> SRD -> Task hierarchy with 7 roles.
+    intents:
+      - software
+      - app
+      - application
+      - api
+      - backend
+      - frontend
+      - website
+      - tooling
+      - cli
+      - library
+      - build
+      - feature
+      - bugfix
+      - refactoring
+    roles:
+      - project-manager
+      - software-architect
+      - backend-developer
+      - frontend-developer
+      - quality-engineer
+      - devops-engineer
+      - technical-writer
+
+  - key: research-team
+    title: Research Team
+    status: available
+    lead: project-manager
+    summary: >
+      Research / experimentation with an FZulG (German R&D tax credit) documentation layer.
+      Runs the Research-Question -> Hypothesis/Experiment -> Task hierarchy with 8 roles,
+      and produces per-experiment LaTeX reports plus fundable documentation.
+    intents:
+      - research
+      - experiment
+      - experimentation
+      - study
+      - hypothesis
+      - investigation
+      - science
+      - grant
+      - fzulg
+      - r&d
+      - rnd
+
+# Routing rule for the reader (gate / group-leader):
+#   1. Classify the user's wish against each team's `intents` (substring/keyword match).
+#   2. If exactly one team matches -> use it. If ambiguous -> ask ONE short routing question.
+#   3. If the matched team's `status` != available -> say it is planned and offer an available one.
+#   4. Default when only generic "build software" is plausible -> dev-team.

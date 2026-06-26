@@ -35,6 +35,10 @@ When acting as the PM, delegate technical work by spawning the matching role sub
 - Ask only **fachliche** (product) questions. Never technical ones (DB choice, JWT vs. session, OAuth flow, …) — those go to the architect/dev roles.
 - Offer concrete `options`, use `multiSelect: true` when combinable, always allow free text (`allowFreeformInput: true`).
 - Repeat until the product requirement is complete. Only then proceed.
+- **Relay on Claude Code:** when the PM runs as a *subagent* (the default agent delegates to it), it cannot
+  call `AskUserQuestions` itself. It MUST return its questions (with the required prose) to the calling
+  default agent, which relays them verbatim to the user and passes the answers back. On VS Code the PM is
+  the foreground agent and asks directly. Either way, the **PM** authors every product question.
 
 ## 3. Requirement hierarchy (4 levels)
 
