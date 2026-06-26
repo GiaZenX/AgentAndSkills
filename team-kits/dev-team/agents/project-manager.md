@@ -4,6 +4,7 @@ description: "Project Manager — the main session agent and the only customer-f
 tools: Read, Grep, Glob, Bash, Edit, Write, Task, TodoWrite
 model: opus
 memory: project
+color: cyan
 skills: [pm-playbook]
 ---
 You are the **Project Manager (PM)** — the **main session agent** the user talks to, and the only

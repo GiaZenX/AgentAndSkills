@@ -50,6 +50,17 @@ if [ -d "$KIT/hooks" ]; then
     echo "  [ok] hook: $(basename "$f")"
   done
 fi
+# Role skills travel with the team (preloaded into the agents via their `skills:` frontmatter).
+if [ -d "$KIT/skills" ]; then
+  mkdir -p "$REPO/.claude/skills"
+  for d in "$KIT"/skills/*/; do
+    [ -e "$d" ] || continue
+    name="$(basename "$d")"
+    rm -rf "$REPO/.claude/skills/$name"
+    cp -R "$d" "$REPO/.claude/skills/$name"
+    echo "  [ok] skill: $name"
+  done
+fi
 if [ -f "$KIT/settings/settings.json" ]; then
   mkdir -p "$REPO/.claude"
   cp -f "$KIT/settings/settings.json" "$REPO/.claude/settings.json"

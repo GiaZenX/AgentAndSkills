@@ -56,6 +56,18 @@ if (Test-Path $hooksSrc) {
         Write-Host "  [ok] hook: $($_.Name)" -ForegroundColor Green
     }
 }
+# Role skills travel with the team (preloaded into the agents via their `skills:` frontmatter).
+$skillsSrc = Join-Path $kit "skills"
+if (Test-Path $skillsSrc) {
+    $skillsDst = Join-Path $repo ".claude\skills"
+    if (-not (Test-Path $skillsDst)) { New-Item -ItemType Directory -Force -Path $skillsDst | Out-Null }
+    Get-ChildItem -Path $skillsSrc -Directory | ForEach-Object {
+        $d = Join-Path $skillsDst $_.Name
+        if (Test-Path $d) { Remove-Item $d -Recurse -Force }
+        Copy-Item $_.FullName $d -Recurse -Force
+        Write-Host "  [ok] skill: $($_.Name)" -ForegroundColor Green
+    }
+}
 $settingsSrc = Join-Path $kit "settings\settings.json"
 if (Test-Path $settingsSrc) {
     Copy-Item $settingsSrc (Join-Path $repo ".claude\settings.json") -Force

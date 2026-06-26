@@ -20,10 +20,10 @@ param(
 $ErrorActionPreference = "Stop"
 $repoRoot = $PSScriptRoot
 $skillsSrc        = Join-Path $repoRoot "skills"
-$globalClaudeSrc  = Join-Path $repoRoot "global\claude"
-$globalCopilotSrc = Join-Path $repoRoot "global\copilot"
+$userClaudeSrc    = Join-Path $repoRoot "user\claude"
+$userCopilotSrc   = Join-Path $repoRoot "user\copilot"
 $teamKitsSrc      = Join-Path $repoRoot "team-kits"
-$mergeScript      = Join-Path $repoRoot "global\merge_settings.py"
+$mergeScript      = Join-Path $repoRoot "user\merge_settings.py"
 
 $claudeGlobal   = Join-Path $env:USERPROFILE ".claude"
 $claudeSkills   = Join-Path $claudeGlobal "skills"
@@ -43,14 +43,16 @@ function Backup-Item {
     Copy-Item -Path $Path -Destination (Join-Path $backupDir $name) -Recurse -Force
 }
 
-function Install-Skills {
-    param([string]$Destination, [string]$Label)
-    if (-not (Test-Path $Destination)) { New-Item -ItemType Directory -Path $Destination -Force | Out-Null }
-    Get-ChildItem -Path $skillsSrc -Directory | ForEach-Object {
-        $dest = Join-Path $Destination $_.Name
-        if (Test-Path $dest) { Remove-Item $dest -Recurse -Force }
-        Copy-Item -Path $_.FullName -Destination $dest -Recurse -Force
-        Write-Host "  [ok]   $Label : $($_.Name)" -ForegroundColor Green
+# Skills are now per-kit (installed by the scaffold into a repo's ./.claude/skills). The installer no
+# longer installs global skills; it removes the old global ones we used to ship.
+$oldSkills = @("brief-mode","debug","explain","git-safety","interview","new-skill","plan-to-issues",
+    "plan-to-prd","pm-playbook","pre-commit","refactor","review-plan","setup-repo","tdd","triage")
+function Remove-OldSkills {
+    param([string]$Destination)
+    if (-not (Test-Path $Destination)) { return }
+    foreach ($s in $oldSkills) {
+        $d = Join-Path $Destination $s
+        if (Test-Path $d) { Remove-Item $d -Recurse -Force; Write-Host "  [ok]   removed old skill: $s" -ForegroundColor Yellow }
     }
 }
 
@@ -96,10 +98,10 @@ if (Test-Path $teamKitsSrc) {
 
 if ($Target -eq "both" -or $Target -eq "claude") {
     Write-Host "`n-> Claude Code"
-    Install-Skills -Destination $claudeSkills -Label "skill"
-    Install-File -Src (Join-Path $globalClaudeSrc "CLAUDE.md") -Dest (Join-Path $claudeGlobal "CLAUDE.md") -Label "CLAUDE.md -> ~/.claude/CLAUDE.md"
-    Install-File -Src (Join-Path $globalClaudeSrc "statusline.py") -Dest (Join-Path $claudeGlobal "statusline.py") -Label "statusline.py -> ~/.claude/statusline.py"
-    $claudeAgentsSrc = Join-Path $globalClaudeSrc "agents"
+    Remove-OldSkills -Destination $claudeSkills
+    Install-File -Src (Join-Path $userClaudeSrc "CLAUDE.md") -Dest (Join-Path $claudeGlobal "CLAUDE.md") -Label "CLAUDE.md -> ~/.claude/CLAUDE.md"
+    Install-File -Src (Join-Path $userClaudeSrc "statusline.py") -Dest (Join-Path $claudeGlobal "statusline.py") -Label "statusline.py -> ~/.claude/statusline.py"
+    $claudeAgentsSrc = Join-Path $userClaudeSrc "agents"
     if (Test-Path $claudeAgentsSrc) {
         Get-ChildItem -Path $claudeAgentsSrc -Filter "*.md" | ForEach-Object {
             Install-File -Src $_.FullName -Dest (Join-Path $claudeAgents $_.Name) -Label "agent: $($_.Name)"
@@ -107,22 +109,22 @@ if ($Target -eq "both" -or $Target -eq "claude") {
     }
     # Merge global settings (preserves your personal keys; python required).
     $py = (Get-Command python -ErrorAction SilentlyContinue)
-    $oursSettings = Join-Path $globalClaudeSrc "settings.json"
+    $oursSettings = Join-Path $userClaudeSrc "settings.json"
     if ($py -and (Test-Path $mergeScript) -and (Test-Path $oursSettings)) {
         & $py.Source $mergeScript $oursSettings (Join-Path $claudeGlobal "settings.json")
     } else {
         Write-Host "  [warn] python not found or merge script missing - skipped settings.json merge." -ForegroundColor Yellow
-        Write-Host "         Add the keys from global/claude/settings.json to ~/.claude/settings.json manually." -ForegroundColor Yellow
+        Write-Host "         Add the keys from user/claude/settings.json to ~/.claude/settings.json manually." -ForegroundColor Yellow
     }
 }
 
 if ($Target -eq "both" -or $Target -eq "copilot") {
     Write-Host "`n-> GitHub Copilot"
-    Install-Skills -Destination $copilotSkills -Label "skill"
-    Get-ChildItem -Path $globalCopilotSrc -Filter "*.instructions.md" | ForEach-Object {
+    Remove-OldSkills -Destination $copilotSkills
+    Get-ChildItem -Path $userCopilotSrc -Filter "*.instructions.md" | ForEach-Object {
         Install-File -Src $_.FullName -Dest (Join-Path $vscodePrompts $_.Name) -Label "instructions: $($_.Name)"
     }
-    $copilotAgentsSrc = Join-Path $globalCopilotSrc "agents"
+    $copilotAgentsSrc = Join-Path $userCopilotSrc "agents"
     if (Test-Path $copilotAgentsSrc) {
         Get-ChildItem -Path $copilotAgentsSrc -Filter "*.agent.md" | ForEach-Object {
             Install-File -Src $_.FullName -Dest (Join-Path $vscodePrompts $_.Name) -Label "agent: $($_.Name)"

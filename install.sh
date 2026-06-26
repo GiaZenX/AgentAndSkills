@@ -24,10 +24,10 @@ done
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILLS_SRC="$REPO_ROOT/skills"
-GLOBAL_CLAUDE_SRC="$REPO_ROOT/global/claude"
-GLOBAL_COPILOT_SRC="$REPO_ROOT/global/copilot"
+USER_CLAUDE_SRC="$REPO_ROOT/user/claude"
+USER_COPILOT_SRC="$REPO_ROOT/user/copilot"
 TEAM_KITS_SRC="$REPO_ROOT/team-kits"
-MERGE_SCRIPT="$REPO_ROOT/global/merge_settings.py"
+MERGE_SCRIPT="$REPO_ROOT/user/merge_settings.py"
 
 CLAUDE_GLOBAL="$HOME/.claude"
 CLAUDE_SKILLS="$HOME/.claude/skills"
@@ -52,14 +52,14 @@ backup_item() {
     cp -R "$path" "$BACKUP_DIR/$(basename "$path")"
 }
 
-install_skills() {
-    local dest="$1"; local label="$2"
-    mkdir -p "$dest"
-    for skill in "$SKILLS_SRC"/*/; do
-        name="$(basename "$skill")"
-        rm -rf "$dest/$name"
-        cp -R "$skill" "$dest/$name"
-        echo "  [ok]   $label : $name"
+# Skills are now per-kit (installed by the scaffold into ./.claude/skills). The installer no longer
+# installs global skills; it removes the old global ones we used to ship.
+OLD_SKILLS="brief-mode debug explain git-safety interview new-skill plan-to-issues plan-to-prd pm-playbook pre-commit refactor review-plan setup-repo tdd triage"
+remove_old_skills() {
+    local dest="$1"
+    [[ -d "$dest" ]] || return 0
+    for s in $OLD_SKILLS; do
+        if [[ -e "$dest/$s" ]]; then rm -rf "$dest/$s"; echo "  [ok]   removed old skill: $s"; fi
     done
 }
 
@@ -106,33 +106,33 @@ fi
 if [[ "$TARGET" == "both" || "$TARGET" == "claude" ]]; then
     echo
     echo "-> Claude Code"
-    install_skills "$CLAUDE_SKILLS" "skill"
-    install_file "$GLOBAL_CLAUDE_SRC/CLAUDE.md" "$CLAUDE_GLOBAL/CLAUDE.md" "CLAUDE.md -> ~/.claude/CLAUDE.md"
-    install_file "$GLOBAL_CLAUDE_SRC/statusline.py" "$CLAUDE_GLOBAL/statusline.py" "statusline.py -> ~/.claude/statusline.py"
-    if [[ -d "$GLOBAL_CLAUDE_SRC/agents" ]]; then
-        for f in "$GLOBAL_CLAUDE_SRC/agents"/*.md; do
+    remove_old_skills "$CLAUDE_SKILLS"
+    install_file "$USER_CLAUDE_SRC/CLAUDE.md" "$CLAUDE_GLOBAL/CLAUDE.md" "CLAUDE.md -> ~/.claude/CLAUDE.md"
+    install_file "$USER_CLAUDE_SRC/statusline.py" "$CLAUDE_GLOBAL/statusline.py" "statusline.py -> ~/.claude/statusline.py"
+    if [[ -d "$USER_CLAUDE_SRC/agents" ]]; then
+        for f in "$USER_CLAUDE_SRC/agents"/*.md; do
             [[ -e "$f" ]] || continue
             install_file "$f" "$CLAUDE_AGENTS/$(basename "$f")" "agent: $(basename "$f")"
         done
     fi
-    if [[ -n "$PYTHON" && -f "$MERGE_SCRIPT" && -f "$GLOBAL_CLAUDE_SRC/settings.json" ]]; then
-        "$PYTHON" "$MERGE_SCRIPT" "$GLOBAL_CLAUDE_SRC/settings.json" "$CLAUDE_GLOBAL/settings.json"
+    if [[ -n "$PYTHON" && -f "$MERGE_SCRIPT" && -f "$USER_CLAUDE_SRC/settings.json" ]]; then
+        "$PYTHON" "$MERGE_SCRIPT" "$USER_CLAUDE_SRC/settings.json" "$CLAUDE_GLOBAL/settings.json"
     else
         echo "  [warn] python not found or merge script missing - skipped settings.json merge."
-        echo "         Add the keys from global/claude/settings.json to ~/.claude/settings.json manually."
+        echo "         Add the keys from user/claude/settings.json to ~/.claude/settings.json manually."
     fi
 fi
 
 if [[ "$TARGET" == "both" || "$TARGET" == "copilot" ]]; then
     echo
     echo "-> GitHub Copilot"
-    install_skills "$COPILOT_SKILLS" "skill"
-    for f in "$GLOBAL_COPILOT_SRC"/*.instructions.md; do
+    remove_old_skills "$COPILOT_SKILLS"
+    for f in "$USER_COPILOT_SRC"/*.instructions.md; do
         [[ -e "$f" ]] || continue
         install_file "$f" "$VSCODE_PROMPTS/$(basename "$f")" "instructions: $(basename "$f")"
     done
-    if [[ -d "$GLOBAL_COPILOT_SRC/agents" ]]; then
-        for f in "$GLOBAL_COPILOT_SRC/agents"/*.agent.md; do
+    if [[ -d "$USER_COPILOT_SRC/agents" ]]; then
+        for f in "$USER_COPILOT_SRC/agents"/*.agent.md; do
             [[ -e "$f" ]] || continue
             install_file "$f" "$VSCODE_PROMPTS/$(basename "$f")" "agent: $(basename "$f")"
         done

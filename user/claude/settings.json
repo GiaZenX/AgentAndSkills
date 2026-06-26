@@ -1,0 +1,63 @@
+{
+  "_comment": "agents-and-skills USER (~/.claude) defaults. The installer MERGES these into your ~/.claude/settings.json: top-level keys overwrite, but `permissions.allow`/`deny` are UNIONED with yours and other permission sub-keys (e.g. defaultMode) are preserved. The previous file is backed up under ~/.claude/backups/.",
+  "statusLine": {
+    "type": "command",
+    "command": "python ~/.claude/statusline.py",
+    "padding": 1
+  },
+  "theme": "dark",
+  "remoteControlAtStartup": true,
+  "effortLevel": "xhigh",
+  "alwaysThinkingEnabled": true,
+  "telemetryEnabled": false,
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
+  "terminalProgressBarEnabled": true,
+  "spinnerTipsEnabled": true,
+  "cleanupPeriodDays": 180,
+  "permissions": {
+    "allow": [
+      "Bash(git *)",
+      "Bash(npm *)",
+      "Bash(npx *)",
+      "Bash(pnpm *)",
+      "Bash(yarn *)",
+      "Bash(node *)",
+      "Bash(python *)",
+      "Bash(python3 *)",
+      "Bash(pip *)",
+      "Bash(pip3 *)",
+      "Bash(pytest *)",
+      "Bash(ruff *)",
+      "Bash(mypy *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(grep *)",
+      "Bash(rg *)",
+      "Bash(find *)",
+      "Bash(mkdir *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(echo *)",
+      "Bash(sed *)",
+      "Bash(awk *)",
+      "PowerShell(git *)",
+      "PowerShell(npm *)",
+      "PowerShell(node *)",
+      "PowerShell(python *)",
+      "PowerShell(pip *)",
+      "PowerShell(pytest *)",
+      "PowerShell(Get-* *)",
+      "PowerShell(Set-Location *)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(**/secrets/**)",
+      "Read(**/*.key)",
+      "Read(**/*.pem)"
+    ]
+  }
+}

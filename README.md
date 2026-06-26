@@ -8,13 +8,13 @@ Instead of a single assistant, this repo simulates a small software team: you ar
 (Architect, Backend, Frontend, QA, DevOps) work below it as **stateless subagents**. No matter which tool
 you code with, the AI behaves identically.
 
-**Two-tier entry.** A user-wide **global gate** (`CLAUDE.md` / `COPILOT.instructions.md`) drives the
+**Two-tier entry.** A user-wide **entry gate** (`CLAUDE.md` / `COPILOT.instructions.md`) drives the
 default agent: on your first build/change wish it asks *structured or free*, classifies the effort via the
 **team registry**, and **installs the matching team kit locally into the repository** (`./.claude/agents/`,
 a local `./CLAUDE.md`, and enforcement hooks). From then on the **main agent itself acts as the PM**,
 governed by that local `./CLAUDE.md` — there is **no separate PM subagent** to bypass or forget, and the PM
 keeps the full conversation as its memory. The local constitution carries a marker; whenever it is present,
-the global gate **hands over to it completely** (every session). An optional **`group-leader`** agent can do
+the entry gate **hands over to it completely** (every session). An optional **`group-leader`** agent can do
 the install explicitly. If you don't want the process, you choose *free* and work without bookkeeping.
 
 Two kits ship today: **`dev-team`** (software/product engineering) and **`research-team`** (research +
@@ -62,23 +62,22 @@ On Linux/Mac use `--target` and `--force` accordingly.
 
 ## Parity: Claude Code ↔ Copilot
 
-Both tools are configured identically. The whole workflow lives in the **global instructions** and
-therefore applies to **every** agent / default mode — no matter what you code with, the AI behaves the
-same:
+Both tools are configured identically. The **user-scope entry gate** applies to every agent / default
+mode — no matter what you code with, the AI behaves the same:
 
 | Component | Claude Code | Copilot |
 |---|---|---|
-| Global gate | `~/.claude/CLAUDE.md` | `prompts/COPILOT.instructions.md` (`applyTo: **`) |
-| Global entry agent | `~/.claude/agents/group-leader.md` | `prompts/group-leader.agent.md` |
+| User entry gate | `~/.claude/CLAUDE.md` | `prompts/COPILOT.instructions.md` (`applyTo: **`) |
+| Optional entry agent | `~/.claude/agents/group-leader.md` | `prompts/group-leader.agent.md` |
 | Team kit staging | `~/.claude/team-kits/<team>/` | `~/.claude/team-kits/<team>/` (shared) |
-| Local team (per repo) | `./.claude/agents/*.md` + `./CLAUDE.md` | same `./.claude/agents/*.md` + `./CLAUDE.md` |
+| Project team (per repo) | `./.claude/agents/*.md` + `./CLAUDE.md` + `./.claude/settings.json` | same files |
+| Role skills (per repo) | `./.claude/skills/<role>/` | same |
 | Tool syntax | `AskUserQuestions` | `#tool:vscode_askQuestions` |
 | Subagent call | Task tool | `runSubagent` |
 | Templates | `~/.claude/team-kits/<team>/templates/project_memory/` | same (shared staging) |
-| Skills | `~/.claude/skills/` | `~/.copilot/skills/` |
 
-The local team is installed in **Claude format** (`./.claude/agents/*.md` + root `./CLAUDE.md`), which
-**both** VS Code Copilot and Claude Code read — one copy serves both ecosystems.
+The project team is installed in **Claude format** (`./.claude/…` + root `./CLAUDE.md`), which **both** VS
+Code Copilot and Claude Code read — one copy serves both ecosystems.
 
 ---
 
@@ -86,12 +85,12 @@ The local team is installed in **Claude format** (`./.claude/agents/*.md` + root
 
 | Component | Path |
 |---|---|
-| Global gate (Claude Code) | `~/.claude/CLAUDE.md` |
-| Global gate (Copilot, VS Code) | `<vscode prompts>/COPILOT.instructions.md` (`applyTo: "**"`) |
-| Global entry agent (Claude Code) | `~/.claude/agents/group-leader.md` |
-| Global entry agent (Copilot, VS Code) | `<vscode prompts>/group-leader.agent.md` |
+| User entry gate (Claude Code) | `~/.claude/CLAUDE.md` |
+| User entry gate (Copilot, VS Code) | `<vscode prompts>/COPILOT.instructions.md` (`applyTo: "**"`) |
+| Optional entry agent (Claude Code) | `~/.claude/agents/group-leader.md` |
+| Optional entry agent (Copilot, VS Code) | `<vscode prompts>/group-leader.agent.md` |
 | Team kit staging (shared) | `~/.claude/team-kits/<team>/` (agents, constitution, templates) + scaffold scripts |
-| Local team (per repo, created on demand) | `./.claude/agents/*.md` + `./CLAUDE.md` |
+| Project team (per repo, created on demand) | `./.claude/agents/*.md` + `./.claude/skills/` + `./CLAUDE.md` + `./.claude/settings.json` |
 | Claude Code skills | `~/.claude/skills/<skill>/` |
 | Copilot skills | `~/.copilot/skills/<skill>/` |
 | VS Code prompts folder | Windows: `%APPDATA%\Code\User\prompts\` <br> macOS: `~/Library/Application Support/Code/User/prompts/` <br> Linux: `~/.config/Code/User/prompts/` |
@@ -102,28 +101,28 @@ The local team is installed in **Claude format** (`./.claude/agents/*.md` + root
 
 ```
 agents-and-skills/
-├── skills/                              ← shared skills (Claude + Copilot), incl. pm-playbook
-├── global/
+├── user/                               ← user-scope (~/.claude) install sources
 │   ├── claude/
-│   │   ├── CLAUDE.md                    ← global thin gate (Claude Code)
-│   │   ├── settings.json                ← global defaults merged into ~/.claude/settings.json
+│   │   ├── CLAUDE.md                    ← user entry gate (Claude Code)
+│   │   ├── settings.json                ← user defaults merged into ~/.claude/settings.json
 │   │   ├── statusline.py                ← status line (model · context · cost · branch)
-│   │   └── agents/group-leader.md       ← global entry agent (Claude Code)
+│   │   └── agents/group-leader.md       ← optional entry agent (Claude Code)
 │   ├── copilot/
-│   │   ├── COPILOT.instructions.md      ← global thin gate (applyTo: **)
-│   │   └── agents/group-leader.agent.md ← global entry agent (Copilot)
+│   │   ├── COPILOT.instructions.md      ← user entry gate (applyTo: **)
+│   │   └── agents/group-leader.agent.md ← optional entry agent (Copilot)
 │   └── merge_settings.py                ← installer helper: merge keys, preserve personal settings
 ├── team-kits/
 │   ├── registry.yaml                    ← intent → kit routing (single source of truth)
 │   ├── scaffold_team.ps1 / .sh          ← installs a kit into the current repo (backs up first)
 │   ├── dev-team/
 │   │   ├── agents/                      ← project-manager (session agent) + 5 specialist subagents
-│   │   ├── constitution/CLAUDE.md       ← local constitution → ./CLAUDE.md (carries team marker)
+│   │   ├── skills/                      ← one role skill per agent (pm-playbook, software-architect, …)
+│   │   ├── constitution/CLAUDE.md       ← project constitution → ./CLAUDE.md (carries team marker)
 │   │   ├── hooks/ + settings/           ← 4 enforcement hooks + .claude/settings.json (agent, model, …)
 │   │   └── templates/project_memory/    ← YAML artifact templates
 │   └── research-team/
-│       ├── agents/                      ← project-manager (session agent) + 6 specialist subagents
-│       ├── constitution/CLAUDE.md       ← local research constitution (carries team marker)
+│       ├── agents/ + skills/            ← project-manager + 6 specialists + their role skills
+│       ├── constitution/CLAUDE.md       ← project research constitution (carries team marker)
 │       ├── hooks/ + settings/           ← enforcement hooks + .claude/settings.json
 │       └── templates/project_memory/    ← research artifacts + report template + bundled KaTeX
 ├── install.ps1                          ← Windows installer (backup + confirm + overwrite)
@@ -270,49 +269,24 @@ for parallel review / competing-hypothesis work if you want.
 
 ---
 
-## Skills
+## Skills & the three-layer model
 
-Skills are invoked in chat via `/<skill-name>` or loaded automatically by the agent when the
-description matches.
+Role instructions live in three tiers, each loaded where it's needed — no duplication:
 
-### Engineering
-
-| Skill | Invoke | What it does |
+| Tier | Holds | Loads into |
 |---|---|---|
-| **debug** | `/debug` | Disciplined bug diagnosis: reproduce → minimize → hypothesize → instrument → fix → regression test |
-| **tdd** | `/tdd` | Test-driven development with the red-green-refactor loop |
-| **review-plan** | `/review-plan` | Stress-tests your plan against the domain language; updates CONTEXT.md and ADRs |
-| **refactor** | `/refactor` | Finds refactoring opportunities; consolidates tightly coupled modules |
-| **plan-to-prd** | `/plan-to-prd` | Turns the current conversation context into a PRD |
-| **plan-to-issues** | `/plan-to-issues` | Breaks a plan/PRD into independent GitHub issues (vertical slices) |
-| **triage** | `/triage` | Issue triage via a role state machine |
-| **explain** | `/explain` | Explains code in the context of the whole system |
-| **setup-repo** | `/setup-repo` | Once per repo: configures issue tracker, triage labels, domain doc layout |
+| **Constitution** (`./CLAUDE.md`) | shared law: hierarchy, phases, git, anti-sycophancy, memory rules, hard enforcement | the PM + every subagent |
+| **Agent body** (short) | who the agent is, who it obeys, its core duty | the agent's system prompt |
+| **Role skill** (`skills: [<role>]`) | *how* it works + which `project_memory/` files it reads/writes | preloaded into the agent |
 
-### Productivity
+Each team kit ships **one role skill per agent** (incl. the PM's `pm-playbook`) under
+`team-kits/<kit>/skills/`. The scaffold installs them into the repo's `./.claude/skills/`, and each agent
+preloads its own via `skills:` frontmatter. There are **no global skills** — everything is scoped to the
+team repo and invocable with `/<role>` (e.g. `/pm-playbook`).
 
-| Skill | Invoke | What it does |
-|---|---|---|
-| **interview** | `/interview` | Interviews you intensively about a plan/design with polls — until every decision is resolved |
-| **brief-mode** | `/brief-mode` | Ultra-compressed communication mode, saves ~75% tokens |
-| **new-skill** | `/new-skill` | Helps you create your own new skills |
-
-### Misc
-
-| Skill | Invoke | What it does |
-|---|---|---|
-| **pre-commit** | `/pre-commit` | Husky pre-commit hooks with Prettier, type checking, tests |
-| **git-safety** | `/git-safety` | Claude Code only: blocks dangerous git commands (`push`, `reset --hard`, etc.) |
-
----
-
-## Recommended workflow
-
-1. **Once per repo:** `/setup-repo`
-2. **Before any change:** `/interview` or `/review-plan`
-3. **Implementation:** `/tdd` or directly in chat (the workflow applies automatically)
-4. **On bugs:** `/debug`
-5. **Regularly:** `/refactor`
+**Coverage guarantee:** every `project_memory/*.yaml` has a write-owner named in a role skill (a few are
+partitioned co-owners: `tasks`, `results`, `tests/`), so no artifact is ever left unmaintained. The
+`derives_from` chain runs **PRD → SR → TSK**; each owner updates the status of its own items.
 
 ---
 

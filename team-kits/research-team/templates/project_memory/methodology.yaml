@@ -10,8 +10,14 @@
 #     external: [ ... ]
 #     construct: [ ... ]
 #   instruments: [ ... ]            # tools / measures / apparatus
+#   mermaid: |                      # optional: experiment-setup/flow diagram as text (Mermaid),
+#     flowchart LR                  # kept current by the Methodologist. Renders in VS Code/GitHub.
+#       Sample --> Treatment --> Measure
 
 approach: ""
 design_rationale: ""
 threats_to_validity: {}
 instruments: []
+mermaid: |
+  flowchart LR
+    %% Methodologist: optional experiment-setup diagram, keep in sync with the design.

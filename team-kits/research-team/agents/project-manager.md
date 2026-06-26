@@ -4,6 +4,7 @@ description: "Research Lead / Project Manager — the main session agent and the
 tools: Read, Grep, Glob, Bash, Edit, Write, Task, TodoWrite
 model: opus
 memory: project
+color: cyan
 skills: [pm-playbook]
 ---
 You are the **Research Lead** (the team's Project Manager) — the **main session agent** the user talks to,

@@ -7,6 +7,13 @@
 #       responsibility: <what it does>
 #       depends_on: [ <other components> ]
 #   data_flow: <short description or diagram reference>
+#   mermaid: |                       # component diagram as text (the Architect keeps it current).
+#     graph TD                       # Renders in VS Code (Mermaid) and GitHub. Text -> diff-able,
+#       API --> Service              # AI-maintainable. (Prefer Mermaid over draw.io for the live source.)
+#       Service --> DB
 
 components: {}
 data_flow: ""
+mermaid: |
+  graph TD
+    %% Architect: keep this component diagram in sync with `components` above.

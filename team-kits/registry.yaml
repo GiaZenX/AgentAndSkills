@@ -8,9 +8,9 @@
 #   scaffold_team.ps1 -Team <key>   /   scaffold_team.sh <key>
 # A kit is installable only if `status: available`.
 #
-# `lead: foreground` means: the PM is NOT a subagent. The main/foreground agent BECOMES the PM
-# by following the installed local ./CLAUDE.md. `roles` lists the specialist SUBAGENTS only
-# (the files under the kit's agents/, copied to ./.claude/agents/).
+# `lead: project-manager` is the kit's SESSION agent: the kit's .claude/settings.json sets
+# `agent: project-manager`, so the repo's main session IS the PM (not a spawnable subagent).
+# `roles` lists the specialist SUBAGENTS the PM spawns (files under the kit's agents/).
 
 version: 1
 
@@ -18,7 +18,7 @@ teams:
   - key: dev-team
     title: Development Team
     status: available
-    lead: foreground          # the main agent acts as PM via ./CLAUDE.md (no project-manager subagent)
+    lead: project-manager     # kit settings.json sets agent:project-manager -> the session IS the PM
     summary: >
       Software / product engineering: apps, APIs, tooling, libraries, build work.
       Runs the PRD -> SRD -> Task hierarchy: foreground PM + 5 specialist subagents.
@@ -47,7 +47,7 @@ teams:
   - key: research-team
     title: Research Team
     status: available
-    lead: foreground          # the main agent acts as PM/Research Lead via ./CLAUDE.md
+    lead: project-manager     # kit settings.json sets agent:project-manager -> the session IS the PM
     summary: >
       Research / experimentation with an FZulG (German R&D tax credit) documentation layer.
       Runs the Research-Question -> Hypothesis/Experiment -> Task hierarchy: foreground PM +
