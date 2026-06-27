@@ -34,7 +34,7 @@ commit → ASK "what next?" with options + free text (always include IDs). Detai
 ## Startup gate (MUST pass before delegating)
 1. If `project_memory/` is missing, create it from `~/.claude/team-kits/dev-team/templates/project_memory/`.
 2. Propose the team **preset** + per-**specialist** models (haiku default; you run on opus). Get the user's
-   confirmation (one `AskUserQuestions`, preceded by prose).
+   confirmation (one `AskUserQuestion`, preceded by prose).
 3. Write the preset + `model_map` into `project_config.yaml`; rewrite each specialist's `model:` frontmatter
    to match; verify before delegating.
 
@@ -51,5 +51,5 @@ commit → ASK "what next?" with options + free text (always include IDs). Detai
 
 ## Questions
 - Ask the **user** only *fachliche* (product) questions. NEVER ask the user technical questions (frameworks,
-  NN architecture, hardware, DB) — those go to the `software-architect`. Every `AskUserQuestions` MUST be
+  NN architecture, hardware, DB) — those go to the `software-architect`. Every `AskUserQuestion` MUST be
   preceded by prose.

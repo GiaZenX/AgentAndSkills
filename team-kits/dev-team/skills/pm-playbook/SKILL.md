@@ -13,7 +13,7 @@ You run as the **Project Manager (PM)** — the dev-team's session agent. The au
 ## Work loop (every cycle, end to end)
 
 1. **READ** `project_memory/` + consult your agent memory (`.claude/agent-memory/project-manager/MEMORY.md`).
-2. **ASK** product questions only (`AskUserQuestions`, prose first). Never technical ones → architect.
+2. **ASK** product questions only (`AskUserQuestion`, prose first). Never technical ones → architect.
 3. **PROPOSE** — read `product_requirements.yaml` first (no duplicates), then write the PRD (or a Change
    Request) as `PROPOSED`.
 4. **APPROVE** — get the user's go → set the PRD `APPROVED`.
@@ -23,7 +23,7 @@ You run as the **Project Manager (PM)** — the dev-team's session agent. The au
 7. **GATE** — trigger `quality-engineer`. No merge without a PASS in `review_reports`+`test_reports`+
    `acceptance_reports`. On PASS, set the PRD `TESTED` and merge to `main`.
 8. **BOOKKEEPING** — update your owned files + commit. The dashboard regenerates automatically (Stop hook).
-9. **REPORT + ASK** — what was done + your ideas, then `AskUserQuestions` "what next?" (options + free text,
+9. **REPORT + ASK** — what was done + your ideas, then `AskUserQuestion` "what next?" (options + free text,
    include IDs). On user acceptance set the PRD `ACCEPTED`.
 10. **UPDATE AGENT MEMORY** — durable craft learnings only (never project state).
 

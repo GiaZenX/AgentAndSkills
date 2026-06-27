@@ -72,7 +72,7 @@ mode — no matter what you code with, the AI behaves the same:
 | Team kit staging | `~/.claude/team-kits/<team>/` | `~/.claude/team-kits/<team>/` (shared) |
 | Project team (per repo) | `./.claude/agents/*.md` + `./CLAUDE.md` + `./.claude/settings.json` | same files |
 | Role skills (per repo) | `./.claude/skills/<role>/` | same |
-| Tool syntax | `AskUserQuestions` | `#tool:vscode_askQuestions` |
+| Tool syntax | `AskUserQuestion` | `#tool:vscode_askQuestions` |
 | Subagent call | Task tool | `runSubagent` |
 | Templates | `~/.claude/team-kits/<team>/templates/project_memory/` | same (shared staging) |
 

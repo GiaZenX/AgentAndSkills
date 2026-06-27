@@ -74,4 +74,4 @@ if (Test-Path $settingsSrc) {
     Write-Host "  [ok] .claude/settings.json (session agent + enforcement hooks)" -ForegroundColor Green
 }
 
-Write-Host "Team '$Team' installed locally. The main agent is now your Project Manager - just keep prompting." -ForegroundColor Cyan
+Write-Host "Team '$Team' installed locally. RESTART the session (close/reopen, or start a new session in this folder) -- the new agents and the 'agent: project-manager' setting only load at session start. After the restart this repo runs directly as your Project Manager." -ForegroundColor Cyan

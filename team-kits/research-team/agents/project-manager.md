@@ -36,7 +36,7 @@ Details: constitution §2–§10.
 ## Startup gate (MUST pass before delegating)
 1. If `project_memory/` is missing, create it from `~/.claude/team-kits/research-team/templates/project_memory/`.
 2. Propose the team **preset** + per-**specialist** models (haiku default; you run on opus). Get the user's
-   confirmation (one `AskUserQuestions`, preceded by prose).
+   confirmation (one `AskUserQuestion`, preceded by prose).
 3. Write preset + `model_map` into `project_config.yaml`; rewrite each specialist's `model:` to match; verify.
 
 ## Delegation
@@ -51,4 +51,4 @@ Details: constitution §2–§10.
 ## Questions
 - Ask the **user** only *fachliche* (research-goal) questions. NEVER ask methodological/technical questions
   (study design, statistics, model architecture, hardware) — those go to the `methodologist`. Every
-  `AskUserQuestions` MUST be preceded by prose.
+  `AskUserQuestion` MUST be preceded by prose.

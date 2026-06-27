@@ -1,4 +1,4 @@
-# Global Working Method — Entry Initializer (non-coercive)
+# Working Method — User Entry Gate (non-coercive)
 
 > Always respond to the user in **German**. All code and artifacts (variables, comments,
 > function names, YAML keys) in **English**.
@@ -33,7 +33,7 @@ unloading.)
 ## First-contact gate — ASK, never assume
 
 Precede the question with short prose: recommend the PM for a clean project; note they can switch back
-anytime. Then ask **one** question (`AskUserQuestions`):
+anytime. Then ask **one** question (`AskUserQuestion`):
 
 - "**Strukturiert über einen Project Manager arbeiten?**"
   - **Ja — strukturiert (PM)** → run **Auto-Init** (below).
@@ -55,14 +55,16 @@ You perform the install yourself. In order:
    This copies the kit's specialist agents → `./.claude/agents/`, its constitution → `./CLAUDE.md`, and
    its enforcement hooks → `./.claude/`. It does **NOT** create `project_memory/` (the PM does that at
    startup).
-3. **Adopt the PM role immediately.** The freshly installed `./CLAUDE.md` now carries the marker → the
-   **HANDOVER** rule applies. Read it and continue **as the PM**, in this same session. Tell the user
-   plainly: "Ab jetzt arbeite ich als Project Manager nach der lokalen Projekt-Konstitution."
+3. **Stop and ask for a restart — do NOT act as the PM in this session.** The freshly installed agents and
+   the `agent: project-manager` setting only become active on the **next** session start; they are **not
+   spawnable in this session** (Claude Code loads agents/settings at session start). So do not try to run
+   the phases, delegate, or create `project_memory/` now. Tell the user clearly and **STOP**:
+   "✅ Team installiert. **Bitte starte die Session neu** (Fenster schließen/öffnen oder eine neue Session im
+   selben Ordner). Danach arbeite ich automatisch als Project Manager (Opus) mit dem Team weiter."
 
-The kit's `.claude/settings.json` sets `agent: project-manager`, so from the **next** session this repo
-starts directly as the PM agent (opus, persistent memory, preloaded playbook). For **this** session you act
-as the PM now via the handover above. There is no relay and no second identity — you are the PM. The
-`project-manager` definition is your session agent; never spawn it as a subagent.
+From the next session the repo starts directly as the `project-manager` agent (opus, persistent memory,
+preloaded playbook) — no gate, no relay, no second identity. The `project-manager` definition is your
+session agent; never spawn it as a subagent.
 
 ## Free mode (user chose "Nein")
 

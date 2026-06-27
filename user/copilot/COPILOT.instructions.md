@@ -1,7 +1,7 @@
 ---
 applyTo: "**"
 ---
-# Global Working Method — Entry Initializer (non-coercive)
+# Working Method — User Entry Gate (non-coercive)
 
 > Always respond to the user in **German**. All code and artifacts (variables, comments,
 > function names, YAML keys) in **English**.
@@ -58,13 +58,14 @@ You perform the install yourself. In order:
    This copies the kit's specialist agents → `./.claude/agents/`, its constitution → `./CLAUDE.md`, and
    its enforcement hooks → `./.claude/`. It does **NOT** create `project_memory/` (the PM does that at
    startup).
-3. **Adopt the PM role immediately.** The freshly installed `./CLAUDE.md` now carries the marker → the
-   **HANDOVER** rule applies. Read it and continue **as the PM**, in this same session. Tell the user
-   plainly: "Ab jetzt arbeite ich als Project Manager nach der lokalen Projekt-Konstitution."
+3. **Stop and ask for a fresh chat — do NOT act as the PM yet.** Newly installed agents and instructions are
+   picked up in a **new Copilot chat**, not mid-conversation. So do not run the phases, delegate, or create
+   `project_memory/` now. Tell the user clearly and **STOP**:
+   "✅ Team installiert. **Bitte starte einen neuen Chat** in diesem Ordner. Danach arbeite ich automatisch als
+   Project Manager mit dem Team weiter."
 
-The kit's `.claude/settings.json` sets `agent: project-manager`, so the repo starts directly as the PM agent
-once the team is installed. For the first session you act as the PM now via the handover above. There is no
-relay and no second identity — you are the PM.
+From the next chat the local `./CLAUDE.md` carries the marker → the **HANDOVER** rule applies and you act as
+the PM for this repo. There is no relay and no second identity — you are the PM.
 
 ## Free mode (user chose "Nein")
 
