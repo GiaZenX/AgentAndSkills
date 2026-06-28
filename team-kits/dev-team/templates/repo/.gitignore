@@ -1,0 +1,16 @@
+# Generated / tooling artifacts — never commit these.
+sbom.json
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+node_modules/
+frontend/coverage/
+frontend/dist/
+*.db
+.venv/
+venv/
+target/

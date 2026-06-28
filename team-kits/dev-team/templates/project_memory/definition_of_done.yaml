@@ -17,9 +17,19 @@ pipeline:
   - per_area_coverage: EACH top-level source area (src/, frontend/src/, …) meets the threshold on its own
   - component_coverage: every architecture.yaml component is tested with its prescribed test_strategy (no glied untested)
   - real_run: user-/runtime-critical paths verified for real, not mock-only (UI smoke e.g. Playwright; real `docker build` + health start; real end-to-end run for data/training)
-  - security: SAST + secret scan clean — any high/critical finding is an automatic FAIL (no "reading past")
-  - dependencies: dependency (SCA) audit clean (no known critical vulns); deps pinned in a lockfile
-  - licenses: every dependency has an approved license (no disallowed/incompatible license without sign-off)
+  - security_sast: SAST clean (bandit for python; per-stack equivalents) — high-severity finding is a FAIL
+  - security_secrets: secret scan clean (gitleaks, run + hard-failed in CI) — no committed secret
+  - dependencies: SCA audit clean (pip-audit / npm audit) — no known high/critical vulns; deps pinned
+  - sbom: an SBOM is produced (cyclonedx) as a build artifact
+  - licenses: DevOps reviews the SBOM's licenses against the project's allow-list (MANUAL step — not gate-enforced)
+  # WHAT IS TOOL-ENFORCED vs VERIFIED — be honest:
+  #  * EXECUTED by scripts/quality.py (gate_pipeline at merge + CI): format, lint, types, unit tests,
+  #    GLOBAL coverage>=threshold, SAST, SCA, secret scan (gitleaks: hard in CI / warn-only locally), SBOM.
+  #  * per_area_coverage: only partially backstopped by gate_test_coverage.py (src/ + frontend/, "area has
+  #    zero tests"); NOT a per-stack %-gate.
+  #  * component_coverage, real_run (UI smoke, real docker build/run, E2E) and the license review are
+  #    QA/DevOps-VERIFIED, not yet tool-enforced — QA must confirm them and record it in the reports.
+  #  A self-reported "result: pass" never satisfies the EXECUTED stages.
 
 task_done:
   - Code follows coding_guidelines.yaml (global + relevant language)

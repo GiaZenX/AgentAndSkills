@@ -4,7 +4,9 @@ PreToolUse(Bash) — block merge/push while a source area has NO tests.
 
 The real run shipped a frontend with 0 tests, hidden behind a high global backend
 coverage number. This gate enforces the floor deterministically: every source area that
-exists (python `src/`, `frontend/`) must have at least some tests. The coverage-%
+exists (python `src/`, `frontend/`) must have at least some tests. NOTE: this floor is
+python+JS-only; other declared stacks (go/rust/dotnet) get their test enforcement from
+scripts/quality.py (e.g. `go test`, `cargo test`), not from this hook. The coverage-%
 threshold itself stays QA's recorded gate (test_reports.yaml / definition_of_done);
 this hook only catches the "whole area untested" failure that a global % can mask.
 

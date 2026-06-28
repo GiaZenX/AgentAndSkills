@@ -76,13 +76,8 @@ def main():
     if not os.path.isdir(pm):
         sys.exit(0)
 
-    # only gate once there is real work (a PRD/RQ exists)
-    work = False
-    for f in ("product_requirements.yaml", "research_questions.yaml"):
-        if re.search(r"\n\s*(PRD|RQ)-\d", read(os.path.join(pm, f))):
-            work = True
-            break
-    if not work:
+    # only gate once there is real work (an RQ exists)
+    if not re.search(r"\n\s*RQ-\d", read(os.path.join(pm, "research_questions.yaml"))):
         sys.exit(0)
 
     stale = []

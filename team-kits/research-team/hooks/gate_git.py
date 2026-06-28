@@ -4,7 +4,7 @@ PreToolUse(Bash) gate — protects merge/push.
 
 - Force-push is ALWAYS blocked (the constitution forbids it).
 - `git push` / `git merge` are blocked once there is real work
-  (a PRD/RQ entry exists) but NO passing QA/validation report yet.
+  (an RQ entry exists) but NO passing QA/validation report yet.
   Empty/just-scaffolded repos are not gated.
 
 Reads the hook JSON from stdin; exit 2 + stderr blocks. Any uncertainty -> exit 0.
@@ -14,6 +14,7 @@ import os
 import re
 import json
 import glob
+import subprocess
 
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -56,24 +57,37 @@ def main():
     if not os.path.isdir(pm):
         sys.exit(0)  # nothing to gate yet
 
-    # is there real work? (a requirement/research-question entry exists)
-    work = False
-    for f in ("product_requirements.yaml", "research_questions.yaml"):
-        if re.search(r"\n\s*(PRD|RQ)-\d", read_text(os.path.join(pm, f))):
-            work = True
-            break
-    if not work:
+    # is there real work? (a RQ entry exists)
+    if not re.search(r"\n\s*RQ-\d", read_text(os.path.join(pm, "research_questions.yaml"))):
         sys.exit(0)
 
-    # is there at least one passing QA/validation/acceptance report?
+    # which RQ is being merged/pushed? (from the command, else the current branch name)
+    target = None
+    m = re.search(r"(RQ-\d+)", cmd, re.IGNORECASE)
+    if not m:
+        try:
+            br = subprocess.run(["git", "-C", cwd, "rev-parse", "--abbrev-ref", "HEAD"],
+                                capture_output=True, text=True, timeout=5).stdout
+            m = re.search(r"(RQ-\d+)", br, re.IGNORECASE)
+        except Exception:
+            m = None
+    if m:
+        target = m.group(1).upper()
+
+    # require a passing QA/validation/acceptance report — bound to THIS RQ when it is known,
+    # so a stray `result: pass` from an unrelated/old report cannot lift the gate.
     passing = False
     for f in glob.glob(os.path.join(pm, "*report*.yaml")):
-        if re.search(r"result:\s*pass|verdict:\s*pass", read_text(f), re.IGNORECASE):
+        txt = read_text(f)
+        if not re.search(r"result:\s*pass|verdict:\s*pass", txt, re.IGNORECASE):
+            continue
+        if target is None or re.search(re.escape(target), txt, re.IGNORECASE):
             passing = True
             break
     if not passing:
-        block("no passing QA/validation report in project_memory yet — "
-              "run the QA/reviewer gate (a passing review/test/acceptance report) before merge/push.")
+        block("no passing QA/validation report for %s in project_memory — run the QA gate "
+              "(a passing review/test/acceptance report for this RQ) before merge/push."
+              % (target or "this work"))
 
     sys.exit(0)
 

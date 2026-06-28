@@ -1,5 +1,5 @@
-# CI: the same deterministic quality pipeline the merge gate runs locally.
-# It executes scripts/quality.py (ruff/mypy/pytest+coverage, eslint/tsc/tests, secret/dep scan).
+# CI: the same deterministic quality pipeline the merge gate runs locally, with the security tools
+# installed so they actually run + hard-fail (bandit SAST, pip-audit SCA, cyclonedx SBOM, gitleaks secrets).
 name: quality
 on:
   push:
@@ -9,10 +9,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # gitleaks needs full history
+      - name: Secret scan (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-      - name: Install Python dev tooling
+      - name: Install Python dev + security tooling
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
@@ -22,5 +26,5 @@ jobs:
           node-version: "20"
       - name: Install frontend deps
         run: if [ -f frontend/package.json ]; then cd frontend && npm ci --legacy-peer-deps; fi
-      - name: Run quality pipeline
+      - name: Run quality pipeline (lint/types/tests/coverage + SAST/SCA/SBOM)
         run: python scripts/quality.py

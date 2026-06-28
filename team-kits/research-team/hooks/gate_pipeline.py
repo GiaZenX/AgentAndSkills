@@ -50,8 +50,7 @@ def main():
     pm = os.path.join(root, "project_memory")
     if not os.path.isdir(pm):
         sys.exit(0)
-    if not re.search(r"\n\s*(PRD|RQ)-\d", read(os.path.join(pm, "product_requirements.yaml"))
-                     + read(os.path.join(pm, "research_questions.yaml"))):
+    if not re.search(r"\n\s*RQ-\d", read(os.path.join(pm, "research_questions.yaml"))):
         sys.exit(0)  # no real work yet
 
     runner = os.path.join(root, "scripts", "quality.py")

@@ -14,11 +14,14 @@ The repo's build/CI config, `tasks.yaml`, `testing_guidelines.yaml` (so CI runs 
 ## Do
 1. **Set up the quality pipeline at project start.** The scaffold ships a working default — `scripts/quality.py`
    (the runner the **merge gate `gate_pipeline.py` actually executes**), `requirements-dev.txt`,
-   `.pre-commit-config.yaml`, `.github/workflows/ci.yml`. Your job: **install the dev tooling**
-   (`pip install -r requirements-dev.txt`, `cd frontend && npm ci`, `pre-commit install`) and **tune
-   `scripts/quality.py`** to this exact stack so it runs the right checks and is green on clean code. Until
-   the pipeline runs and passes, `gate_pipeline.py` blocks every merge — quality is enforced by **tools**,
-   not by review. The stages (all must pass — see `definition_of_done.yaml`):
+   `.pre-commit-config.yaml`, `.github/workflows/ci.yml`. Your job: **declare the stacks** in
+   `project_config.yaml` `stacks:` (so the gate runs each stack's checks, not just python/JS), **install the
+   dev + security tooling** (`pip install -r requirements-dev.txt` — brings ruff/mypy/pytest **+ bandit/
+   pip-audit/cyclonedx**; `cd frontend && npm ci`; `pre-commit install`), and **tune `scripts/quality.py`**
+   to this exact stack so it runs the right checks and is green on clean code. The shipped CI
+   (`ci.yml`) installs the security tools + runs gitleaks so SAST/SCA/secret/SBOM actually execute and
+   hard-fail there. Until the pipeline runs and passes, `gate_pipeline.py` blocks every merge — quality is
+   enforced by **tools**, not by review. The stages (all must pass — see `definition_of_done.yaml`):
    **format → lint → type-check → unit tests → integration tests → coverage gate
    (`testing_guidelines.yaml` `coverage_gate.threshold`) → security (SAST + secret scan) →
    dependency (SCA) audit + license check (+ SBOM)**. Any high/critical security finding fails the build.

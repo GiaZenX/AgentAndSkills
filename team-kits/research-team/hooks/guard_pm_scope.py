@@ -2,9 +2,11 @@
 """
 PreToolUse(Edit|Write) — keep the PM out of production code.
 
-settings.json tool-hooks fire only for the MAIN agent (the PM), not for subagents, so
-this hook blocks the PM (and only the PM) from writing code: a real run had the PM make
-~60 self-edits instead of delegating. Code goes to specialist subagents; QA gates it.
+settings.json tool-hooks fire for the PM AND for every subagent (verified in a real run + the
+Claude Code docs), so to block ONLY the PM we skip when `agent_id` is present (set only inside a
+subagent call). A real run had the PM make ~60 self-edits instead of delegating; code goes to the
+specialist subagents and QA gates it. (Bash writes bypass Edit/Write hooks — this is a 95% guard;
+the QA gate is the hard backstop.)
 
 Allowed for the PM: project_memory/**, .claude/** (it rewrites specialist model frontmatter),
 plans/**, docs/** and root config/markdown. Blocked: src/**, tests/**, frontend/** and other
@@ -41,6 +43,8 @@ def main():
         data = json.load(sys.stdin)
     except Exception:
         sys.exit(0)
+    if data.get("agent_id"):
+        sys.exit(0)  # settings.json hooks also fire for subagents; only gate the PM (main agent)
     if data.get("tool_name") not in ("Edit", "Write"):
         sys.exit(0)
     inp = data.get("tool_input") or {}

@@ -42,13 +42,23 @@ def main():
         sys.exit(0)  # can't determine the role set -> don't block
     roles = {os.path.splitext(os.path.basename(p))[0]
              for p in glob.glob(os.path.join(agents_dir, "*.md"))}
+    # the session agent (the PM/lead) is NEVER spawnable as a subagent (constitution §1 — no second PM)
+    lead = "project-manager"
+    try:
+        with open(os.path.join(cwd, ".claude", "settings.json"), encoding="utf-8") as fh:
+            lead = (json.load(fh).get("agent") or lead)
+    except Exception:
+        pass
+    roles.discard(lead)
     if not roles:
         sys.exit(0)
 
     if not sub or not str(sub).strip():
         block("no subagent_type given (generic agent)")
+    if str(sub) == lead:
+        block("the %r (PM/lead) is the session agent and MUST NOT be spawned as a subagent" % lead)
     if str(sub) not in roles:
-        block("subagent_type %r is not an installed role (%s)" % (sub, ", ".join(sorted(roles))))
+        block("subagent_type %r is not an installed specialist role (%s)" % (sub, ", ".join(sorted(roles))))
 
     sys.exit(0)
 

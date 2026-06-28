@@ -6,11 +6,17 @@ Runs the real tools and FAILS (exit 1) on any hard problem, so "pipeline green" 
 self-reported YAML string. Used three ways: by the `gate_pipeline` hook before merge/push, by the
 shipped pre-commit config, and by CI. The DevOps role owns and may extend it.
 
-Hard checks (block): lint (ruff / eslint), types (mypy / tsc), tests + coverage (pytest --cov-fail-under
-/ vitest --coverage) for every stack that is actually present. A stack present but its core tool missing
-is a FAIL (the pipeline must be set up — that is the point). Security scanners (gitleaks, pip-audit,
-npm audit) run when available and fail on findings; if a scanner is absent it warns (so the gate is not
-brittle on machines without it). No code present for a stack -> that stack is skipped.
+Config-driven, not hardcoded to Python+JS:
+  - Active stacks come from project_memory/project_config.yaml `stacks: [...]` (inline OR block list) if
+    present, else they are auto-detected. A DECLARED stack with no check definition here is a FAIL (no
+    silent "green empty gate" for Rust/Go/.NET/…) — DevOps must add its checks.
+  - Per stack: lint, types, tests+coverage (core, hard-fail) and SAST/SCA (security).
+  - Repo-wide security: secret scan + SBOM.
+
+Policy: a CORE tool missing for an ACTIVE stack is a FAIL (the pipeline must be set up). SECURITY tools
+missing are a WARN locally but are installed + enforced in CI (requirements-dev.txt + ci.yml). Findings
+from any tool are a hard FAIL (with a tail of the tool's own output for debugging). No source for a stack
+-> that stack is skipped (auto-detect) or fails cleanly (explicitly declared but its files are absent).
 
 Exit 0 = all green. Exit 1 = at least one hard failure. Cross-platform (uses shutil.which).
 """
@@ -21,9 +27,7 @@ import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-FAILS = []
-WARNS = []
-OKS = []
+FAILS, WARNS, OKS = [], [], []
 
 
 def have(tool):
@@ -38,7 +42,7 @@ def run(cmd, cwd=None):
         return 1, str(e)
 
 
-def has_files(rel_dir, exts, skip=("node_modules", "dist", "build", "__pycache__", ".venv", "venv")):
+def has_files(rel_dir, exts, skip=("node_modules", "dist", "build", "__pycache__", ".venv", "venv", "target")):
     d = os.path.join(ROOT, rel_dir)
     if not os.path.isdir(d):
         return False
@@ -50,112 +54,188 @@ def has_files(rel_dir, exts, skip=("node_modules", "dist", "build", "__pycache__
     return False
 
 
+def rootfile(*names):
+    return any(os.path.isfile(os.path.join(ROOT, n)) for n in names)
+
+
 def coverage_threshold():
     p = os.path.join(ROOT, "project_memory", "testing_guidelines.yaml")
     try:
         m = re.search(r"(?m)^\s*threshold:\s*(\d+)", open(p, encoding="utf-8", errors="ignore").read())
-        if m:
-            return int(m.group(1))
+        return int(m.group(1)) if m else 80
     except Exception:
-        pass
-    return 80
+        return 80
 
 
-def check(name, ok, detail=""):
-    (OKS if ok else FAILS).append(name + ((" — " + detail) if detail and not ok else ""))
+def declared_stacks():
+    """Parse `stacks:` from project_config.yaml — supports inline `[a, b]` AND block (`- a`) form."""
+    p = os.path.join(ROOT, "project_memory", "project_config.yaml")
+    try:
+        txt = open(p, encoding="utf-8", errors="ignore").read()
+    except Exception:
+        return []
+    m = re.search(r"(?m)^\s*stacks:\s*\[([^\]]*)\]", txt)
+    if m:
+        return [s.strip().strip("'\"").lower() for s in m.group(1).split(",") if s.strip()]
+    m = re.search(r"(?m)^[ \t]*stacks:[ \t]*$", txt)
+    if m:
+        out = []
+        for line in txt[m.end():].splitlines():
+            mm = re.match(r"[ \t]*-[ \t]*([A-Za-z0-9_+-]+)[ \t]*$", line)
+            if mm:
+                out.append(mm.group(1).lower())
+            elif line.strip():
+                break  # left the list block
+        return out
+    return []
+
+
+def ok(name):
+    OKS.append(name)
+
+
+def fail(name, detail=""):
+    FAILS.append(name + ((" — " + detail) if detail else ""))
 
 
 def warn(name, detail=""):
     WARNS.append(name + ((" — " + detail) if detail else ""))
 
 
-# ---------------- Python ----------------
-def python_stack():
-    if not (has_files("src", {".py"}) or has_files(".", {".py"}, ) ):
+def _tail(out):
+    out = (out or "").strip()
+    return (" :: " + out[-300:]) if out else ""
+
+
+def _core(name, tool, cmd, detail):
+    if not have(tool):
+        fail(name, "%s not installed — set up the dev requirements" % tool)
         return
-    py_src = has_files("src", {".py"}) or any(
-        os.path.isfile(os.path.join(ROOT, f)) for f in ("app.py", "main.py")
-    )
-    if not py_src:
+    rc, out = run(cmd)
+    ok(name) if rc == 0 else fail(name, detail + _tail(out))
+
+
+def _sec(name, tool, cmd, detail):
+    if not have(tool):
+        warn(name, "%s not installed; runs + hard-fails in CI" % tool)
         return
-    # lint
-    if have("ruff"):
-        rc, out = run(["ruff", "check", "."])
-        check("ruff (lint)", rc == 0, "lint errors")
-    else:
-        check("ruff (lint)", False, "ruff not installed — set up the dev requirements")
-    # types
-    if have("mypy"):
-        rc, out = run(["mypy", "src"] if os.path.isdir(os.path.join(ROOT, "src")) else ["mypy", "."])
-        check("mypy (types)", rc == 0, "type errors")
-    else:
-        check("mypy (types)", False, "mypy not installed — set up the dev requirements")
-    # tests + coverage
+    rc, out = run(cmd)
+    ok(name) if rc == 0 else fail(name, detail + _tail(out))
+
+
+# ---------------- per-stack check definitions ----------------
+def check_python():
+    tgt = "src" if os.path.isdir(os.path.join(ROOT, "src")) else "."
+    thr = coverage_threshold()
+    _core("ruff (lint)", "ruff", ["ruff", "check", "."], "lint errors")
+    _core("mypy (types)", "mypy", ["mypy", tgt], "type errors")
     if os.path.isdir(os.path.join(ROOT, "tests")) and has_files("tests", {".py"}):
-        if have("pytest"):
-            thr = coverage_threshold()
-            cov_target = "src" if os.path.isdir(os.path.join(ROOT, "src")) else "."
-            rc, out = run(["pytest", "-q", "--cov=" + cov_target, "--cov-fail-under=" + str(thr)])
-            check("pytest (+coverage>=%d%%)" % thr, rc == 0, "tests failed or coverage below %d%%" % thr)
-        else:
-            check("pytest", False, "pytest not installed — set up the dev requirements")
-    # security (optional)
-    if have("pip-audit"):
-        rc, out = run(["pip-audit", "-l"])
-        if rc != 0:
-            check("pip-audit (deps)", False, "vulnerable dependency")
-    else:
-        warn("pip-audit (deps)", "not installed; dependency audit skipped")
+        _core("pytest (+cov>=%d%%)" % thr, "pytest",
+              ["pytest", "-q", "--cov=" + tgt, "--cov-fail-under=" + str(thr)],
+              "tests failed or coverage below %d%%" % thr)
+    _sec("bandit (SAST)", "bandit", ["bandit", "-r", tgt, "-ll", "-q"], "high-severity finding")
+    _sec("pip-audit (SCA)", "pip-audit", ["pip-audit"], "vulnerable dependency")
 
 
-# ---------------- Node / TypeScript ----------------
-def node_stack():
+def check_node():
     fe = os.path.join(ROOT, "frontend")
-    if not os.path.isfile(os.path.join(fe, "package.json")):
+    pkgf = os.path.join(fe, "package.json")
+    if not os.path.isfile(pkgf):
+        fail("frontend (node)", "declared a node/typescript stack but no frontend/package.json")
         return
     if not have("npm"):
-        check("npm toolchain", False, "npm not installed — set up the frontend toolchain")
+        fail("npm toolchain", "npm not installed — set up the frontend toolchain")
         return
-    pkg = open(os.path.join(fe, "package.json"), encoding="utf-8", errors="ignore").read()
-    # lint
+    pkg = open(pkgf, encoding="utf-8", errors="ignore").read()
     if '"lint"' in pkg:
         rc, out = run(["npm", "run", "-s", "lint"], cwd=fe)
-        check("eslint (lint)", rc == 0, "lint errors")
-    elif have("npx"):
-        rc, out = run(["npx", "--no-install", "eslint", "."], cwd=fe)
-        check("eslint (lint)", rc == 0, "lint errors")
-    else:
-        warn("eslint (lint)", "no lint script and eslint unavailable")
-    # types
-    rc, out = run(["npx", "--no-install", "tsc", "--noEmit"], cwd=fe)
-    check("tsc (types)", rc == 0, "type errors")
-    # tests + coverage
+        ok("eslint (lint)") if rc == 0 else fail("eslint (lint)", "lint errors" + _tail(out))
+    # type-check only when the project is actually TypeScript-configured
+    if os.path.isfile(os.path.join(fe, "tsconfig.json")):
+        rc, out = run(["npx", "--no-install", "tsc", "--noEmit"], cwd=fe)
+        ok("tsc (types)") if rc == 0 else fail("tsc (types)", "type errors" + _tail(out))
     if '"test"' in pkg:
         rc, out = run(["npm", "run", "-s", "test", "--", "--run", "--coverage"], cwd=fe)
-        if rc != 0:  # retry without extra flags (jest etc.)
+        if rc != 0:
             rc, out = run(["npm", "run", "-s", "test"], cwd=fe)
-        check("frontend tests", rc == 0, "tests failed")
+        ok("frontend tests") if rc == 0 else fail("frontend tests", "tests failed" + _tail(out))
     else:
-        check("frontend tests", False, "no test script — frontend must be tested")
-    # security (optional)
+        fail("frontend tests", "no test script — frontend must be tested")
     rc, out = run(["npm", "audit", "--audit-level=high"], cwd=fe)
     if rc != 0 and "vulnerab" in out.lower():
-        check("npm audit (deps)", False, "high/critical vulnerability")
+        fail("npm audit (SCA)", "high/critical vulnerability")
 
 
-# ---------------- Secrets (repo-wide, optional) ----------------
+def check_go():
+    _core("go vet", "go", ["go", "vet", "./..."], "vet errors")
+    _core("go test (+cover)", "go", ["go", "test", "-cover", "./..."], "tests failed")
+
+
+def check_rust():
+    _core("cargo clippy", "cargo", ["cargo", "clippy", "--", "-D", "warnings"], "clippy warnings")
+    _core("cargo test", "cargo", ["cargo", "test"], "tests failed")
+
+
+def check_dotnet():
+    _core("dotnet format", "dotnet", ["dotnet", "format", "--verify-no-changes"], "format/style issues")
+    _core("dotnet test", "dotnet", ["dotnet", "test"], "tests failed")
+
+
+STACKS = {
+    "python": {"detect": lambda: has_files("src", {".py"}) or rootfile("app.py", "main.py"), "run": check_python},
+    "node": {"detect": lambda: os.path.isfile(os.path.join(ROOT, "frontend", "package.json")), "run": check_node},
+    "typescript": {"detect": lambda: os.path.isfile(os.path.join(ROOT, "frontend", "package.json")), "run": check_node},
+    "go": {"detect": lambda: rootfile("go.mod"), "run": check_go},
+    "rust": {"detect": lambda: rootfile("Cargo.toml"), "run": check_rust},
+    "dotnet": {"detect": lambda: has_files(".", {".csproj", ".sln"}), "run": check_dotnet},
+}
+
+
 def secret_scan():
     if have("gitleaks"):
         rc, out = run(["gitleaks", "detect", "--no-banner", "-r", os.devnull])
-        check("gitleaks (secrets)", rc == 0, "potential secret committed")
+        ok("gitleaks (secrets)") if rc == 0 else fail("gitleaks (secrets)", "potential secret" + _tail(out))
     else:
-        warn("gitleaks (secrets)", "not installed; secret scan skipped")
+        warn("gitleaks (secrets)", "not installed; runs + hard-fails in CI")
+
+
+def sbom():
+    if have("cyclonedx-py"):
+        run(["cyclonedx-py", "environment", "-o", "sbom.json"])
+        ok("SBOM (sbom.json)")
+    else:
+        warn("SBOM", "cyclonedx-py not installed; generated in CI")
 
 
 def main():
-    python_stack()
-    node_stack()
+    active = declared_stacks()
+    ran = set()
+    if active:
+        for s in active:
+            if s not in STACKS:
+                fail("stack '%s'" % s, "no quality checks defined — DevOps must add them to scripts/quality.py")
+                continue
+            fn = STACKS[s]["run"]
+            if fn in ran:
+                continue  # e.g. node + typescript share one runner
+            ran.add(fn)
+            try:
+                fn()
+            except Exception as e:
+                fail("stack '%s'" % s, "runner errored: %s" % e)
+    else:
+        for s, spec in STACKS.items():
+            fn = spec["run"]
+            if fn in ran:
+                continue
+            try:
+                if spec["detect"]():
+                    ran.add(fn)
+                    fn()
+            except Exception as e:
+                fail("stack '%s'" % s, "runner errored: %s" % e)
     secret_scan()
+    sbom()
 
     print("[quality] pipeline report")
     for o in OKS:

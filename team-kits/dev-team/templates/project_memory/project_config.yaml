@@ -6,6 +6,10 @@ project:
   name: ""                  # set at init
   preset: solo              # solo | duo | team
   repo_mode: greenfield     # greenfield | onboarded
+  stacks: []                # the languages/stacks in use, e.g. [python, typescript, go, rust, dotnet].
+                            # The merge gate (scripts/quality.py) runs EACH declared stack's checks; a
+                            # declared stack with no checks defined is a FAIL (no silent empty gate).
+                            # Leave [] to auto-detect python/node.
 
 # Model ladder: haiku < sonnet < opus. Specialists DEFAULT to sonnet (haiku failed the QA gate on
 # complex code in a real run). Use haiku only for genuinely simple roles; escalate to opus for the hardest.
