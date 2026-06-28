@@ -27,6 +27,11 @@ ALLOWED_ROOT_DOCS = {
 }
 
 
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _root import find_repo_root
+
+
 def block(rel, why):
     sys.stderr.write(
         "[team-kit guard] Blocked creating '%s': %s.\n"
@@ -49,7 +54,7 @@ def main():
     path = inp.get("file_path") or inp.get("path") or ""
     if not path:
         sys.exit(0)
-    cwd = data.get("cwd") or os.getcwd()
+    cwd = find_repo_root(data.get("cwd"))
     try:
         rel = os.path.relpath(path, cwd)
     except Exception:

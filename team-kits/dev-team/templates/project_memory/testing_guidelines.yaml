@@ -1,6 +1,8 @@
 # testing_guidelines.yaml — owned by: QA
 # How tests must be written and what must be covered. Shipped defaults below.
-# Append-only: the Architect/QA add stack specifics; never silently overwrite.
+# Append-only: QA fills the per-stack `languages:` block (mandatory, see below); never silently overwrite.
+# QA owns test COMPLETENESS; the Architect provides the strategy input (component criticality +
+# test_strategy in architecture.yaml, a test-approach ADR in decisions.yaml). See constitution §12a.
 
 global:
   - Every task that changes behavior MUST have tests
@@ -8,6 +10,11 @@ global:
   - Tests MUST be deterministic (no reliance on time, network, ordering)
   - Cover the happy path AND the relevant edge cases
   - Coverage MUST stay at or above the threshold below (CI fails below it)
+  - "Per-area coverage: EACH top-level source area (src/, frontend/src/, ...) meets the threshold on its
+    own — a high global number that a strong backend lifts over an untested frontend is NOT acceptable."
+  - "No mock-only for user-/runtime-critical paths: a UI feature needs a real UI smoke (e.g. Playwright);
+    a container needs a real `docker build` + health start; data/training needs a real end-to-end run."
+  - Every component in architecture.yaml MUST be covered by the test type its `test_strategy` prescribes.
 
 # Coverage gate (hard). The architect/QA may raise it; never lower it silently.
 coverage_gate:
@@ -45,7 +52,11 @@ tooling_defaults:
   load_perf:
     optional: [k6]
 
-# Per-stack specifics, added on demand by QA. Example shape:
+# Per-stack specifics — QA MUST fill this for EVERY language/stack actually in use (not "on demand":
+# leaving it empty for a used stack is the exact defect that shipped 0 frontend tests in a real run).
+# Example shape:
 #   typescript:
-#     - "use vitest; no skipped tests in main"
+#     - "use vitest for unit/component; Playwright for the UI smoke; no skipped tests in main"
+#   python:
+#     - "pytest; httpx for API integration; a real end-to-end run for training/data paths"
 languages: {}

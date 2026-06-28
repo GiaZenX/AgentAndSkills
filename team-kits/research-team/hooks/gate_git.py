@@ -16,6 +16,11 @@ import json
 import glob
 
 
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _root import find_repo_root
+
+
 def block(why):
     sys.stderr.write("[team-kit gate] Blocked: %s\n" % why)
     sys.exit(2)
@@ -45,7 +50,7 @@ def main():
     if "git push" in low and re.search(r"--force(-with-lease)?|(^|\s)-f(\s|$)", low):
         block("force-push is forbidden by the team constitution.")
 
-    cwd = data.get("cwd") or os.getcwd()
+    cwd = find_repo_root(data.get("cwd"))
     pm = os.path.join(cwd, "project_memory")
     if not os.path.isdir(pm):
         sys.exit(0)  # nothing to gate yet

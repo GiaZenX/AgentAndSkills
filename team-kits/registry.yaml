@@ -21,7 +21,7 @@ teams:
     lead: project-manager     # kit settings.json sets agent:project-manager -> the session IS the PM
     summary: >
       Software / product engineering: apps, APIs, tooling, libraries, build work.
-      Runs the PRD -> SRD -> Task hierarchy: foreground PM + 5 specialist subagents.
+      Runs the PRD -> SRD -> Task hierarchy: foreground PM + 7 specialist subagents.
     intents:
       - software
       - app
@@ -39,6 +39,8 @@ teams:
       - refactoring
     roles:                     # specialist subagents (./.claude/agents/)
       - software-architect
+      - product-designer
+      - researcher
       - backend-developer
       - frontend-developer
       - quality-engineer

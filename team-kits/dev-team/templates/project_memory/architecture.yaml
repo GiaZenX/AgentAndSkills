@@ -6,6 +6,11 @@
 #     <name>:
 #       responsibility: <what it does>
 #       depends_on: [ <other components> ]
+#       criticality: low | med | high          # how much a failure here hurts (drives test depth)
+#       test_strategy: [ <which test types genuinely add value for THIS component> ]
+#                                               # e.g. [unit], [unit, integration], [component, e2e-ui-smoke],
+#                                               # [container-smoke], [real-run] — picked for value, NOT cargo-cult.
+#                                               # QA reads this and proves each component is covered accordingly.
 #   data_flow: <short description or diagram reference>
 #   mermaid: |                       # component diagram as text (the Architect keeps it current).
 #     graph TD                       # Renders in VS Code (Mermaid) and GitHub. Text -> diff-able,

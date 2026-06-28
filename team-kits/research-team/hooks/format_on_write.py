@@ -36,6 +36,11 @@ FORMATTERS = {
 SKIP_DIRS = ("project_memory", ".claude", "plans", "node_modules", ".git", "dist", "build")
 
 
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _root import find_repo_root
+
+
 def main():
     try:
         data = json.load(sys.stdin)
@@ -48,7 +53,7 @@ def main():
     if not path or not os.path.isfile(path):
         sys.exit(0)
 
-    cwd = data.get("cwd") or os.getcwd()
+    cwd = find_repo_root(data.get("cwd"))
     try:
         rel = os.path.relpath(path, cwd).replace("\\", "/")
     except Exception:

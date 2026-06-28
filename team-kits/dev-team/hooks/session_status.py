@@ -13,6 +13,11 @@ import json
 import subprocess
 
 
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _root import find_repo_root
+
+
 def git(cwd, *args):
     try:
         r = subprocess.run(["git", "-C", cwd, *args],
@@ -27,7 +32,7 @@ def main():
         data = json.load(sys.stdin)
     except Exception:
         data = {}
-    cwd = data.get("cwd") or os.getcwd()
+    cwd = find_repo_root(data.get("cwd"))
 
     parts = ["You are the Project Manager — the session agent the user talks to. Follow ./CLAUDE.md."]
 

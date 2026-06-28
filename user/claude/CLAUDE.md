@@ -43,28 +43,40 @@ Until the user answers, do **not** write or edit code.
 
 ## Auto-Init (user chose structured)
 
-You perform the install yourself. In order:
+You **first interview the user and draft a plan, then install** the kit, then hand over. In order:
 
 1. **Classify intent → team kit** using `~/.claude/team-kits/registry.yaml` (intents → `key`). One match
    → use it; ambiguous → ask one short routing question; only generic "build software" → default
    `dev-team`. If the matched team's `status` is not `available`, say it is planned and offer an
    available one.
-2. **Install the kit locally** by running the scaffold script (your only shell write here):
+2. **Discovery + plan — BEFORE installing** (you still have all tools, incl. `AskUserQuestion`, here).
+   Interview the user at the **product** level (prose first, then `AskUserQuestion`): what they want to
+   build, for whom, the must-have capabilities, constraints (local-only, privacy, budget…). **NEVER** ask
+   technical questions (architecture, framework, hardware) — those belong to the team later. From the
+   answers write a **short plan** and **recommend the team** (always a clear recommendation, never a neutral
+   menu). Refine until the picture is clear. Write **no code**.
+3. **Persist the draft so the PM inherits it.** Create `project_memory/` from
+   `~/.claude/team-kits/<key>/templates/project_memory/` and write the plan as a **DRAFT**: a DRAFT
+   `product_requirements.yaml` PRD (status `PROPOSED`) capturing the wish + acceptance criteria, plus a
+   one-paragraph plan and the recommended team/preset in `progress.yaml`. That is the ONLY project_memory
+   you write — you do NOT derive SRs, tasks, or code.
+4. **Install the kit locally** by running the scaffold script (your only shell write here):
    - `bash "$HOME/.claude/team-kits/scaffold_team.sh" <key>`
    - (Windows: `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.claude\team-kits\scaffold_team.ps1" -Team <key>`)
-   This copies the kit's specialist agents → `./.claude/agents/`, its constitution → `./CLAUDE.md`, and
-   its enforcement hooks → `./.claude/`. It does **NOT** create `project_memory/` (the PM does that at
-   startup).
-3. **Stop and ask for a restart — do NOT act as the PM in this session.** The freshly installed agents and
-   the `agent: project-manager` setting only become active on the **next** session start; they are **not
-   spawnable in this session** (Claude Code loads agents/settings at session start). So do not try to run
-   the phases, delegate, or create `project_memory/` now. Tell the user clearly and **STOP**:
-   "✅ Team installiert. **Bitte starte die Session neu** (Fenster schließen/öffnen oder eine neue Session im
-   selben Ordner). Danach arbeite ich automatisch als Project Manager (Opus) mit dem Team weiter."
+   This copies the kit's specialist agents → `./.claude/agents/`, its constitution → `./CLAUDE.md`, its
+   hooks + settings → `./.claude/`. It leaves your `project_memory/` draft untouched.
+5. **Stop and ask for a restart — do NOT act as the PM in this session.** The installed agents and the
+   `agent: project-manager` setting only become active at the **next** session start. So do not delegate or
+   derive anything now. Tell the user clearly and **STOP**, naming the follow-up prompt:
+   "✅ Team installiert und dein Plan liegt als Entwurf bereit. **Bitte starte die Session neu** (Fenster
+   schließen/öffnen oder neue Session im selben Ordner) und schreib mir dann einfach **„weiter"** (oder
+   deinen Wunsch erneut). Ich arbeite dann als Project Manager (Opus) mit dem Team weiter und verfeinere
+   den Plan mit dir."
 
 From the next session the repo starts directly as the `project-manager` agent (opus, persistent memory,
-preloaded playbook) — no gate, no relay, no second identity. The `project-manager` definition is your
-session agent; never spawn it as a subagent.
+preloaded playbook). It **reads your DRAFT plan/PRD, summarises it, and refines/confirms it** with the user
+— never starting discovery from zero. The `project-manager` definition is the session agent; never spawn it
+as a subagent.
 
 ## Free mode (user chose "Nein")
 

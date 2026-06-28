@@ -12,6 +12,9 @@ pipeline:
   - unit_tests: all green
   - integration_tests: all green (where applicable)
   - coverage: at or above the threshold in testing_guidelines.yaml
+  - per_area_coverage: EACH top-level source area (src/, frontend/src/, …) meets the threshold on its own
+  - component_coverage: every architecture.yaml component is tested with its prescribed test_strategy (no glied untested)
+  - real_run: user-/runtime-critical paths verified for real, not mock-only (UI smoke e.g. Playwright; real `docker build` + health start; real end-to-end run for data/training)
   - security: SAST + secret scan clean — any high/critical finding is an automatic FAIL (no "reading past")
   - dependencies: dependency (SCA) audit clean (no known critical vulns); deps pinned in a lockfile
   - licenses: every dependency has an approved license (no disallowed/incompatible license without sign-off)

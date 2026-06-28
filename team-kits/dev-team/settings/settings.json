@@ -22,7 +22,7 @@
     "SessionStart": [
       {
         "hooks": [
-          { "type": "command", "command": "python .claude/hooks/session_status.py" }
+          { "type": "command", "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/session_status.py\"" }
         ]
       }
     ],
@@ -30,26 +30,34 @@
       {
         "matcher": "Write",
         "hooks": [
-          { "type": "command", "command": "python .claude/hooks/guard_no_adhoc.py" }
+          { "type": "command", "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard_no_adhoc.py\"" }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard_pm_scope.py\"" }
         ]
       },
       {
         "matcher": "Bash",
         "hooks": [
-          { "type": "command", "command": "python .claude/hooks/gate_git.py" }
+          { "type": "command", "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/gate_git.py\"" },
+          { "type": "command", "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/gate_test_coverage.py\"" },
+          { "type": "command", "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/gate_memory_complete.py\"" }
         ]
       },
       {
         "matcher": "Agent|Task",
         "hooks": [
-          { "type": "command", "command": "python .claude/hooks/guard_agent_spawn.py" }
+          { "type": "command", "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard_agent_spawn.py\"" }
         ]
       }
     ],
     "Stop": [
       {
         "hooks": [
-          { "type": "command", "command": "python .claude/hooks/auto_dashboard.py" }
+          { "type": "command", "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/auto_dashboard.py\"" }
         ]
       }
     ]

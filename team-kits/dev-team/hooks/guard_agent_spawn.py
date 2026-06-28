@@ -13,6 +13,11 @@ import json
 import glob
 
 
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _root import find_repo_root
+
+
 def block(why):
     sys.stderr.write(
         "[team-kit guard] Agent spawn blocked: %s\n"
@@ -32,7 +37,7 @@ def main():
     inp = data.get("tool_input") or {}
     sub = inp.get("subagent_type")
 
-    cwd = data.get("cwd") or os.getcwd()
+    cwd = find_repo_root(data.get("cwd"))
     agents_dir = os.path.join(cwd, ".claude", "agents")
     if not os.path.isdir(agents_dir):
         sys.exit(0)  # can't determine the role set -> don't block

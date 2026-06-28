@@ -46,26 +46,35 @@ Until the user answers, do **not** write or edit code.
 
 ## Auto-Init (user chose structured)
 
-You perform the install yourself. In order:
+You **first interview the user and draft a plan, then install** the kit, then hand over. In order:
 
 1. **Classify intent → team kit** using `~/.claude/team-kits/registry.yaml` (intents → `key`). One match
    → use it; ambiguous → ask one short routing question; only generic "build software" → default
    `dev-team`. If the matched team's `status` is not `available`, say it is planned and offer an
    available one.
-2. **Install the kit locally** by running the scaffold script:
+2. **Discovery + plan — BEFORE installing.** Interview the user at the **product** level: what they want to
+   build, for whom, must-have capabilities, constraints (local-only, privacy, budget…). **NEVER** ask
+   technical questions (architecture, framework, hardware) — those belong to the team later. Write a **short
+   plan** and **recommend the team** (always a clear recommendation, never a neutral menu). Write **no code**.
+3. **Persist the draft so the PM inherits it.** Create `project_memory/` from
+   `~/.claude/team-kits/<key>/templates/project_memory/` and write the plan as a **DRAFT**: a DRAFT
+   `product_requirements.yaml` PRD (status `PROPOSED`) + a one-paragraph plan and recommended team/preset in
+   `progress.yaml`. That is the ONLY project_memory you write — no SRs, tasks, or code.
+4. **Install the kit locally** by running the scaffold script:
    - Windows: `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.claude\team-kits\scaffold_team.ps1" -Team <key>`
    - Unix: `bash "$HOME/.claude/team-kits/scaffold_team.sh" <key>`
-   This copies the kit's specialist agents → `./.claude/agents/`, its constitution → `./CLAUDE.md`, and
-   its enforcement hooks → `./.claude/`. It does **NOT** create `project_memory/` (the PM does that at
-   startup).
-3. **Stop and ask for a fresh chat — do NOT act as the PM yet.** Newly installed agents and instructions are
-   picked up in a **new Copilot chat**, not mid-conversation. So do not run the phases, delegate, or create
-   `project_memory/` now. Tell the user clearly and **STOP**:
-   "✅ Team installiert. **Bitte starte einen neuen Chat** in diesem Ordner. Danach arbeite ich automatisch als
-   Project Manager mit dem Team weiter."
+   This copies the kit's specialist agents → `./.claude/agents/`, its constitution → `./CLAUDE.md`, its
+   hooks + settings → `./.claude/`. It leaves your `project_memory/` draft untouched.
+5. **Stop and ask for a fresh chat — do NOT act as the PM yet.** Newly installed agents and instructions are
+   picked up in a **new Copilot chat**, not mid-conversation. So do not delegate or derive anything now. Tell
+   the user clearly and **STOP**, naming the follow-up prompt:
+   "✅ Team installiert und dein Plan liegt als Entwurf bereit. **Bitte starte einen neuen Chat** in diesem
+   Ordner und schreib mir dann einfach **„weiter"**. Ich arbeite dann als Project Manager mit dem Team weiter
+   und verfeinere den Plan mit dir."
 
 From the next chat the local `./CLAUDE.md` carries the marker → the **HANDOVER** rule applies and you act as
-the PM for this repo. There is no relay and no second identity — you are the PM.
+the PM for this repo. You read the DRAFT plan/PRD, summarise it, and refine/confirm it with the user — never
+starting from zero. There is no relay and no second identity — you are the PM.
 
 ## Free mode (user chose "Nein")
 

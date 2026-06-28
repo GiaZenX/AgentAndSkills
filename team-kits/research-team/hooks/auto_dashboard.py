@@ -13,11 +13,16 @@ import json
 import subprocess
 
 
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from _root import find_repo_root
+
+
 def main():
     cwd = os.getcwd()
     try:
         data = json.load(sys.stdin)
-        cwd = data.get("cwd") or cwd
+        cwd = find_repo_root(data.get("cwd"))
     except Exception:
         pass
 

@@ -7,7 +7,8 @@ project:
   preset: solo              # solo | duo | team
   repo_mode: greenfield     # greenfield | onboarded
 
-# Model ladder: haiku < sonnet < opus. Specialists start on haiku.
+# Model ladder: haiku < sonnet < opus. Specialists DEFAULT to sonnet (haiku failed the QA gate on
+# complex code in a real run). Use haiku only for genuinely simple roles; escalate to opus for the hardest.
 # Up-/down-scaling ONLY on user confirmation. NEVER silent, NEVER automatic.
 #
 # The PM is the FOREGROUND agent and runs on the SESSION model (set by the user via /model);
@@ -15,8 +16,10 @@ project:
 # the agent file/`name:` in ./.claude/agents/. The PM rewrites each agent's `model:` frontmatter
 # to match this map (and verifies it) before delegating.
 model_map:
-  software-architect: haiku
-  backend-developer: haiku
-  frontend-developer: haiku
-  quality-engineer: haiku
-  devops-engineer: haiku
+  software-architect: sonnet
+  product-designer: sonnet
+  researcher: sonnet
+  backend-developer: sonnet
+  frontend-developer: sonnet
+  quality-engineer: sonnet
+  devops-engineer: sonnet

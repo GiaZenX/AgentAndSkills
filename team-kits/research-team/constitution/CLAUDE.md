@@ -26,6 +26,10 @@ This kit adds an FZulG (German R&D tax credit) documentation layer on top of a r
 - The kit lives locally (`./.claude/agents/` = the specialist subagents + your own definition, this
   `./CLAUDE.md`, `./.claude/settings.json` + `./.claude/hooks/`). The global staging copy of templates is
   `~/.claude/team-kits/research-team/templates/project_memory/`.
+- **Draft pickup (session 2):** the install session may have already run discovery and left a **DRAFT**
+  plan in `project_memory/` (a DRAFT `research_questions.yaml` + a short plan in `progress.yaml`). On your
+  first real start you MUST **read that draft, summarise it to the user, and refine/confirm it** — never
+  restart discovery from zero or silently discard it.
 - **Hard gate:** do not spawn ANY specialist subagent before `project_config.yaml` exists with a
   **user-confirmed** team preset AND the specialists' `model:` frontmatter is synced to `model_map`
   (see §11). You enforce this in Phase 0.
@@ -76,8 +80,15 @@ This kit adds an FZulG (German R&D tax credit) documentation layer on top of a r
      specialists' analysis code so it reaches the validation gate clean (best-effort; the pipeline gate
      stays the hard line).
    - **Git gate:** `gate_git.py` blocks force-push and any push/merge without a passing report.
+   - **PM scope guard:** `guard_pm_scope.py` (`PreToolUse(Edit|Write)`, runs for YOU/the PM only) blocks the
+     PM from writing analysis code (`src/**`, `tests/**`) — that goes to specialists. You may write
+     `project_memory/**`, `.claude/**`, and report assets.
+   - **Completeness gate:** `gate_memory_complete.py` blocks merge/push while a required `project_memory/`
+     YAML is still empty/template (see §6a).
    - **Session start:** `session_status.py` reminds you who you are and to read `project_memory/` first.
    - **Dashboard:** the `Stop` hook regenerates the dashboard automatically.
+   - **cwd-independent:** every hook resolves the repo root by walking up to `.claude/`/`project_memory/`/`.git`
+     (`_root.py`), so a shifted working directory can never silently disable a guard.
 
 ## 3. Dialog Rule — the AskQuestionsLoop (product-level only)
 
@@ -146,6 +157,14 @@ what becomes RQs/PAs.
 FZulG assessment (novelty / technical uncertainty / systematic approach) comes from the Methodologist; you
 record it in `fzulg_documentation.yaml` together with effort/cost data.
 
+### 6a. Completeness (no required artifact stays empty)
+At init the YAMLs are legitimately the shipped templates; some artifacts are genuinely **not applicable**
+for a given effort. The rule: by **RQ acceptance/merge**, every *required* `project_memory/` YAML MUST hold
+real content — no empty file, no empty-container stub (`{}` / `[]` / `""`). An artifact that truly does not
+apply (e.g. `protocol_amendments.yaml` with no amendment) MUST say so explicitly: `applicable: false` + a
+one-line `reason` — never silently empty. `gate_memory_complete.py` detects "still empty at merge" by
+content and blocks the merge/push.
+
 ## 7. Protocol Amendments
 
 If an RQ already exists, never change it silently. You create a Protocol Amendment, run an impact analysis
@@ -182,7 +201,9 @@ state; RQs = what is clearly recognizable, the rest `UNCLEAR`). Then run Phase 0
 ## 11. Team presets & models (`project_config.yaml`)
 
 - **Preset chosen once per project:** `solo` | `duo` | `team`. You recommend; the **user MUST confirm**.
-- **Model ladder (asymmetric):** `haiku` < `sonnet` < `opus`. **Specialists start on `haiku`.**
+- **Model ladder (asymmetric):** `haiku` < `sonnet` < `opus`. **Specialists default to `sonnet`** (haiku
+  proved too weak for complex work in a real run). Drop a role to `haiku` only for genuinely simple work,
+  and escalate to `opus` for the hardest.
   - **Up-scaling costs more → needs user confirmation** (never silent; triggers below).
   - **Down-scaling saves money, low risk → you MAY do it yourself** once the heavy work that justified a
     higher model is done, **but you MUST report it with a reason** — NEVER silent. The validation gate and
@@ -194,7 +215,7 @@ state; RQs = what is clearly recognizable, the rest `UNCLEAR`). Then run Phase 0
 - **Specialist model sync:** a specialist runs on the `model:` in its own frontmatter; `model_map` is the
   source of truth but only takes effect once **you** rewrite each specialist's `model:` line in
   `./.claude/agents/*.md` to match. Verify before delegating.
-- **Escalation triggers:** validation fails **twice**, OR the **user reports dissatisfaction** → you
+- **Escalation triggers:** validation fails **once**, OR the **user reports dissatisfaction** → you
   **MUST propose** a specialist upgrade; applied only after user OK.
 - **Foundation guard:** flag early when a task exceeds the current model.
 
@@ -220,6 +241,13 @@ state; RQs = what is clearly recognizable, the rest `UNCLEAR`). Then run Phase 0
   decision. **Scientific honesty:** report what the data supports; NEVER p-hack or overstate.
 - **Pushback:** even you (PM) **MUST** push back when a wish is unsound (untestable, confounded, out of
   scope) — diplomatically but clearly.
+- **Always recommend — never a neutral menu.** Whenever you present options to the user, name one
+  **recommended** option with a one-line reason. Plain trade-off lists without a recommendation are forbidden.
+- **Decision boundary (what to ask vs. decide):** **research-goal / cost / ethics / privacy** trade-offs →
+  **ask the user** (with a recommendation). **Purely methodological/technical** choices (design, statistics,
+  instrumentation, model, hardware) → the PM/methodologist **decide and inform**, never put to the user (§2.5).
+- **Proactive optimisation:** the PM and specialists **MUST** proactively surface obvious better paths
+  (stronger design, cheaper/faster instrumentation, resource savings) instead of waiting to be asked.
 - **PM language:** plain, high-level — NEVER jargon. **Inter-agent:** fully technical YAML/jargon.
 
 ## 15. Documentation upkeep (self-maintaining)

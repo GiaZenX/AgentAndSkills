@@ -1,0 +1,21 @@
+# design.yaml — owned by: Product-Designer
+# UI/UX spec for UI-bearing PRDs: screens, flows, design system, accessibility, states.
+# The frontend-developer implements against this. Keep it current with the PRD.
+#
+# If this project has NO user interface, set `applicable: false` with a reason (the completeness
+# gate then skips it). Otherwise fill the sections below.
+#
+# Schema:
+#   screens:
+#     <name>: { purpose: <...>, key_elements: [ ... ], states: [empty, loading, error, success] }
+#   flows:
+#     - { name: <...>, steps: [ <screen> -> <screen> -> ... ] }
+#   design_system:
+#     tokens: { colors: {}, spacing: [], typography: {} }
+#     components: [ button, input, message_bubble, ... ]
+#   a11y_rules: [ "semantic HTML", "visible focus order", "WCAG AA contrast", "full keyboard path" ]
+
+screens: {}
+flows: []
+design_system: {}
+a11y_rules: []

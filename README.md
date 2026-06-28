@@ -115,10 +115,10 @@ agents-and-skills/
 │   ├── registry.yaml                    ← intent → kit routing (single source of truth)
 │   ├── scaffold_team.ps1 / .sh          ← installs a kit into the current repo (backs up first)
 │   ├── dev-team/
-│   │   ├── agents/                      ← project-manager (session agent) + 5 specialist subagents
+│   │   ├── agents/                      ← project-manager (session agent) + 7 specialist subagents
 │   │   ├── skills/                      ← one role skill per agent (pm-playbook, software-architect, …)
 │   │   ├── constitution/CLAUDE.md       ← project constitution → ./CLAUDE.md (carries team marker)
-│   │   ├── hooks/ + settings/           ← 4 enforcement hooks + .claude/settings.json (agent, model, …)
+│   │   ├── hooks/ + settings/           ← deterministic enforcement hooks + .claude/settings.json (agent, model, …)
 │   │   └── templates/project_memory/    ← YAML artifact templates
 │   └── research-team/
 │       ├── agents/ + skills/            ← project-manager + 6 specialists + their role skills
@@ -136,12 +136,13 @@ agents-and-skills/
 1. **Global gate asks** (non-coercive): on your first build/change wish the global `CLAUDE.md` /
    `COPILOT.instructions.md` asks *structured (PM) or free?*. Choose *free* and you work without
    bookkeeping.
-2. **Auto-init:** on *structured*, the default agent classifies your intent via `team-kits/registry.yaml`
-   and runs the scaffold script itself — no agent to remember. (You may instead invoke the optional
-   `group-leader` agent explicitly.)
+2. **Auto-init (discovery first):** on *structured*, the default agent classifies your intent via
+   `team-kits/registry.yaml`, then **interviews you and drafts a plan** (product-level questions + a
+   recommended team) **before** installing — it writes that plan as a DRAFT into `project_memory/`. Only
+   then does it run the scaffold script. (You may instead invoke the optional `group-leader` agent.)
 3. **Local install:** the kit's specialist agents are copied to `./.claude/agents/`, its constitution to
-   `./CLAUDE.md` (with a team **marker**), and its enforcement **hooks** to `./.claude/`. `project_memory/`
-   is **not** created yet.
+   `./CLAUDE.md` (with a team **marker**), and its enforcement **hooks + settings** to `./.claude/`. The
+   first session then asks you to **restart**; from the next session the PM picks up the DRAFT plan.
 4. **The main agent becomes the PM.** The kit's `.claude/settings.json` sets `agent: project-manager`, so the
    repo's main session agent **is** the PM (`model: opus`, persistent `memory: project`, a preloaded
    `pm-playbook` skill) — one identity, no relay, nothing to bypass. (The first session right after install is
@@ -164,10 +165,12 @@ return YAML. Roles below are the **`dev-team`**; the **`research-team`** mirrors
 | Role | File | Job | Talks to user |
 |---|---|---|---|
 | **Project Manager** | `project-manager` (the repo's session agent — `agent` setting; opus + memory) | Requirements (PRD/CR), `project_memory/` bookkeeping, delegation, merge, user acceptance | **Yes (only one)** |
-| **Software Architect** | `software-architect` | System requirements, architecture, ADRs, coding guidelines | No |
+| **Software Architect** | `software-architect` | System requirements, architecture, ADRs, coding guidelines, test strategy | No |
+| **Product Designer** | `product-designer` | UI/UX: screens, flows, design system, accessibility (UI-bearing PRDs) — `design.yaml` | No |
+| **Researcher** | `researcher` | Web-enabled investigation of libs/datasheets/APIs; cited facts — `research_notes.yaml` | No |
 | **Backend Developer** | `backend-developer` | Server-side tasks, tests, commits | No |
 | **Frontend Developer** | `frontend-developer` | UI tasks, tests, commits | No |
-| **Quality Engineer** | `quality-engineer` | Review, tests, Definition of Done, merge gate | No |
+| **Quality Engineer** | `quality-engineer` | Review, tests (sole owner of test completeness), Definition of Done, merge gate | No |
 | **DevOps Engineer** | `devops-engineer` | CI/CD, pipelines, environments, release | No |
 
 ### Roles (research-team)
@@ -218,9 +221,10 @@ by double-click.
   no force-push, no work on a dirty tree.
 - **Team preset** (`solo` | `duo` | `team`) chosen once per project; escalation is user-gated only.
 - **Models:** the **PM (session agent) runs on `opus`** (set in the kit's `.claude/settings.json` + the PM's
-  agent frontmatter); the **specialists** start on `haiku`, controlled per repo via `project_config.yaml`
-  (the PM syncs each specialist's `model:` frontmatter). Dial the PM to `sonnet` in the kit settings if opus
-  is too costly. Specialist upgrades only after a user OK (triggers: 2× QA fail or dissatisfaction).
+  agent frontmatter); the **specialists default to `sonnet`** (haiku proved too weak for complex work in a
+  real run), controlled per repo via `project_config.yaml` (the PM syncs each specialist's `model:`
+  frontmatter — haiku only for simple roles, opus for the hardest). Dial the PM to `sonnet` if opus is too
+  costly. Specialist upgrades only after a user OK (triggers: first QA fail or dissatisfaction).
 
 ### Memory
 
@@ -238,10 +242,18 @@ Because instructions alone get skipped, each kit ships a small **deterministic**
   (`project_memory/**`, `src/**`, `tests/**`, `docs/**`, configs).
 - **No rogue spawns** (`guard_agent_spawn`) — blocks spawning a generic/unnamed agent; only the installed
   specialist roles may be spawned.
+- **PM stays out of code** (`guard_pm_scope`) — blocks the PM (main agent) from writing `src/**`, `tests/**`,
+  `frontend/**`; code goes to specialists, QA gates it.
 - **Commit / merge gate** (`gate_git`) — always blocks force-push; blocks push/merge without a passing QA
   report in the YAML.
+- **Per-area test gate** (`gate_test_coverage`, dev-team) — blocks merge while any source area (e.g.
+  `src/`, `frontend/src/`) has no tests, so a strong area can't mask an untested one.
+- **Completeness gate** (`gate_memory_complete`) — blocks merge while a required `project_memory/` YAML is
+  still empty/template (unless it is explicitly marked `applicable: false`).
 - **Auto-dashboard** (`auto_dashboard`) — regenerates `progress.dashboard.html` whenever `project_memory/`
   changed.
+- All hooks resolve the repo root via `${CLAUDE_PROJECT_DIR}` / an upward search (`_root.py`), so a shifted
+  working directory can't silently disable a guard.
 
 The kit's `.claude/settings.json` also sets `agent: project-manager`, `model: opus`, `plansDirectory: ./plans`,
 and `permissions` (allow common build commands; deny reading secrets).
