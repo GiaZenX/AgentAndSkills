@@ -1,4 +1,4 @@
-# system_requirements.yaml — owned by: PM + Architect
+# system_requirements.yaml — owned by: Architect (PM derives via the architect)
 # Technical requirements derived from a PRD. The user normally never sees these.
 # Status: DRAFT -> ACTIVE -> DONE
 #

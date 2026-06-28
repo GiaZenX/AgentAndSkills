@@ -152,7 +152,7 @@ its own area (prevents overwriting).
 | Artifact | Write owner |
 |---|---|
 | `product_requirements.yaml` / `change_requests.yaml` | **PM** |
-| `system_requirements.yaml` | **PM** + Architect |
+| `system_requirements.yaml` | **Architect** (sole writer; PM derives via the architect) |
 | `progress.yaml` / `changelog.yaml` / `project_config.yaml` | **PM** |
 | `architecture.yaml` / `decisions.yaml` / `coding_guidelines.yaml` | **Architect** |
 | `design.yaml` | **Product-Designer** |

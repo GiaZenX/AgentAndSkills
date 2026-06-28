@@ -10,11 +10,13 @@ status/summary/report files are allowed (this is also enforced by a hook).
 | `project_config.yaml` | PM | Preset, repo mode, model map |
 | `product_requirements.yaml` | PM | PRDs (functional) |
 | `change_requests.yaml` | PM | CRs |
-| `system_requirements.yaml` | PM + Architect | SRs (technical) |
+| `system_requirements.yaml` | Architect | SRs (technical; PM derives via the architect) |
 | `tasks.yaml` | Backend / Frontend | Tasks |
-| `architecture.yaml` | Architect | Components, structure |
-| `decisions.yaml` | Architect | ADRs |
+| `architecture.yaml` | Architect | Components, structure, per-component test strategy |
+| `decisions.yaml` | Architect | ADRs (incl. the test-approach ADR) |
 | `coding_guidelines.yaml` | Architect | Hard code rules (QA-enforced) |
+| `design.yaml` | Product-Designer | UI/UX spec (UI-bearing PRDs); else `applicable: false` |
+| `research_notes.yaml` | Researcher | Cited research findings; else `applicable: false` |
 | `testing_guidelines.yaml` | QA | Test rules |
 | `definition_of_done.yaml` | QA | DoD |
 | `review_reports.yaml` | QA | Code review results |

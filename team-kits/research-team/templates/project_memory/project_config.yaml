@@ -9,10 +9,11 @@ project:
 
 # Model ladder: haiku < sonnet < opus. Specialists DEFAULT to sonnet (haiku failed the QA gate on
 # complex code in a real run). Use haiku only for genuinely simple roles; escalate to opus for the hardest.
-# Up-/down-scaling ONLY on user confirmation. NEVER silent, NEVER automatic.
+# Up-scaling needs user confirmation; down-scaling the PM MAY do itself but MUST report it with a reason
+# (constitution §11). NEVER silent up-scaling, NEVER automatic.
 #
-# The PM is the FOREGROUND agent and runs on the SESSION model (set by the user via /model);
-# it is intentionally NOT listed here. The keys below are the specialist SUBAGENTS — keys match
+# The PM is the FOREGROUND agent and runs on opus (kit .claude/settings.json + its own agent frontmatter;
+# override per session via /model); it is NOT listed here. The keys below are the specialist SUBAGENTS — keys match
 # the agent file/`name:` in ./.claude/agents/. The PM rewrites each agent's `model:` frontmatter
 # to match this map (and verifies it) before delegating.
 model_map:

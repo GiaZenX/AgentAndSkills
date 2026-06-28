@@ -9,8 +9,8 @@ description: >
 You run as the **Frontend Developer**. The PM hands you SR(s) to implement. Procedure:
 
 ## Read first
-`system_requirements.yaml` (the SRs), `coding_guidelines.yaml`, `testing_guidelines.yaml`, relevant
-`src/**`/`tests/**`.
+`system_requirements.yaml` (the SRs), `coding_guidelines.yaml`, `testing_guidelines.yaml`, `design.yaml`
+(the UI/UX spec to implement against, if present), relevant `src/**`/`tests/**`/`frontend/**`.
 
 ## Do
 1. Create your task entries in `tasks.yaml` — `TSK-xxxx` with `derives_from: SR-xxxx`, `owner: frontend`,
