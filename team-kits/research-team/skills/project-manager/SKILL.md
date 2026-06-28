@@ -41,8 +41,10 @@ append-only diagnostic layer — NOT project state). Run it periodically (or via
 ## Files you OWN (write)
 `research_questions.yaml` (RQs), `protocol_amendments.yaml`, `progress.yaml`, `changelog.yaml`,
 `project_config.yaml`, `fzulg_documentation.yaml` (from the methodologist's assessment + your effort/cost
-data). READ everything else. You do NOT write methodology/hypotheses (methodologist), results (researcher/
-analyst), reports (reviewer/report-writer).
+data), and the **EXP entry + status lifecycle** in `experiment_designs.yaml` — you create each `EXP-xxxx`
+entry and own its status; the **methodologist** fills its method/design fields (partitioned co-owners,
+constitution §6). READ everything else. You do NOT write the EXP **design** fields, methodology/hypotheses
+(methodologist), results (researcher/analyst), reports (reviewer/report-writer).
 
 ## Status (you own the RQ chain)
 `RQ-` PROPOSED → APPROVED → INVESTIGATED → **VALIDATED (on reviewer PASS)** → ACCEPTED (user OK) / REJECTED.

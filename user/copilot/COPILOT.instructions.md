@@ -56,10 +56,14 @@ You **first interview the user and draft a plan, then install** the kit, then ha
    build, for whom, must-have capabilities, constraints (local-only, privacy, budget…). **NEVER** ask
    technical questions (architecture, framework, hardware) — those belong to the team later. Write a **short
    plan** and **recommend the team** (always a clear recommendation, never a neutral menu). Write **no code**.
-3. **Persist the draft so the PM inherits it.** Create `project_memory/` from
-   `~/.claude/team-kits/<key>/templates/project_memory/` and write the plan as a **DRAFT**: a DRAFT
-   `product_requirements.yaml` PRD (status `PROPOSED`) + a one-paragraph plan and recommended team/preset in
-   `progress.yaml`. That is the ONLY project_memory you write — no SRs, tasks, or code.
+3. **Persist the draft so the PM inherits it.** Create `project_memory/` **deterministically by running the
+   init script** (do NOT hand-copy the ~20 template files):
+   - Windows: `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.claude\team-kits\init_project_memory.ps1" -Team <key>`
+   - Unix: `bash "$HOME/.claude/team-kits/init_project_memory.sh" <key>`
+   It copies every template into `./project_memory/` (copy-if-absent). Then write the plan as a **DRAFT** into
+   the now-present files: a DRAFT `product_requirements.yaml` PRD (status `PROPOSED`) + a one-paragraph plan and
+   recommended team/preset in `progress.yaml`. That is the ONLY project_memory content you write — no SRs,
+   tasks, or code.
 4. **Install the kit locally** by running the scaffold script:
    - Windows: `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.claude\team-kits\scaffold_team.ps1" -Team <key>`
    - Unix: `bash "$HOME/.claude/team-kits/scaffold_team.sh" <key>`

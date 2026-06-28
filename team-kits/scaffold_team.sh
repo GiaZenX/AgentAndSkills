@@ -2,7 +2,8 @@
 # Scaffold a team kit into the current repository (Unix).
 # Usage: scaffold_team.sh dev-team
 # Copies the kit's agents into ./.claude/agents/ and its constitution into ./CLAUDE.md.
-# project_memory/ is NOT created here — the PM creates it from the global templates at startup.
+# project_memory/ is NOT created here — the entry gate creates it deterministically via
+# init_project_memory.sh BEFORE scaffolding (the PM startup backfills it the same way if missing).
 set -euo pipefail
 
 TEAM="${1:-}"

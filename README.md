@@ -5,8 +5,9 @@ Userwide-installable skills, a global **constitution**, and a **multi-agent role
 
 Instead of a single assistant, this repo simulates a small software team: you are the **customer**, the
 **main agent becomes your Project Manager (PM)** — your only point of contact — and specialized dev roles
-(Architect, Backend, Frontend, QA, DevOps) work below it as **stateless subagents**. No matter which tool
-you code with, the AI behaves identically.
+(Architect, Backend, Frontend, QA, DevOps) work below it as **stateless subagents**. The role model and
+`project_memory/` bookkeeping work in both tools; the **deterministic, blocking enforcement hooks run under
+Claude Code** (the Claude Code VS Code extension included) — see [Parity](#parity-claude-code--copilot).
 
 **Two-tier entry.** A user-wide **entry gate** (`CLAUDE.md` / `COPILOT.instructions.md`) drives the
 default agent: on your first build/change wish it asks *structured or free*, classifies the effort via the
@@ -62,8 +63,13 @@ On Linux/Mac use `--target` and `--force` accordingly.
 
 ## Parity: Claude Code ↔ Copilot
 
-Both tools are configured identically. The **user-scope entry gate** applies to every agent / default
-mode — no matter what you code with, the AI behaves the same:
+The **shared layer** is installed once and read by **both** tools: the user-scope entry gate, the team
+kits, the per-repo `./.claude/…` files, and the constitution. What **differs is enforcement** — the
+blocking hooks and the `agent: project-manager` session setting are **Claude Code mechanisms** (the Claude
+Code VS Code extension honors them too). Native GitHub Copilot Chat reads the same agent/skill/constitution
+**prose** and follows it, but does **not execute** the hooks — so under Copilot the guarantees are
+**advisory (prose), not tool-enforced**. For the fully enforced experience (merges actually blocked on a red
+pipeline / missing tests / out-of-scope writes), drive the team with **Claude Code**.
 
 | Component | Claude Code | Copilot |
 |---|---|---|
@@ -74,9 +80,11 @@ mode — no matter what you code with, the AI behaves the same:
 | Tool syntax | `AskUserQuestion` | `#tool:vscode_askQuestions` |
 | Subagent call | Task tool | `runSubagent` |
 | Templates | `~/.claude/team-kits/<team>/templates/project_memory/` | same (shared staging) |
+| **Enforcement** (blocking hooks + `agent` setting) | ✅ **deterministic** — hooks fire, bad merges blocked | ⚠️ **prose-only** — no hook execution |
 
 The project team is installed in **Claude format** (`./.claude/…` + root `./CLAUDE.md`), which **both** VS
-Code Copilot and Claude Code read — one copy serves both ecosystems.
+Code Copilot and Claude Code read — one copy serves both ecosystems; the **hooks only execute under Claude
+Code**.
 
 ---
 
@@ -97,7 +105,7 @@ Code Copilot and Claude Code read — one copy serves both ecosystems.
 ## Repo structure
 
 ```
-agents-and-skills/
+AgentAndSkills/
 ├── user/                               ← user-scope (~/.claude) install sources
 │   ├── claude/
 │   │   ├── CLAUDE.md                    ← user entry gate (Claude Code)
@@ -109,6 +117,7 @@ agents-and-skills/
 ├── team-kits/
 │   ├── registry.yaml                    ← intent → kit routing (single source of truth)
 │   ├── scaffold_team.ps1 / .sh          ← installs a kit into the current repo (backs up first)
+│   ├── init_project_memory.ps1 / .sh    ← deterministically creates ./project_memory/ from kit templates (copy-if-absent)
 │   ├── dev-team/
 │   │   ├── agents/                      ← project-manager (session agent) + 7 specialist subagents
 │   │   ├── skills/                      ← one role skill per agent (project-manager, software-architect, …)
@@ -142,7 +151,8 @@ agents-and-skills/
    repo's main session agent **is** the PM (`model: opus`, persistent `memory: project`, a preloaded
    `project-manager` skill) — one identity, no relay, nothing to bypass. (The first session right after install is
    bridged in-session by the `./CLAUDE.md` marker handover; the `agent` setting takes over from the next
-   session.) The PM runs the **startup gate** (creates `project_memory/` from the kit templates, proposes
+   session.) The PM runs the **startup gate** (creates `project_memory/` deterministically via the
+`init_project_memory` script if missing, proposes
    preset + specialist models, you confirm, syncs the specialists' frontmatter), then begins the phase model.
    It maintains `project_memory/` itself and delegates only implementation to the stateless specialists.
 
@@ -199,8 +209,9 @@ the only customer-facing role.
 ### Artifacts (`project_memory/`)
 
 Structured YAML files in the repo — the **single source of truth**. Each role writes only its own area
-(no overwriting); the **PM** creates `project_memory/` on the first run from the kit templates and owns the
-requirement/progress bookkeeping itself. **No ad-hoc status/summary/report files** are allowed — findings
+(no overwriting); the **PM** creates `project_memory/` on the first run via the deterministic
+`init_project_memory` script (copy-if-absent from the kit templates) and owns the requirement/progress
+bookkeeping itself. **No ad-hoc status/summary/report files** are allowed — findings
 go into the predefined YAML (this is also enforced by a hook, see below).
 
 A user-facing **dashboard** (`progress.dashboard.html`) is generated, never hand-edited: the **PM** runs

@@ -164,7 +164,9 @@ its own area (prevents overwriting).
 | `architecture.yaml` / `decisions.yaml` / `coding_guidelines.yaml` | **Architect** |
 | `design.yaml` | **Product-Designer** |
 | `research_notes.yaml` | **Research-Engineer** |
-| `tasks.yaml`, `src/*`, `tests/*` | **Backend / Frontend** |
+| `tasks.yaml` (own TSK entries — partitioned co-owners) | **Backend / Frontend** |
+| backend `src/**` + `tests/**` | **Backend** |
+| `frontend/**` (UI code + co-located `*.test.*`/`*.spec.*` tests) | **Frontend** |
 | `review_reports.yaml` / `test_reports.yaml` / `acceptance_reports.yaml` | **QA** |
 | `testing_guidelines.yaml` / `definition_of_done.yaml` | **QA** |
 | CI/CD, infra, `git push` | **DevOps / PM** |

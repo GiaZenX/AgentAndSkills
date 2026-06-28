@@ -147,7 +147,7 @@ what becomes RQs/PAs.
 | Artifact | Write owner |
 |---|---|
 | `research_questions.yaml` / `protocol_amendments.yaml` | **PM** |
-| `experiment_designs.yaml` | **PM** + Methodologist |
+| `experiment_designs.yaml` (PM = EXP entry + status lifecycle · Methodologist = method/design fields) | **PM / Methodologist** (partitioned) |
 | `progress.yaml` / `changelog.yaml` / `project_config.yaml` / `fzulg_documentation.yaml` | **PM** |
 | `methodology.yaml` / `decisions.yaml` / `research_guidelines.yaml` / `hypotheses.yaml` / `literature.yaml` | **Methodologist** |
 | `tasks.yaml`, analysis `src/*` | **Researcher / Data Analyst** |
@@ -156,6 +156,12 @@ what becomes RQs/PAs.
 | `reports/EXP-*.html` | **Report Writer** |
 | data pipelines, environments, dataset versioning | **Research Engineer** |
 | `git push` | **PM** |
+
+**One writer per field-set (no silent overwrites).** Two roles never write the same field. A few artifacts
+are *partitioned* co-owners — each role writes only its own part: `experiment_designs.yaml` (PM writes the
+EXP entry + status lifecycle; the Methodologist writes the methodological design — hypothesis link,
+variables, analysis/pre-registration plan), `results.yaml` (Researcher = raw, Data Analyst = derived),
+`tasks.yaml` (each role only its own TSK entries). Reading is always free; writing is owner-only.
 
 `progress.dashboard.html` is generated, NEVER hand-edited: **you (PM)** run `generate_dashboard.py`. The
 FZulG assessment (novelty / technical uncertainty / systematic approach) comes from the Methodologist; you

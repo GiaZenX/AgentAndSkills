@@ -7,6 +7,9 @@ This gate makes "still an empty template at acceptance" a hard FAIL — by CONTE
 marker an agent must remember to delete: a file is "unfilled" when, after dropping comments,
 it is empty or holds only empty containers (`{}` / `[]` / `""` / null). An artifact that
 genuinely does not apply must say so: `applicable: false` (+ reason) — then it is allowed.
+project_config.yaml is special-cased: it has real scalars (preset/repo_mode) so the generic
+check sees it as filled — we additionally require a non-empty project name and, if it lists
+`stacks:`, at least one real (non-TODO) stack, so an unnamed/undeclared config can't slip through.
 
 Only fires on `git push`/`git merge`, only when real work exists. Stdlib only (no YAML dep).
 Any uncertainty -> exit 0.
@@ -48,6 +51,41 @@ def is_unfilled(text):
     return True
 
 
+CONFIG_NAME_RE = re.compile(r"(?m)^\s*name:\s*(.*)$")
+CONFIG_STACKS_INLINE_RE = re.compile(r"(?m)^\s*stacks:\s*\[([^\]]*)\]")
+CONFIG_STACKS_BLOCK_RE = re.compile(r"(?m)^[ \t]*stacks:[ \t]*$")
+CONFIG_STACK_ITEM_RE = re.compile(r"[ \t]*-[ \t]*([A-Za-z0-9_+-]+)[ \t]*$")
+
+
+def config_unfilled(text):
+    """project_config.yaml needs a real project name and, if it lists stacks, >=1 non-TODO stack.
+
+    Real inline scalars (preset/repo_mode) make is_unfilled() treat it as 'filled', so a config with
+    name:"" and stacks:[TODO] would otherwise slip through. This closes that loophole.
+    """
+    m = CONFIG_NAME_RE.search(text)
+    name = (m.group(1).split("#", 1)[0].strip().strip("'\"") if m else "")
+    if not name:
+        return True
+    if re.search(r"(?m)^\s*stacks:", text):  # only enforce stacks when the key is present
+        stacks = []
+        mi = CONFIG_STACKS_INLINE_RE.search(text)
+        if mi:
+            stacks = [s.strip().strip("'\"").lower() for s in mi.group(1).split(",") if s.strip()]
+        else:
+            mb = CONFIG_STACKS_BLOCK_RE.search(text)
+            if mb:
+                for line in text[mb.end():].splitlines():
+                    mm = CONFIG_STACK_ITEM_RE.match(line)
+                    if mm:
+                        stacks.append(mm.group(1).lower())
+                    elif line.strip():
+                        break
+        if not [s for s in stacks if s != "todo"]:
+            return True
+    return False
+
+
 def block(files):
     _audit.record("gate_memory_complete", ", ".join(files))
     sys.stderr.write(
@@ -85,8 +123,13 @@ def main():
         text = read(path)
         if re.search(r"(?m)^\s*applicable:\s*false", text):
             continue  # explicitly marked not-applicable
+        base = os.path.basename(path)
+        if base == "project_config.yaml":
+            if config_unfilled(text):
+                stale.append(base)
+            continue
         if is_unfilled(text):
-            stale.append(os.path.basename(path))
+            stale.append(base)
     if stale:
         block(stale)
     sys.exit(0)

@@ -36,7 +36,9 @@ commit → ASK "what next?" with options + free text (always include IDs). Detai
 0. **Draft pickup:** if the install session left a DRAFT plan (a DRAFT `product_requirements.yaml` PRD +
    plan in `progress.yaml`), read it, summarise it to the user, and refine/confirm it — never start from
    zero or discard it (constitution §0).
-1. If `project_memory/` is missing, create it from `~/.claude/team-kits/dev-team/templates/project_memory/`.
+1. If `project_memory/` is missing, create it **deterministically** by running the init script (copy-if-absent,
+   never hand-copy): `bash "$HOME/.claude/team-kits/init_project_memory.sh" dev-team` (Windows:
+   `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.claude\team-kits\init_project_memory.ps1" -Team dev-team`).
 2. Propose the team **preset** + per-**specialist** models (**sonnet default**; haiku only for genuinely
    simple work; you run on opus). Get the user's confirmation (one `AskUserQuestion`, preceded by prose).
 3. Write the preset + `model_map` into `project_config.yaml`; rewrite each specialist's `model:` frontmatter

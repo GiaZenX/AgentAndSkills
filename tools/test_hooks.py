@@ -8,6 +8,7 @@ on its exit code (0 = allow, 2 = block for guards/gates, 1 = red for quality.py)
 """
 import json
 import os
+import shutil
 import subprocess
 import sys
 
@@ -165,3 +166,52 @@ def test_guidelines_block_cpp_without_languages(prd_repo):
     payload = {"tool_name": "Write",
                "tool_input": {"file_path": str(prd_repo / "src" / "main.cpp")}, "cwd": str(prd_repo)}
     assert run_hook("guard_guidelines.py", payload, prd_repo) == 2
+
+
+# ---------------- gate_memory_complete: project_config name/stacks loophole ----------------
+def test_memory_complete_blocks_unnamed_config(prd_repo):
+    # real scalars (preset/repo_mode) but name:"" + stacks:[TODO] -> must be caught
+    write(str(prd_repo / "project_memory" / "project_config.yaml"),
+          'project:\n  name: ""\n  preset: solo\n  repo_mode: greenfield\n  stacks: [TODO]\n')
+    payload = {"tool_name": "Bash", "tool_input": {"command": "git merge feat/PRD-0001-x"}, "cwd": str(prd_repo)}
+    assert run_hook("gate_memory_complete.py", payload, prd_repo) == 2
+
+
+def test_memory_complete_allows_named_declared_config(prd_repo):
+    write(str(prd_repo / "project_memory" / "project_config.yaml"),
+          'project:\n  name: "TCG Tracker"\n  preset: team\n  repo_mode: greenfield\n  stacks: [python, typescript]\n')
+    payload = {"tool_name": "Bash", "tool_input": {"command": "git merge feat/PRD-0001-x"}, "cwd": str(prd_repo)}
+    assert run_hook("gate_memory_complete.py", payload, prd_repo) == 0
+
+
+# ---------------- init_project_memory: deterministic, copy-if-absent ----------------
+def test_init_project_memory_copies_and_never_clobbers(tmp_path):
+    home = tmp_path / "home"
+    tpl = home / ".claude" / "team-kits" / "demo-team" / "templates" / "project_memory"
+    write(str(tpl / "a.yaml"), "x: 1\n")
+    write(str(tpl / "sub" / "b.yaml"), "y: 2\n")
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    if os.name == "nt":
+        script = os.path.join(ROOT, "team-kits", "init_project_memory.ps1")
+        cmd = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script, "-Team", "demo-team"]
+        env = dict(os.environ, USERPROFILE=str(home))
+    else:
+        if not shutil.which("bash"):
+            pytest.skip("bash not available")
+        script = os.path.join(ROOT, "team-kits", "init_project_memory.sh")
+        cmd = ["bash", script, "demo-team"]
+        env = dict(os.environ, HOME=str(home))
+
+    r = subprocess.run(cmd, cwd=str(repo), capture_output=True, text=True, env=env, timeout=60)
+    assert r.returncode == 0, r.stdout + r.stderr
+    a = repo / "project_memory" / "a.yaml"
+    b = repo / "project_memory" / "sub" / "b.yaml"
+    assert a.is_file() and b.is_file()
+
+    # copy-if-absent: a local edit must survive a re-run (idempotent, never clobbers)
+    a.write_text("EDITED\n", encoding="utf-8")
+    r2 = subprocess.run(cmd, cwd=str(repo), capture_output=True, text=True, env=env, timeout=60)
+    assert r2.returncode == 0, r2.stdout + r2.stderr
+    assert a.read_text(encoding="utf-8") == "EDITED\n"
