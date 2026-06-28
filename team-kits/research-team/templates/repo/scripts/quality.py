@@ -74,20 +74,20 @@ def declared_stacks():
         txt = open(p, encoding="utf-8", errors="ignore").read()
     except Exception:
         return []
+    out = []
     m = re.search(r"(?m)^\s*stacks:\s*\[([^\]]*)\]", txt)
     if m:
-        return [s.strip().strip("'\"").lower() for s in m.group(1).split(",") if s.strip()]
-    m = re.search(r"(?m)^[ \t]*stacks:[ \t]*$", txt)
-    if m:
-        out = []
-        for line in txt[m.end():].splitlines():
-            mm = re.match(r"[ \t]*-[ \t]*([A-Za-z0-9_+-]+)[ \t]*$", line)
-            if mm:
-                out.append(mm.group(1).lower())
-            elif line.strip():
-                break  # left the list block
-        return out
-    return []
+        out = [s.strip().strip("'\"").lower() for s in m.group(1).split(",") if s.strip()]
+    else:
+        m = re.search(r"(?m)^[ \t]*stacks:[ \t]*$", txt)
+        if m:
+            for line in txt[m.end():].splitlines():
+                mm = re.match(r"[ \t]*-[ \t]*([A-Za-z0-9_+-]+)[ \t]*$", line)
+                if mm:
+                    out.append(mm.group(1).lower())
+                elif line.strip():
+                    break  # left the list block
+    return [s for s in out if s != "todo"]  # the [TODO] placeholder does not count as declared
 
 
 def ok(name):
@@ -181,6 +181,19 @@ def check_dotnet():
     _core("dotnet test", "dotnet", ["dotnet", "test"], "tests failed")
 
 
+def check_embedded():
+    # firmware / C-C++ — PlatformIO build + tests + static analysis; Wokwi is the simulation real-run.
+    if rootfile("platformio.ini"):
+        _core("pio build", "pio", ["pio", "run"], "firmware build failed")
+        _core("pio test", "pio", ["pio", "test"], "unit/sim tests failed")
+    else:
+        fail("embedded toolchain", "declared embedded but no platformio.ini — DevOps must wire the "
+             "build/test (PlatformIO) + Wokwi simulation into scripts/quality.py")
+    if have("cppcheck"):
+        rc, out = run(["cppcheck", "--error-exitcode=1", "--enable=warning,style", "."])
+        ok("cppcheck (SAST)") if rc == 0 else fail("cppcheck (SAST)", "static analysis findings" + _tail(out))
+
+
 STACKS = {
     "python": {"detect": lambda: has_files("src", {".py"}) or rootfile("app.py", "main.py"), "run": check_python},
     "node": {"detect": lambda: os.path.isfile(os.path.join(ROOT, "frontend", "package.json")), "run": check_node},
@@ -188,6 +201,9 @@ STACKS = {
     "go": {"detect": lambda: rootfile("go.mod"), "run": check_go},
     "rust": {"detect": lambda: rootfile("Cargo.toml"), "run": check_rust},
     "dotnet": {"detect": lambda: has_files(".", {".csproj", ".sln"}), "run": check_dotnet},
+    "embedded": {"detect": lambda: rootfile("platformio.ini"), "run": check_embedded},
+    "cpp": {"detect": lambda: has_files(".", {".c", ".cpp", ".ino"}), "run": check_embedded},
+    "c": {"detect": lambda: has_files(".", {".c", ".h"}), "run": check_embedded},
 }
 
 
@@ -224,6 +240,7 @@ def main():
             except Exception as e:
                 fail("stack '%s'" % s, "runner errored: %s" % e)
     else:
+        detected = []
         for s, spec in STACKS.items():
             fn = spec["run"]
             if fn in ran:
@@ -231,9 +248,16 @@ def main():
             try:
                 if spec["detect"]():
                     ran.add(fn)
+                    detected.append(s)
                     fn()
             except Exception as e:
                 fail("stack '%s'" % s, "runner errored: %s" % e)
+        if detected:
+            fail("stacks not declared",
+                 "code detected (%s) but project_config.yaml `stacks:` is empty/TODO. The architect MUST "
+                 "declare the project's stacks + domain so the gate enforces the right toolchain — "
+                 "auto-detect is not a substitute (this is exactly how a critical tool gets forgotten)."
+                 % ", ".join(sorted(set(detected))))
     secret_scan()
     sbom()
 

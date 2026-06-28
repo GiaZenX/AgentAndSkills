@@ -139,3 +139,29 @@ def test_quality_unknown_stack_red(tmp_path):
 def test_quality_declared_node_no_frontend_red_not_crash(tmp_path):
     write(str(tmp_path / "project_memory" / "project_config.yaml"), "project:\n  stacks: [node]\n")
     assert run_quality(str(tmp_path)) == 1  # clean FAIL, not a crash
+
+
+def test_quality_undeclared_stacks_with_code_red(tmp_path):
+    # code present but stacks still [TODO] -> must FAIL (force the architect to declare; no silent auto-detect)
+    write(str(tmp_path / "src" / "m.py"), "def f():\n    return 1\n")
+    write(str(tmp_path / "project_memory" / "project_config.yaml"), "project:\n  stacks: [TODO]\n")
+    assert run_quality(str(tmp_path)) == 1
+
+
+def test_quality_declared_embedded_no_platformio_red(tmp_path):
+    write(str(tmp_path / "project_memory" / "project_config.yaml"), "project:\n  stacks: [embedded]\n")
+    assert run_quality(str(tmp_path)) == 1
+
+
+# ---------------- gate_test_coverage + guard_guidelines for C/C++ (embedded) ----------------
+def test_coverage_blocks_cpp_without_tests(prd_repo):
+    write(str(prd_repo / "src" / "main.cpp"), "int main(){return 0;}\n")
+    payload = {"tool_name": "Bash", "tool_input": {"command": "git merge feat/PRD-0001"}, "cwd": str(prd_repo)}
+    assert run_hook("gate_test_coverage.py", payload, prd_repo) == 2
+
+
+def test_guidelines_block_cpp_without_languages(prd_repo):
+    write(str(prd_repo / "project_memory" / "coding_guidelines.yaml"), "global:\n  - x\nlanguages: {}\n")
+    payload = {"tool_name": "Write",
+               "tool_input": {"file_path": str(prd_repo / "src" / "main.cpp")}, "cwd": str(prd_repo)}
+    assert run_hook("guard_guidelines.py", payload, prd_repo) == 2

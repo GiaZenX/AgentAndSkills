@@ -21,8 +21,24 @@ You run as the **Architect**. The PM hands you an approved PRD. Procedure:
    (which test types genuinely add value for it — unit, integration, component, e2e/UI-smoke, container-smoke,
    real-run). This is the **input** QA uses to prove coverage; you do NOT write the QA test files or
    `testing_guidelines.yaml` (QA owns those — §6, §12a).
-3. **Test approach ADR** — record one ADR in `decisions.yaml` that justifies the chosen test approach for
-   this stack (which tools/types add real value, which would be cargo-cult and are deliberately skipped).
+3. **Domain & toolchain — pick the RIGHT tools/tests, never from memory alone.** Identify the project's
+   **stack(s) AND domain** and decide the standard quality toolchain for BOTH — not just lint/type/test/
+   coverage but the **domain-critical** pieces, e.g.:
+   - **embedded/firmware** → PlatformIO unit tests + **Wokwi/renode simulation** as the real-run +
+     cppcheck/clang-tidy; cross-compile build (no docker/web smoke).
+   - **accounting/finance** → **exact-decimal** arithmetic + **property-based** tests for money/rounding +
+     an audit/ledger trail + regulatory checks (e.g. GoBD).
+   - **games** → asset-pipeline checks + a **playtest sign-off** + frame-budget/perf; logic unit tests.
+   - **calculation/CAD/engineering** → **golden-file** numerical regression + tolerance/property tests.
+   - **data/ML** → a real training/eval run, dataset + seed pinning, an eval harness.
+   - **web/services** → e2e (Playwright) + a **real container build + health smoke**.
+
+   **If you are NOT certain what the standard/best-practice toolchain for this domain is, task the
+   `research-engineer` (via the PM) to find it WITH SOURCES before you decide** — relying on memory is
+   exactly how a critical tool/test gets missed (the "Docker was forgotten" failure mode). Record the chosen
+   toolchain + a justification of what is used vs. deliberately skipped in a `decisions.yaml` ADR, declare
+   the stacks in `project_config.yaml` `stacks:` (the merge gate then enforces each — a declared stack with
+   no checks FAILs), and have DevOps wire any domain-specific runner into `scripts/quality.py`.
 4. **ADRs** — record each significant decision in `decisions.yaml` (context, options, decision, consequences).
 5. **Coding guidelines** — maintain `coding_guidelines.yaml` (append-only). **Fill the `languages:` block
    for a language BEFORE implementation in it begins** — empty guidelines for a used language is a defect

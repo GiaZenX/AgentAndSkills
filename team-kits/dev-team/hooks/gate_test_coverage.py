@@ -25,6 +25,8 @@ import _audit
 CODE_RE = re.compile(r"\.(py|ts|tsx|js|jsx|vue|svelte)$", re.IGNORECASE)
 PY_TEST_RE = re.compile(r"(^test_.*\.py$)|(.*_test\.py$)", re.IGNORECASE)
 JS_TEST_RE = re.compile(r"\.(test|spec)\.(t|j)sx?$", re.IGNORECASE)
+CPP_CODE_RE = re.compile(r"\.(c|cpp|cc|ino)$", re.IGNORECASE)
+CPP_TEST_RE = re.compile(r"(^test_.*\.(c|cpp|cc)$)|(.*_test\.(c|cpp|cc)$)|(^test_main\.cpp$)", re.IGNORECASE)
 
 
 def block(why):
@@ -93,6 +95,11 @@ def main():
     # frontend area: frontend/ with components -> needs *.test.* / *.spec.*
     if has_code(root, "frontend", CODE_RE) and not has_tests(root, ("frontend",), JS_TEST_RE):
         block("source area 'frontend/' has code but no UI/unit tests (no *.test.* / *.spec.*).")
+
+    # firmware / C-C++ area: code under src/ | lib/ | firmware/ -> needs tests (PlatformIO test/ or *_test.cpp)
+    if any(has_code(root, d, CPP_CODE_RE) for d in ("src", "lib", "firmware")) \
+            and not has_tests(root, ("test", "tests", "src", "lib"), CPP_TEST_RE):
+        block("C/C++ firmware code exists but has no tests (no test_*.c[pp] / *_test.c[pp] / PlatformIO test/).")
 
     sys.exit(0)
 

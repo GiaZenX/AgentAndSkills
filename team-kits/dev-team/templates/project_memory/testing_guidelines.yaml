@@ -42,6 +42,17 @@ tooling_defaults:
   static_quality:
     javascript_typescript: [ESLint, Prettier, tsc]
     python: [Ruff, Black, mypy]
+  # Domain-critical tooling — the Architect MUST consider these per domain (research-engineer if unsure),
+  # so a critical test never gets "forgotten". REFERENCE ONLY — not gate-enforced: to be checked, the
+  # Architect declares the stack in project_config `stacks:` and DevOps wires the runner into
+  # scripts/quality.py. (`playtest sign-off` below is a MANUAL gate, not automatable.) Extend per project.
+  domain_tooling:
+    embedded_firmware: ["PlatformIO unit tests", "Wokwi / renode simulation (real-run)", "cppcheck/clang-tidy", "cross-compile build"]
+    accounting_finance: ["exact-decimal arithmetic", "property-based tests (rounding/ledger)", "audit/ledger trail", "regulatory checks (e.g. GoBD)"]
+    games: ["asset-pipeline checks", "playtest sign-off", "frame-budget/perf", "logic unit tests"]
+    calculation_cad: ["golden-file numerical regression", "tolerance/property tests", "mesh/convergence checks"]
+    data_ml: ["real training/eval run", "dataset + seed pinning", "eval harness / drift checks"]
+    web_services: ["e2e (Playwright)", "real container build + health smoke", "contract tests"]
   coverage:
     javascript_typescript: [c8, istanbul]
     python: ["coverage.py"]

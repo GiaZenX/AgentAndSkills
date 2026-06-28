@@ -24,8 +24,10 @@ LANG = {
     ".js": ["javascript", "typescript"], ".jsx": ["javascript", "typescript"], ".mjs": ["javascript", "typescript"],
     ".go": ["go"], ".rs": ["rust"], ".java": ["java"], ".rb": ["ruby"], ".php": ["php"],
     ".cs": ["csharp", "dotnet"], ".kt": ["kotlin"], ".swift": ["swift"],
+    ".c": ["c"], ".h": ["c", "cpp"], ".cpp": ["cpp"], ".cc": ["cpp"], ".hpp": ["cpp"], ".ino": ["cpp", "embedded"],
 }
-CODE_TOP = {"src", "frontend", "backend", "lib", "server", "app", "packages", "cmd", "internal", "api", "ui", "web"}
+CODE_TOP = {"src", "frontend", "backend", "lib", "server", "app", "packages", "cmd", "internal", "api",
+            "ui", "web", "firmware", "include", "hardware"}
 
 
 def block(lang, rel):

@@ -19,6 +19,14 @@ global:
   - Dependencies pinned (lockfile/env spec) and audited; environments are deterministic
   - License/data-usage compliance: datasets + dependencies carry an approved license; data use stays within its permitted scope
 
+# Domain-critical method/tooling reference — the Methodologist MUST consider these per research domain
+# (research-engineer with sources if unsure), so a critical method never gets "forgotten". REFERENCE ONLY.
+method_tooling:
+  ml_attention_architecture: ["seed pinning", "real training + eval run", "baseline comparison + ablation", "an eval harness / standard benchmark", "compute/runtime reporting"]
+  statistics: ["correct test for the design", "power analysis", "multiple-comparison correction", "effect sizes + CIs"]
+  human_studies: ["validated measurement instrument", "ethics/consent + data governance", "inter-rater reliability"]
+  simulation: ["validated model + parameters", "convergence/sensitivity analysis", "seed/version pinning"]
+
 # Per-method / per-domain rules. Starts EMPTY. The Methodologist adds a block the
 # first time a method is actually used. Example shape:
 #   statistics:

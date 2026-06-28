@@ -263,7 +263,16 @@ phase model applies.
 
 ## 12a. Testing — adaptive, complete, real (the last run shipped 0 frontend tests)
 
-Tests are **not** a fixed tool list; they are chosen for the stack and they must cover **every component**.
+Tests are **not** a fixed tool list; they are chosen for the stack **and the domain**, and must cover
+**every component**.
+
+- **Domain-aware tooling (no "forgotten tool"):** the Architect picks the right tools/tests for the
+  project's **domain**, not just its language — embedded needs **simulation** (Wokwi/renode), finance needs
+  **decimal + property-based** tests + an audit trail, calculation needs **golden-file** numerical
+  regression, web needs a real **container/e2e** run. When unsure of the standard toolchain, the Architect
+  **MUST** use the `research-engineer` to find it (with sources) rather than guess — a missed domain-critical
+  tool/test is a **defect** (the "Docker was forgotten" failure mode). Declared stacks live in
+  `project_config.yaml` `stacks:`; a declared stack with no checks in `scripts/quality.py` FAILs the gate.
 
 - **Architect = test STRATEGY (input only, his files):** in `architecture.yaml` each component carries a
   `criticality` (low|med|high) and a `test_strategy` (which test types genuinely add value — unit,

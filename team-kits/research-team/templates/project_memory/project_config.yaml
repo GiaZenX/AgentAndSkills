@@ -6,8 +6,9 @@ project:
   name: ""                  # set at init
   preset: solo              # solo | duo | team
   repo_mode: greenfield     # greenfield | onboarded
-  stacks: []                # languages/stacks in use, e.g. [python, typescript]. The pipeline
-                            # (scripts/quality.py) runs each declared stack's checks; [] auto-detects.
+  stacks: [TODO]            # REQUIRED — declare the languages/stacks in use, e.g. [python, typescript].
+                            # The pipeline (scripts/quality.py) runs each declared stack's checks; leaving
+                            # it [TODO]/empty while code exists FAILs (no silent auto-detect).
 
 # Model ladder: haiku < sonnet < opus. Specialists DEFAULT to sonnet (haiku failed the QA gate on
 # complex code in a real run). Use haiku only for genuinely simple roles; escalate to opus for the hardest.

@@ -20,9 +20,12 @@ analysis `src/**`.
 3. **Pipeline + Validity** — verify the **reproducibility pipeline is green** (format, lint, types,
    analysis-code tests, clean re-run reproduces, deps audited + licenses, secret/PII scan, provenance) and
    the rest of `validity_criteria.yaml` (correct statistics, assumptions met, conclusions supported). A red
-   pipeline — or any leaked secret/PII — is an automatic **FAIL**. Record in `acceptance_reports.yaml`. Only a fully satisfied set is a PASS → the PM
-   sets the RQ `VALIDATED`.
-4. On the **second** failed validation of the same task, set `escalation: true`.
+   pipeline — or any leaked secret/PII — is an automatic **FAIL**. **Method completeness:** confirm the
+   design used the **domain-critical** method/measurement the methodologist prescribed (e.g. seed pinning +
+   a real eval run + baselines/ablation for ML; the correct statistical test + correction); a missing
+   domain-critical method is a **defect** — flag it back before you PASS. Record in `acceptance_reports.yaml`.
+   Only a fully satisfied set is a PASS → the PM sets the RQ `VALIDATED`.
+4. On the **first** failed validation of a task, set `escalation: true` so the PM can propose an upgrade (§11).
 
 ## Files you WRITE
 `review_reports.yaml`, `validation_reports.yaml`, `acceptance_reports.yaml`, `validity_criteria.yaml`, plus
