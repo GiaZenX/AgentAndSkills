@@ -23,7 +23,7 @@ truth** — no ad-hoc status/summary/report files are allowed (also enforced by 
 | `review_reports.yaml` | Reviewer | Methodological review results |
 | `validation_reports.yaml` | Reviewer | Reproduction + validity results |
 | `acceptance_reports.yaml` | Reviewer | RQ acceptance checks |
-| `fzulg_documentation.yaml` | PM | FZulG eligibility + effort/cost layer |
+| `fzulg_documentation.yaml` | PM | BSFZ application (form fields, work plan) + eligibility pillars + effort |
 | `progress.yaml` | PM | Status line + metrics overview |
 | `changelog.yaml` | PM | History |
 | `progress.dashboard.template.html` | PM | Static shell the dashboard is rendered from |

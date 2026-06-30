@@ -128,7 +128,7 @@ AgentAndSkills/
 │       ├── agents/ + skills/            ← project-manager + 6 specialists + their role skills
 │       ├── constitution/CLAUDE.md       ← project research constitution (carries team marker)
 │       ├── hooks/ + settings/           ← enforcement hooks + .claude/settings.json
-│       └── templates/project_memory/    ← research artifacts + report template + bundled KaTeX
+│       └── templates/project_memory/    ← research artifacts + LaTeX/HTML report templates + bundled KaTeX preview
 ├── install.ps1                          ← Windows installer (backup + confirm + overwrite)
 └── install.sh                           ← macOS/Linux installer
 ```

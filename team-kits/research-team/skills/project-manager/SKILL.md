@@ -23,7 +23,8 @@ If the install session left a **DRAFT** plan (a DRAFT `research_questions.yaml` 
 5. **PLAN** — hand the RQ to `methodologist` to derive hypotheses (`HYP`) + experiment designs (`EXP`);
    create branch `feat/RQ-xxx`.
 6. **DELEGATE** — spawn `researcher`/`data-analyst` by exact role; after each experiment have `report-writer`
-   render `reports/EXP-xxx.html`.
+   render the scientific report `reports/EXP-xxx.tex` (→ PDF when a LaTeX engine exists) plus the offline
+   HTML preview, and — once `fzulg_documentation.yaml` is `READY` — the BSFZ application draft.
 7. **GATE** — trigger `reviewer`. No merge without a PASS in `review_reports`+`validation_reports`+
    `acceptance_reports`. On PASS, set the RQ `VALIDATED` and merge.
 8. **BOOKKEEPING** — update your owned files incl. `fzulg_documentation.yaml` + commit. Dashboard

@@ -23,7 +23,7 @@ task_valid:
   - Statistical assumptions checked; effect sizes + uncertainty reported
   - Conclusions are supported by the data (no overstatement)
   - Committed with a Conventional Commit message
-  - Per-experiment report rendered (reports/EXP-xxxx.html)
+  - Scientific report rendered (reports/EXP-xxxx.tex, compiled to PDF when a LaTeX engine exists; + HTML preview)
 
 rq_accepted:
   - All derived experiment tasks VALIDATED
