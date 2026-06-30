@@ -44,7 +44,8 @@ This kit adds an FZulG (German R&D tax credit) documentation layer on top of a r
 - **Specialist subagents** (`methodologist`, `researcher`, `data-analyst`, `reviewer`,
   `research-engineer`, `report-writer`) NEVER talk to the user. They are **stateless**: each run starts
   with no memory. You spawn them with a YAML work order naming exactly which `project_memory/*.yaml` +
-  files to read first. They return YAML (the `report-writer` also produces HTML reports).
+  files to read first. They return YAML (the `report-writer` also produces the LaTeX/PDF scientific reports,
+  an offline HTML preview, and the BSFZ application draft).
 - Spawn a specialist by its **exact role** as `subagent_type`. **NEVER** spawn a generic/unnamed agent,
   and **NEVER** spawn a second "PM" — you are the only PM.
 
@@ -54,7 +55,7 @@ This kit adds an FZulG (German R&D tax credit) documentation layer on top of a r
    per-experiment reports under `project_memory/reports/`, plus analysis `src/**` and `tests/**`. You and
    every specialist **MUST NOT** create ad-hoc files for status, summaries, reports, results, or
    discovery (no root `RQ-*.md`, no `*_RESULT.yaml`, no `docs/EXP-*_SUMMARY.md`). Findings → the correct
-   YAML; experiment write-ups → `report-writer` HTML only.
+   YAML; experiment write-ups → `report-writer` (LaTeX/PDF report + offline HTML preview + BSFZ draft).
 2. **You maintain `project_memory/` yourself** (research_questions, protocol_amendments, hypotheses-index,
    progress, changelog, project_config, fzulg_documentation). No writer role exists.
 3. **End-of-phase checklist (non-skippable):** (a) update the relevant `project_memory/*.yaml`, (b) run
@@ -153,7 +154,7 @@ what becomes RQs/PAs.
 | `tasks.yaml`, analysis `src/*` | **Researcher / Data Analyst** |
 | `results.yaml` (raw) | **Researcher** · `results.yaml` (derived) / `findings.yaml` | **Data Analyst** |
 | `review_reports.yaml` / `validation_reports.yaml` / `acceptance_reports.yaml` / `validity_criteria.yaml` | **Reviewer** |
-| `reports/EXP-*.html` | **Report Writer** |
+| `reports/EXP-*.{tex,pdf,html}` + `reports/fzulg_application_RQ-*.md` | **Report Writer** |
 | data pipelines, environments, dataset versioning | **Research Engineer** |
 | `git push` | **PM** |
 
@@ -276,15 +277,25 @@ state; RQs = what is clearly recognizable, the rest `UNCLEAR`). Then run Phase 0
 - You update `project_memory/` **immediately**; specialists update their owned artifacts immediately.
   Stale docs are a defect and **MUST** be fixed before internal acceptance.
 
-## 16. FZulG documentation layer
+## 16. FZulG / BSFZ application layer
 
-For **every RQ**, the Methodologist assesses and **you** record in `fzulg_documentation.yaml` the three
-pillars — **novelty** (vs. `literature.yaml`), **technical/scientific uncertainty**, **systematic
-approach** (traceable via HYP/EXP/TSK) — plus personnel effort/time and eligible-cost notes. Kept current
-as experiments progress, not written once at the end.
+`fzulg_documentation.yaml` is a **BSFZ Forschungszulage application** per RQ, kept current as work progresses
+(not written once at the end). The **Methodologist** assesses the three pillars — **novelty** (vs.
+`literature.yaml`), **technical/scientific uncertainty** (refuted hypotheses are the strongest evidence),
+**systematic approach** (traceable RQ→HYP→EXP→TSK + MDRs) — and curates the **sources** under BSFZ discipline
+(cited in text, ≤7 years + a seminal-with-recent-build-on exception; every DOI flagged for the applicant to
+verify via doi.org — an invented DOI is a knock-out). The **PM** owns the file: the **form fields** (3.1
+general, FuE-category, keywords), the **tabular work plan** (3.3.1 — numbered APs with start/end MM.YYYY +
+**planned** person-months/hours, goal/uncertainty/deliverable/stop-or-pivot), and the **effort** roll-up.
+Personnel **hours are applicant-entered only** (the AI never claims a human's hours); the running proof is
+`hours.md` (repo root) and its total must match `effort`.
 
-## 17. Experiment reports
+## 17. Experiment & application reports
 
-After each experiment, the **Report Writer** renders `project_memory/reports/EXP-xxxx.html` from the fixed
-template (offline KaTeX), so every report looks identical. It **presents** existing results only — never
-alters data or conclusions.
+After each experiment, the **Report Writer** renders the **scientific report in LaTeX** —
+`project_memory/reports/EXP-xxxx.tex`, compiled to `EXP-xxxx.pdf` when a LaTeX engine (`tectonic`/`pdflatex`)
+is available — as the submittable deliverable, plus a self-contained **offline HTML preview**
+(`EXP-xxxx.html`, bundled KaTeX, never a CDN) for quick viewing. KaTeX is ONLY the preview's math renderer;
+the LaTeX source/PDF is the report. Once an RQ's `fzulg_documentation.yaml` is `READY`, the Report Writer also
+renders the **BSFZ application draft** `reports/fzulg_application_RQ-xxxx.md`. It **presents** existing
+artifacts only — never alters data or conclusions.

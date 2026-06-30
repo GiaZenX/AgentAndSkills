@@ -19,8 +19,15 @@ The repo's env/pipeline config, `experiment_designs.yaml` (so the environment ma
    stack (black/ruff/mypy, pytest, pip-audit for SCA, gitleaks for secrets/PII, pip-licenses for licenses).
 2. Provide **reproducible compute environments** (pinned dependencies, recorded versions) so experiments
    rerun identically; build/maintain data pipelines with **dataset versioning + provenance**.
-3. Automate experiment execution where it improves reproducibility; ensure runs are logged + re-runnable.
-4. Support the PM's git workflow (branch hygiene, hooks) — **never push or change shared environments on
+3. **Acquiring real external data (datasets/traces) — verify, don't assume.** When an experiment needs a real
+   public dataset or trace: resolve a DIRECT, machine-downloadable URL (a landing/HTML page is NOT a download —
+   e.g. SNIA / registry pages often return HTML); if the primary source is gated, paywalled or HTML-only, find a
+   documented mirror/alternative and record which one was used. ALWAYS record provenance (source URL, access
+   date, version/DOI), the **license + permitted-use scope**, and a **checksum** of the fetched file so re-runs
+   verify integrity. If nothing is directly accessible, **FLAG it to the PM with concrete alternatives** and the
+   impact on the affected hypothesis — never fabricate, sample down, or silently substitute data to unblock a run.
+4. Automate experiment execution where it improves reproducibility; ensure runs are logged + re-runnable.
+5. Support the PM's git workflow (branch hygiene, hooks) — **never push or change shared environments on
    your own**; never force-push. The PM is the executor, only on user OK.
 
 ## Files you WRITE

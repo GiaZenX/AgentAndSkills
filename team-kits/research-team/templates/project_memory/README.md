@@ -29,9 +29,11 @@ truth** — no ad-hoc status/summary/report files are allowed (also enforced by 
 | `progress.dashboard.template.html` | PM | Static shell the dashboard is rendered from |
 | `generate_dashboard.py` | PM | Generator: builds the dashboard from the YAML files |
 | `progress.dashboard.html` | PM | Generated dashboard (do not hand-edit) |
-| `reports/experiment_report.template.html` | Report Writer | Fixed per-experiment report template |
-| `reports/EXP-*.html` | Report Writer | Rendered per-experiment reports |
-| `reports/assets/` | (bundled) | Local KaTeX (CSS/JS/fonts) for offline LaTeX |
+| `reports/scientific_report.template.tex` | Report Writer | Fixed LaTeX template (submittable report) |
+| `reports/experiment_report.template.html` | Report Writer | Fixed HTML preview template |
+| `reports/EXP-*.{tex,pdf,html}` | Report Writer | Rendered per-experiment reports (LaTeX/PDF + HTML preview) |
+| `reports/fzulg_application_RQ-*.md` | Report Writer | Rendered BSFZ application draft |
+| `reports/assets/` | (bundled) | Local KaTeX (CSS/JS/fonts) for the offline HTML preview |
 
 ## Dashboard
 
@@ -44,9 +46,12 @@ PyYAML (`pip install pyyaml`); the generated HTML itself has no dependencies and
 
 ## Experiment reports
 
-After each experiment the Report Writer renders `reports/EXP-xxxx.html` from
-`reports/experiment_report.template.html`, so every report looks identical. Formulas render **offline** via
-the bundled KaTeX in `reports/assets/` (no CDN). The report presents existing results only — it never alters
+After each experiment the Report Writer renders the **scientific report in LaTeX** (`reports/EXP-xxxx.tex`,
+compiled to `EXP-xxxx.pdf` when a LaTeX engine is available) — the submittable deliverable — plus a
+self-contained **HTML preview** (`reports/EXP-xxxx.html`) whose formulas render **offline** via the bundled
+KaTeX in `reports/assets/` (no CDN). KaTeX is only the preview's math renderer; the LaTeX/PDF is the report.
+Once an RQ's `fzulg_documentation.yaml` is `READY`, it also renders the **BSFZ application draft**
+(`reports/fzulg_application_RQ-xxxx.md`). The Report Writer presents existing results only — it never alters
 data or conclusions.
 
 Everyone may read everything; each role writes only its own area. See the constitution (`CLAUDE.md`) for

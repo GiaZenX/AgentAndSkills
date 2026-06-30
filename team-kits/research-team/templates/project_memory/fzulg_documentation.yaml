@@ -1,20 +1,70 @@
-# fzulg_documentation.yaml — owned by: PM
-# FZulG (Forschungszulagengesetz, German R&D tax credit) documentation layer.
-# Per RQ, captures the three eligibility pillars (assessed by the Methodologist)
-# plus the effort/cost bookkeeping the application needs (provided by the PM).
-# Kept current as experiments progress — NOT written once at the end.
+# fzulg_documentation.yaml — owned by: PM (form fields, work plan, effort) · pillars + sources: Methodologist
+# BSFZ Forschungszulage application layer (German R&D tax credit). Captures BOTH the eligibility pillars AND
+# the BSFZ application-form fields + a tabular work plan, so the applicant can transcribe straight into the
+# BSFZ portal. Kept current as work progresses — NOT written once at the end.
+#
+# BSFZ RULES baked in:
+#  * HOURS stay APPLICANT-ENTERED — the team fills the STRUCTURE (work packages, planned PM), never claims a
+#    human's hours. The running hours proof is `hours.md` (repo root); the `effort` totals must match it.
+#  * Every source is cited in the running text, published BEFORE project start and <=7 years old; a seminal
+#    work is allowed only WITH a recent build-on reference (`seminal_exception: true`).
+#  * Each DOI MUST be verified via doi.org before submission — an AI-stated DOI is never trusted (a wrong DOI
+#    is a knock-out). Mark `verified: true` only after the human checked it.
+#  * One clearly delimited FuE project per RQ.
 #
 # Schema:
 #   RQ-XXXX:
-#     novelty: <what is new vs. the state of the art; ref LIT-XXXX>
-#     technical_uncertainty: <what was genuinely unknown / risky at the outset>
-#     systematic_approach: <hypothesis-driven, documented method; ref HYP/EXP/TSK>
+#     # --- 3.1 General ---
+#     application:
+#       title: ""                  # <=200 chars, descriptive, no internal abbreviations
+#       start: YYYY-MM-DD
+#       end: YYYY-MM-DD
+#       research_branch: ""        # e.g. "1 Naturwissenschaften / 1.2 Informatik und Informationswissenschaften"
+#       activity_form: eigenbetrieblich    # eigenbetrieblich | auftrag | kooperation
+#       fue_category: ""           # Grundlagenforschung | angewandte Forschung | experimentelle Entwicklung (AGVO Art.2)
+#       exploitation: ""           # Verwertungshorizont (e.g. "ausschliesslich wissenschaftliche Verwertung")
+#       keywords: []               # >=3
+#     # --- 3.3 Content fields (German; map the RQ substance onto the form) ---
+#     goal_and_gap: ""             # "Ziel / Wissenslücke" (<=1500): problem + what is new/better + research questions
+#     state_of_the_art: ""         # "Abgrenzung zum Stand der Technik" (<=500): how the result differs (ref LIT-XXXX)
+#     work_performed: ""           # "Welche Arbeiten" (<=1000): concrete solution path/methods (NOT the AP table)
+#     uncertainties: ""            # "Wiss.-techn. Unsicherheiten" (<=1000): concrete risks that could force a pivot/abort
+#     # --- the three eligibility pillars (assessed by the Methodologist) ---
+#     novelty: ""                  # vs prior art; ref LIT-XXXX
+#     technical_uncertainty: ""    # genuinely unknown at the outset; REFUTED hypotheses are strong evidence
+#     systematic_approach: ""      # hypothesis-driven, traceable RQ->HYP->EXP->TSK + MDRs
+#     # --- 3.3.1 Tabular work plan (Arbeitsplan); the PM derives APs from the EXP phases ---
+#     work_packages:               # >=1 AP; hours are PLANNED (applicant confirms actuals in hours.md); h-field <=999
+#       - nr: 1
+#         title: ""                # <=150 chars (concise; the concrete tasks live in work_performed)
+#         start: MM.YYYY           # within [application.start, application.end]
+#         end: MM.YYYY
+#         person_months: 0.0       # 1 PM = 160 h
+#         hours: 0                 # PLANNED hours, <=999
+#         performer: ""            # the applicant / company (eigenbetrieblich)
+#         goal: ""                 # what this AP achieves
+#         uncertainty: ""          # the open question this AP resolves
+#         deliverable: ""          # concrete output
+#         stop_or_pivot: ""        # Abbruch-/Umlenk-Kriterium
+#     # --- effort roll-up: APPLICANT enters ACTUAL hours; the total must match hours.md ---
 #     effort:
-#       - role: researcher          # role involved
-#         person: ""                # optional person identifier
-#         hours: 0                  # personnel time spent
-#         period: YYYY-MM           # accounting period
-#     eligible_costs_note: <notes on eligible cost categories>
-#     status: DRAFT                 # DRAFT -> READY (ready for the application)
+#       - role: ""                 # contributing role / person
+#         person: ""
+#         hours: 0                 # APPLICANT-ENTERED actual hours (never the AI's)
+#         period: YYYY-MM
+#     eligible_costs_note: ""
+#     # --- sources (BSFZ discipline; the Methodologist curates from literature.yaml) ---
+#     sources:
+#       - ref: LIT-XXXX
+#         citation: ""             # Authors (Year): Title. Venue.
+#         year: 0
+#         doi_or_arxiv: ""         # arXiv id or DOI
+#         verified: false          # applicant verifies via doi.org before submission — NEVER trust an AI-stated DOI
+#         seminal_exception: false # true only if >7y AND paired with a recent build-on reference
+#     # --- anticipated BSFZ review questions (Rückfragen prep; introduce NO new facts, only sharpen existing) ---
+#     review_questions:
+#       - q: ""                    # e.g. "Ist das nicht nur die Kombination bekannter Verfahren?"
+#         a: ""
+#     status: DRAFT                # DRAFT -> READY (ready for the application)
 
 fzulg_documentation: {}

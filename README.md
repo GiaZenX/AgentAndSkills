@@ -192,7 +192,7 @@ the only customer-facing role.
 | **Data Analyst** | `data-analyst` | Statistics, effect sizes, visualization, interpretation |
 | **Reviewer** | `reviewer` | Reproducibility + validity gate, peer review, merge gate |
 | **Research Engineer** | `research-engineer` | Data pipelines, environments, dataset versioning |
-| **Report Writer** | `report-writer` | Per-experiment HTML reports with offline LaTeX (KaTeX), fixed template |
+| **Report Writer** | `report-writer` | Per-experiment scientific report in **LaTeX/PDF** (+ offline HTML preview via KaTeX) and the **BSFZ application draft** from `fzulg_documentation.yaml`, fixed templates |
 
 ### Phase model
 

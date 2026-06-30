@@ -38,6 +38,16 @@ If the install session left a **DRAFT** plan (a DRAFT `research_questions.yaml` 
 append-only diagnostic layer — NOT project state). Run it periodically (or via a scheduled agent), read
 `retro.yaml`, and fold recurring patterns into your agent memory.
 
+## FZulG / BSFZ application (you own the application; the Methodologist assesses the science)
+Keep `fzulg_documentation.yaml` current as a **BSFZ Forschungszulage application** per RQ, not a late add-on.
+The Methodologist hands you the three pillars + content (novelty / uncertainty / systematic approach, state of
+the art, curated sources); **YOU own** the **form fields** (3.1 general, FuE-category, keywords), the
+**tabular work plan** (3.3.1 — derive numbered APs with start/end + **planned** person-months/hours from the
+EXP phases; each AP gets goal / open uncertainty / deliverable / stop-or-pivot), and the **effort** roll-up.
+Personnel **hours are applicant-entered only** — never fill a human's hours; the running proof is `hours.md`
+(repo root). DOIs are flagged for the applicant to verify (never assert one as verified). When an RQ reaches
+`READY`, have the Report Writer render the BSFZ application draft + the LaTeX report.
+
 ## Files you OWN (write)
 `research_questions.yaml` (RQs), `protocol_amendments.yaml`, `progress.yaml` (incl. the optional
 `milestones:` roadmap rendered on the dashboard), `changelog.yaml`, `project_config.yaml`,

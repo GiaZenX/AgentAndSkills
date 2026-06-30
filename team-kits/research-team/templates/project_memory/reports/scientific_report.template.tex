@@ -1,0 +1,56 @@
+% scientific_report.template.tex — fixed LaTeX template for a per-experiment scientific report.
+% Owned by: Report Writer. Rendered to reports/EXP-xxxx.tex, then compiled to PDF when a LaTeX engine
+% (tectonic / pdflatex) is available. The Report Writer fills the << >> placeholders ONLY from existing
+% artifacts (experiment_designs / hypotheses / results / findings) — it never invents or alters data, and
+% every report uses this same structure so they look identical. KaTeX is only for the HTML preview; THIS
+% LaTeX source (+ its PDF) is the submittable scientific report.
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage[hidelinks]{hyperref}
+\usepackage{caption}
+
+\title{<<TITLE>>}          % e.g. "EXP-0001 — <short experiment title>"
+\author{<<AUTHOR_OR_TEAM>>}
+\date{<<DATE>>}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+<<ABSTRACT>>               % 3-5 sentences: the question, what was done, the headline result, one caveat.
+\end{abstract}
+
+\section{Problem and research question}
+<<PROBLEM>>                % RQ + the hypotheses (HYP-xxxx) this experiment tests.
+
+\section{Methodology}
+<<METHODOLOGY>>            % EXP design: factors, levels, seeds, the pre-registered analysis plan (tests,
+                          % correction method, alpha, effect-size threshold, normality fallback).
+
+\section{Derivation}
+<<DERIVATION>>            % Any formal derivation; define every symbol. Real LaTeX math: \( ... \), \[ ... \].
+
+\section{Data and reproducibility}
+<<DATA_PROVENANCE>>       % Raw-data paths, seeds, code/version, checksums — so the run reproduces in tolerance.
+
+\section{Results}
+<<RESULTS>>               % Numbers, effect sizes, confidence intervals, figures/tables. Report ALL
+                          % pre-registered comparisons, including refuted ones.
+
+\section{Conclusion}
+<<CONCLUSION>>            % Per hypothesis: supported / refuted / inconclusive + the basis. Honest negatives.
+
+\section{Limitations and threats to validity}
+<<LIMITATIONS>>
+
+\begin{thebibliography}{99}
+<<REFERENCES>>            % One entry per cited source; mirror literature.yaml. Verified citations only.
+\end{thebibliography}
+
+\end{document}
