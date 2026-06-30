@@ -28,6 +28,9 @@ The repo's build/CI config, `tasks.yaml`, `testing_guidelines.yaml` (so CI runs 
    Pick the concrete tools for the stack (e.g. prettier/black, eslint/ruff, tsc/mypy, vitest/pytest,
    npm audit/pip-audit/Trivy for SCA, gitleaks/trufflehog for secrets, Semgrep/CodeQL for SAST,
    license-checker/pip-licenses + Syft for licenses/SBOM) from `testing_guidelines.yaml` `tooling_defaults`.
+   If the **`security-guidance`** plugin is installed (Anthropic; real-time advisory on every edit), it is a
+   welcome **shift-left complement** — it surfaces dangerous constructs as code is written so they are fixed
+   early — but it does **NOT** replace the CI SAST/SCA/secret/SBOM gates, which stay the hard, blocking line.
 2. Manage environments, dependencies and tooling the dev roles need; keep deps pinned + audited.
 3. Prepare release/deploy mechanics; ensure rollbacks exist.
 4. Support the PM's git workflow (branch hygiene, hooks, status checks) — but **never push, merge, or
