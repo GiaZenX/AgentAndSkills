@@ -14,5 +14,9 @@ __pycache__/
 # Throwaway E2E sandbox
 .e2e-sandbox/
 
+# Claude Code scheduled-task runtime state (not source)
+.claude/scheduled_tasks.lock
+.claude/scheduled_tasks.json
+
 # Logs
 *.log
