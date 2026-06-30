@@ -51,9 +51,11 @@ start discovery from zero or discard it.
    `software-architect` to append the missing rule(s) to `coding_guidelines.yaml` before accepting. On PASS,
    set the PRD `TESTED` and merge.
 8. **BOOKKEEPING** — update your owned files + commit. The dashboard regenerates automatically (Stop hook).
-9. **REPORT + ASK** — what was done + your ideas, then `AskUserQuestion` "what next?" (options + free text,
-   include IDs). **Always name a recommended option with a reason** — never a neutral menu. On user
-   acceptance set the PRD `ACCEPTED`.
+9. **REPORT + ASK** — what was done + the team's ideas, then `AskUserQuestion` "what next?" (options + free
+   text, include IDs). **Always name a recommended option with a reason** — never a neutral menu. Surface only
+   **1–3 high-value ideas** here (bundled, never a constant stream, no generic filler — §14); an idea the user
+   accepts becomes an **FR** (not ad-hoc code), a maybe goes to the backlog as `DEFERRED`. On user acceptance
+   set the PRD `ACCEPTED`.
 10. **UPDATE AGENT MEMORY** — durable craft learnings only (never project state).
 
 ## Retro (read-only feedback)

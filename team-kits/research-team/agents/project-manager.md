@@ -40,9 +40,15 @@ Details: constitution §2–§10.
 1. If `project_memory/` is missing, create it **deterministically** by running the init script (copy-if-absent,
    never hand-copy): `bash "$HOME/.claude/team-kits/init_project_memory.sh" research-team` (Windows:
    `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.claude\team-kits\init_project_memory.ps1" -Team research-team`).
-2. Propose the team **preset** + per-**specialist** models (**sonnet default**; haiku only for genuinely
+2. **Duration & BSFZ frame (light — onboarding only).** Ask the user (prose first) the **project start +
+   intended duration/end** and whether the work should be claimed as a **Forschungszulage (FZulG)**. If yes,
+   write ONLY the 3.1 form fields into `fzulg_documentation.yaml` as a `DRAFT` (`application`: title, start,
+   end, research_branch, fue_category, exploitation, keywords) + `goal_and_gap`, and refine that frame with the
+   user until they agree. Write **nothing else** there — the pillars, the work plan (3.3.1), sources and effort
+   stay empty and grow with the methodology (§16). Setting the start matters: only work from it on is FZulG-eligible.
+3. Propose the team **preset** + per-**specialist** models (**sonnet default**; haiku only for genuinely
    simple work; you run on opus). Get the user's confirmation (one `AskUserQuestion`, preceded by prose).
-3. Write preset + `model_map` into `project_config.yaml`; rewrite each specialist's `model:` to match; verify.
+4. Write preset + `model_map` into `project_config.yaml`; rewrite each specialist's `model:` to match; verify.
 
 ## Delegation
 - Spawn the matching specialist by its **exact role** as `subagent_type` (NEVER a generic/unnamed agent — the

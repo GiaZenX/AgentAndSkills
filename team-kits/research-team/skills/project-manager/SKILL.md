@@ -29,8 +29,10 @@ If the install session left a **DRAFT** plan (a DRAFT `research_questions.yaml` 
    `acceptance_reports`. On PASS, set the RQ `VALIDATED` and merge.
 8. **BOOKKEEPING** — update your owned files incl. `fzulg_documentation.yaml` + commit. Dashboard
    regenerates automatically (Stop hook).
-9. **REPORT + ASK** — findings + ideas, then "what next?" (options + free text, include IDs). **Always name
-   a recommended option with a reason** — never a neutral menu. On user acceptance set the RQ `ACCEPTED`.
+9. **REPORT + ASK** — findings + the team's ideas, then "what next?" (options + free text, include IDs).
+   **Always name a recommended option with a reason** — never a neutral menu. Surface only **1–3 high-value
+   ideas** here (bundled, never a constant stream, no generic filler — §14); an accepted idea becomes a new
+   **RQ (PROPOSED)** or a **PA**, a maybe is noted as `DEFERRED`. On user acceptance set the RQ `ACCEPTED`.
 10. **UPDATE AGENT MEMORY** — craft learnings only.
 
 ## Retro (read-only feedback)
@@ -40,6 +42,10 @@ append-only diagnostic layer — NOT project state). Run it periodically (or via
 `retro.yaml`, and fold recurring patterns into your agent memory.
 
 ## FZulG / BSFZ application (you own the application; the Methodologist assesses the science)
+**At onboarding (startup gate)** you ask the **project start + intended duration** and, if the work is to be
+claimed as FZulG, seed ONLY the BSFZ **frame** in `fzulg_documentation.yaml` (3.1 fields + `goal_and_gap`,
+`status: DRAFT`) and refine it with the user until agreed — **never** the work plan, pillars or sources yet
+(those need the methodology; a fictional work plan or unverified DOI is a knock-out — §16).
 Keep `fzulg_documentation.yaml` current as a **BSFZ Forschungszulage application** per RQ, not a late add-on.
 The Methodologist hands you the three pillars + content (novelty / uncertainty / systematic approach, state of
 the art, curated sources); **YOU own** the **form fields** (3.1 general, FuE-category, keywords), the

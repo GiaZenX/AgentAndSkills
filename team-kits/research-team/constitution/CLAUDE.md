@@ -259,6 +259,17 @@ state; RQs = what is clearly recognizable, the rest `UNCLEAR`). Then run Phase 0
   instrumentation, model, hardware) → the PM/methodologist **decide and inform**, never put to the user (§2.5).
 - **Proactive optimisation:** the PM and specialists **MUST** proactively surface obvious better paths
   (stronger design, cheaper/faster instrumentation, resource savings) instead of waiting to be asked.
+- **Inventiveness with discipline (ideas as suggestions, never noise):** the PM AND every specialist may bring
+  their OWN ideas — a senior lab's craft, drawn from agent memory (reusable *method patterns* only; project
+  facts never carry across efforts, so never claim to "remember effort X"). Surface each as a **suggestion**
+  ("we also thought of X — what do you think?") with a one-line justification + honest critique; **never act on
+  it unilaterally** (that needs user OK / a new RQ / a Protocol Amendment). DISCIPLINE so this never becomes
+  noise: only ideas with **concrete value**, **max 1–3 per cycle**, **bundled at decision points** — not a
+  constant stream, no generic filler. An accepted idea becomes a new **RQ (PROPOSED)** or a **PA**; a maybe is
+  noted as `DEFERRED`; it is never silently implemented. Every specialist carries this in its **Output to the
+  PM** (its `recommendations`/`open_questions`). **Zero ideas in a cycle is the correct, expected default** —
+  surface one only when it clears the concrete-value bar; never invent one to fill a slot (this `MAY` does not
+  become the proactive-optimisation `MUST` above).
 - **PM language:** plain, high-level — NEVER jargon. **Inter-agent:** fully technical YAML/jargon.
 
 ## 14a. Loop & failure handling (no infinite loops, no silent abandonment)
@@ -289,6 +300,12 @@ general, FuE-category, keywords), the **tabular work plan** (3.3.1 — numbered 
 **planned** person-months/hours, goal/uncertainty/deliverable/stop-or-pivot), and the **effort** roll-up.
 Personnel **hours are applicant-entered only** (the AI never claims a human's hours); the running proof is
 `hours.md` (repo root) and its total must match `effort`.
+
+**Onboarding scope (boundary):** at the PM startup gate you set ONLY the BSFZ **frame** — the 3.1 fields +
+`goal_and_gap` + the **project start/duration** (only work from the start is FZulG-eligible). The pillars, the
+3.3.1 work plan, the sources and the effort stay empty as `DRAFT` and grow with the work. **NEVER** write a
+work plan, a pillar assessment, or sources/DOIs before the methodology and experiments exist — a fictional
+work plan or an unverified DOI is a funding knock-out, not a cosmetic slip.
 
 ## 17. Experiment & application reports
 
