@@ -281,3 +281,21 @@ def test_memory_complete_allows_empty_bug_log(prd_repo):
           'project:\n  name: "Demo"\n  stacks: [python]\n')
     payload = {"tool_name": "Bash", "tool_input": {"command": "git merge feat/PRD-0001-x"}, "cwd": str(prd_repo)}
     assert run_hook("gate_memory_complete.py", payload, prd_repo) == 0
+
+
+# ---------------- gate_memory_complete: UI design.yaml must record an ambition (synaipse fix) ----------------
+def test_memory_complete_blocks_design_without_ambition(prd_repo):
+    # a UI design.yaml (not applicable:false) with no `ambition:` -> blocked (don't ship one design silently)
+    write(str(prd_repo / "project_memory" / "design.yaml"), 'chosen: "Aurora"\ndirections: [Aurora]\n')
+    write(str(prd_repo / "project_memory" / "project_config.yaml"),
+          'project:\n  name: "X"\n  stacks: [python]\n')
+    payload = {"tool_name": "Bash", "tool_input": {"command": "git merge feat/PRD-0001-x"}, "cwd": str(prd_repo)}
+    assert run_hook("gate_memory_complete.py", payload, prd_repo) == 2
+
+
+def test_memory_complete_allows_design_with_ambition(prd_repo):
+    write(str(prd_repo / "project_memory" / "design.yaml"), 'ambition: minimal\nchosen: "Aurora"\n')
+    write(str(prd_repo / "project_memory" / "project_config.yaml"),
+          'project:\n  name: "X"\n  stacks: [python]\n')
+    payload = {"tool_name": "Bash", "tool_input": {"command": "git merge feat/PRD-0001-x"}, "cwd": str(prd_repo)}
+    assert run_hook("gate_memory_complete.py", payload, prd_repo) == 0

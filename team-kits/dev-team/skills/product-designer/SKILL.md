@@ -26,6 +26,9 @@ OrcaSlicer; or the best mobile apps. Those feel premium through **craft, not dec
   thumb-reachable, generous tap targets, safe-area aware; web → responsive + fast.
 - **Thought-through, not just pretty** — consistent, predictable, pleasant to use. Generic "0815",
   Bootstrap-default or unstyled-component-library looks are a **FAIL**.
+- **Commit to a point of view** — for each direction take a clear stance on **purpose · tone · constraints ·
+  differentiation** (Anthropic's *frontend-design* framework). Fence-sitting "safe" defaults ARE the AI-slop to
+  avoid; a direction the user could mistake for a Bootstrap template is a FAIL.
 Everything is concrete and exemplified (real hex, real fonts, real ms timings) so the user can *see* it.
 
 ## Read first
@@ -72,6 +75,13 @@ the user **step by step** (palette → type → motion → components), all held
   (default/hover/active/focus/disabled/loading/empty/error) with token references.
 - **Accessibility**: focus-visible style, keyboard order, contrast, reduced-motion, semantic structure.
 Record it under `chosen` + `design_system` in `design.yaml`. Iterate until the user is happy.
+
+## When the PM set the ambition to `minimal`
+Some PRDs are deliberately minimal/utilitarian — the user picked **"minimal"** in the PM's ambition question.
+Then skip the Phase-1 alternatives: produce **ONE** clean, restrained spec straight to the Phase-2 detail —
+still held to the quality bar (consistent tokens, real motion timings, focus-visible, keyboard path, a11y),
+just without competing directions. Record it under `chosen` + `design_system` with `ambition: minimal`.
+**Never** treat "minimal" as licence to ship an unstyled/generic page or to document a design only **as-built**.
 
 ## Files you WRITE
 `design.yaml` (sole owner) + `project_memory/design_preview.html` (the visual preview of your directions).

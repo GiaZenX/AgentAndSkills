@@ -89,7 +89,8 @@ def config_unfilled(text):
 def block(files):
     _audit.record("gate_memory_complete", ", ".join(files))
     sys.stderr.write(
-        "[team-kit gate] Blocked merge/push: these required project_memory files are still empty/templates:\n"
+        "[team-kit gate] Blocked merge/push: these required project_memory files are still empty/templates or "
+        "missing a required field:\n"
         "  %s\n"
         "Fill each with real content, or — if it genuinely does not apply to this project — set "
         "'applicable: false' with a one-line reason (constitution §6a). No required artifact may stay "
@@ -127,6 +128,12 @@ def main():
         if base == "project_config.yaml":
             if config_unfilled(text):
                 stale.append(base)
+            continue
+        if base == "design.yaml":
+            # a UI design.yaml (got here => not applicable:false) MUST record a deliberate, user-confirmed
+            # ambition — never shipped/"documented as-built" without it (the synaipse failure mode).
+            if not re.search(r"(?m)^\s*ambition:\s*(exploration|minimal)\b", text):
+                stale.append("design.yaml (set `ambition: exploration|minimal` — ask the user; never as-built)")
             continue
         if is_unfilled(text):
             stale.append(base)

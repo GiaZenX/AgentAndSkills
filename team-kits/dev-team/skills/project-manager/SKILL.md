@@ -32,6 +32,13 @@ start discovery from zero or discard it.
    facts) before deciding.
    **Design loop for a UI-bearing PRD** (before frontend implementation) — this is a **taste decision**: give
    it its OWN dedicated moment, never buried in a batch of onboarding/logistics questions:
+   (a0) **The design AMBITION is itself the user's call — ask it FIRST, before any design work:** for this UI,
+   does the user want a **full design exploration** (2–3 directions to choose from) or a **deliberately
+   minimal / utilitarian** UI (a plain, functional page — no exploration)? **NEVER decide this silently** or
+   ship a single design / "document one as-built" without this confirmation (the synaipse failure mode). Record
+   it in `design.yaml` (`ambition: exploration|minimal`, user-confirmed). If **minimal** → the
+   `product-designer` produces ONE clean, restrained spec (still held to the quality bar, just no alternatives)
+   and you skip (a)–(b); if **exploration** → continue:
    (a) task `product-designer` → it returns **2–3 distinct, modern directions** (top-tier quality), each with a
    `preview` text, plus the path to `project_memory/design_preview.html` (a real side-by-side visual preview);
    (b) **send the user `design_preview.html` so they actually SEE the options**, then ask — as a **separate**

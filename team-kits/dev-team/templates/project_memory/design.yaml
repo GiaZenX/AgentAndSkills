@@ -10,6 +10,9 @@
 # <100 ms), keyboard shortcuts on desktop. Generic "0815" looks are a FAIL. See skills/product-designer.
 #
 # Schema:
+#   ambition: exploration | minimal     # the user's call, asked by the PM FIRST. exploration = 2-3 directions
+#                                        # to choose from; minimal = ONE clean restrained spec, no alternatives.
+#                                        # NEVER decide this silently or document a single design only as-built.
 #   directions:                         # Phase 1 — 2-3 DISTINCT, named, opinionated options (real examples)
 #     - name: "Aurora"
 #       concept: "calm glassmorphism"
@@ -56,6 +59,7 @@
 #     iconography: { set: "<lucide / heroicons / custom>", style: "<line / solid>" }
 #   a11y_rules: [ "visible focus ring", "WCAG AA contrast", "full keyboard path", "respect reduced-motion" ]
 
+ambition: ""              # exploration | minimal — the user's call (the PM asks FIRST; never decide silently)
 directions: []
 preview_html: ""
 chosen: ""
