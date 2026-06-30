@@ -30,13 +30,20 @@ start discovery from zero or discard it.
 5. **PLAN** — hand the approved PRD to `software-architect` to derive SRs; create branch `feat/PRD-xxx`.
    When the team is genuinely uncertain about a library/datasheet/API, task `research-engineer` (cited
    facts) before deciding.
-   **Design loop for a UI-bearing PRD** (before frontend implementation):
-   (a) task `product-designer` → it returns **2–3 distinct directions** (each with sample palette/font/motion);
-   (b) **you present them to the user** with the concrete examples and ask which direction (`AskUserQuestion`,
-   prose first) — this IS a product/taste decision, so the user chooses;
-   (c) task `product-designer` again to **detail the chosen direction** (colors/typography/motion/components),
-   and iterate with the user **step by step** until they're happy;
-   (d) only then does `frontend-developer` implement against `design.yaml`.
+   **Design loop for a UI-bearing PRD** (before frontend implementation) — this is a **taste decision**: give
+   it its OWN dedicated moment, never buried in a batch of onboarding/logistics questions:
+   (a) task `product-designer` → it returns **2–3 distinct, modern directions** (top-tier quality), each with a
+   `preview` text, plus the path to `project_memory/design_preview.html` (a real side-by-side visual preview);
+   (b) **send the user `design_preview.html` so they actually SEE the options**, then ask — as a **separate**
+   `AskUserQuestion` (prose first), each direction an option using its `preview` — which direction they want,
+   and explicitly **invite their own wishes** ("…or describe your own taste / a product whose look you love" —
+   that's the free-text option). The user chooses the look; you never pick it for them. Set `chosen:` from
+   their answer.
+   (c) task `product-designer` again to **detail the chosen direction** to the production-grade spec
+   (colors/type/**motion 150–250 ms**/micro-feedback/keyboard/components) and iterate with the user **step by
+   step** until they're happy;
+   (d) only then does `frontend-developer` implement against `design.yaml` — and QA checks the build actually
+   **matches** it (motion timings, interaction states, spacing rhythm), not merely that it renders.
 6. **DELEGATE** — spawn `backend-developer`/`frontend-developer` by exact role with a YAML work order naming
    the SRs + files to read. They create tasks (`derives_from: SR-…`), implement, commit.
 7. **GATE** — trigger `quality-engineer`. No merge without a PASS in `review_reports`+`test_reports`+

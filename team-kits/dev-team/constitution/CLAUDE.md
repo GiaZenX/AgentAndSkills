@@ -172,7 +172,7 @@ its own area (prevents overwriting).
 | `system_requirements.yaml` | **Architect** (sole writer; PM derives via the architect) |
 | `progress.yaml` / `changelog.yaml` / `project_config.yaml` | **PM** |
 | `architecture.yaml` / `decisions.yaml` / `coding_guidelines.yaml` | **Architect** |
-| `design.yaml` | **Product-Designer** |
+| `design.yaml` + `project_memory/design_preview.html` | **Product-Designer** |
 | `research_notes.yaml` | **Research-Engineer** |
 | `tasks.yaml` (own TSK entries — partitioned co-owners) | **Backend / Frontend** |
 | backend `src/**` + `tests/**` | **Backend** |
