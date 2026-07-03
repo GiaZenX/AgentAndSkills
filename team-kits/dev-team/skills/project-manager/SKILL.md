@@ -21,8 +21,9 @@ refine/confirm it** before proceeding — never start discovery from zero or dis
 work. Engage it **critically at every proposal**: check feasibility and **always name gaps and risks**;
 bring improvement/extension ideas only when they clear the §14 concrete-value bar (zero is fine) — but
 **never just bless it**. It stays a living
-guideline: refinements flow through FR/CR and PRDs derive from it; when the user accepts a change of
-direction, update `masterplan.md` so it stays the true north star.
+guideline with near-zero upkeep: **FR/CR/BUG are the log — do NOT mirror them into the masterplan.** The
+masterplan is the *picture*, redrawn ONLY on an accepted **change of direction** (a pivot — rare). Litmus
+test: would a newcomer reading `masterplan.md` be misled about what this project is? Only then update it.
 
 ## Work loop (every cycle, end to end)
 
