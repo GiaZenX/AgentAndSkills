@@ -95,6 +95,17 @@ fi
 echo "  [ok]   backup complete"
 
 echo
+# Sanity: never stage a broken or unbumped kit
+if [[ -f "$REPO_ROOT/tools/validate.py" ]]; then
+    PYBIN="$(command -v python3 || command -v python || true)"
+    if [[ -n "$PYBIN" ]]; then
+        if ! "$PYBIN" "$REPO_ROOT/tools/validate.py"; then
+            echo "validate.py FAILED - not installing a broken kit. Fix it (e.g. python tools/bump_kit_version.py) and rerun." >&2
+            exit 1
+        fi
+    fi
+fi
+
 echo "-> Team kits (shared staging)"
 if [[ -d "$TEAM_KITS_SRC" ]]; then
     rm -rf "$CLAUDE_TEAM_KITS"; mkdir -p "$CLAUDE_TEAM_KITS"

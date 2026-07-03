@@ -93,6 +93,10 @@ if (Test-Path $repoTplSrc) {
             if ($dstDir -and -not (Test-Path $dstDir)) { New-Item -ItemType Directory -Force -Path $dstDir | Out-Null }
             Copy-Item $_.FullName $dst -Force
             Write-Host "  [ok] repo: $rel" -ForegroundColor Green
+        } elseif ((Get-FileHash $dst -Algorithm SHA256).Hash -ne (Get-FileHash $_.FullName -Algorithm SHA256).Hash) {
+            # copy-if-absent keeps the project's version — but say so, or a kit fix (e.g. quality.py)
+            # silently never reaches existing projects while the update reads as "applied".
+            Write-Host "  [kept] repo: $rel (differs from the kit template - review/merge manually)" -ForegroundColor Yellow
         }
     }
 }

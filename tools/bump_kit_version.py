@@ -18,8 +18,17 @@ import os
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-KITS = ("dev-team", "research-team")
 SKIP_DIRS = {"__pycache__", ".ruff_cache", ".mypy_cache", ".pytest_cache"}
+
+
+def discover_kits(root=ROOT):
+    """Every directory under team-kits/ that ships agents/ is a kit — no hard-coded list, so a
+    future third kit can never ship unversioned/unchecked by omission."""
+    base = os.path.join(root, "team-kits")
+    if not os.path.isdir(base):
+        return []
+    return sorted(d for d in os.listdir(base)
+                  if os.path.isdir(os.path.join(base, d, "agents")))
 
 
 def kit_hash(kit_dir):
@@ -31,8 +40,8 @@ def kit_hash(kit_dir):
     for dirpath, dirnames, filenames in os.walk(kit_dir):
         dirnames[:] = sorted(d for d in dirnames if d not in SKIP_DIRS)
         for fn in sorted(filenames):
-            if fn == "VERSION" or fn.endswith(".pyc"):
-                continue
+            if (fn == "VERSION" and dirpath == kit_dir) or fn.endswith(".pyc"):
+                continue  # only the kit's own top-level VERSION is hash-excluded
             p = os.path.join(dirpath, fn)
             rel = os.path.relpath(p, kit_dir).replace("\\", "/")
             h.update(rel.encode("utf-8"))
@@ -64,7 +73,7 @@ def next_version(previous):
 
 def main():
     changed = False
-    for kit in KITS:
+    for kit in discover_kits():
         kit_dir = os.path.join(ROOT, "team-kits", kit)
         if not os.path.isdir(kit_dir):
             continue

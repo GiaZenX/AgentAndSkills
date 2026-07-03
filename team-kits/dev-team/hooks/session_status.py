@@ -66,8 +66,8 @@ def main():
         if kit:
             staged_p = os.path.join(os.path.expanduser("~"), ".claude", "team-kits", kit, "VERSION")
             local_p = os.path.join(cwd, ".claude", "kit_version")
-            staged = open(staged_p, encoding="utf-8").read().strip() if os.path.isfile(staged_p) else ""
-            local = open(local_p, encoding="utf-8").read().strip() if os.path.isfile(local_p) else ""
+            staged = open(staged_p, encoding="utf-8").read().lstrip("\ufeff").strip() if os.path.isfile(staged_p) else ""
+            local = open(local_p, encoding="utf-8").read().lstrip("\ufeff").strip() if os.path.isfile(local_p) else ""
             if staged and staged != local:
                 lv = local.splitlines()[0].replace("version: ", "") if local else "no version stamp"
                 sv = staged.splitlines()[0].replace("version: ", "")
@@ -76,7 +76,7 @@ def main():
                     "(%s) — usually a newer harness. Propose the update to the user; on their OK run the "
                     "scaffold_team script and then init_project_memory (both safe: backup first, "
                     "copy-if-absent — project_memory content is NEVER overwritten), then ask for a session "
-                    "restart. Never hand-merge harness files. After updating, gates may require newly added "
+                    "restart. Never hand-merge harness files; re-sync each agent's model:/effort: frontmatter to model_map/effort_map afterwards (the scaffold resets them) and review any [kept] lines. After updating, gates may require newly added "
                     "fields in existing YAMLs — fill those small deltas." % (kit, sv, lv)
                 )
     except Exception:

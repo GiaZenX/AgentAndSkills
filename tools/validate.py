@@ -127,18 +127,25 @@ for cfg in glob.glob(ROOT + "/team-kits/*/templates/project_memory/project_confi
             if field not in lfm:
                 fails.append("%s: session lead missing '%s:' frontmatter" % (rel(lp), field))
 
-# 8) kit VERSION stamps must match the kit content (forgetting a bump is a CI failure)
+# 8) kit VERSION stamps must match the kit content (forgetting a bump is a CI failure), and the
+#    constitution marker must sit on line 1 (session_status parses only the first line for the kit key —
+#    if it ever moved, update detection would go blind silently).
 sys.path.insert(0, os.path.join(ROOT, "tools"))
-from bump_kit_version import kit_hash  # noqa: E402
+from bump_kit_version import discover_kits, kit_hash  # noqa: E402
 
-for kit in ("dev-team", "research-team"):
+for kit in discover_kits(ROOT):
     kit_dir = os.path.join(ROOT, "team-kits", kit)
     vfile = os.path.join(kit_dir, "VERSION")
     if not os.path.isfile(vfile):
         fails.append("%s: missing team-kits/%s/VERSION — run python tools/bump_kit_version.py" % (kit, kit))
-        continue
-    if ("content: %s" % kit_hash(kit_dir)) not in open(vfile, encoding="utf-8").read():
+    elif ("content: %s" % kit_hash(kit_dir)) not in open(vfile, encoding="utf-8").read():
         fails.append("%s: kit files changed but VERSION not bumped — run python tools/bump_kit_version.py" % kit)
+    cpath = os.path.join(kit_dir, "constitution", "CLAUDE.md")
+    if os.path.isfile(cpath):
+        first = open(cpath, encoding="utf-8", errors="ignore").readline()
+        if "agents-and-skills:team-kit" not in first:
+            fails.append("%s: constitution marker not on LINE 1 — session_status kit-update detection "
+                         "reads only the first line" % kit)
 
 if fails:
     print("VALIDATION FAILED (%d):" % len(fails))

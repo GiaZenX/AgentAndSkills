@@ -106,8 +106,10 @@ When `session_status` reports **KIT UPDATE AVAILABLE**, propose the update to th
 (harness files are replaced — with a backup; `project_memory/` content is **NEVER overwritten**; missing new
 templates are added copy-if-absent). On their OK run the platform's `scaffold_team` script and then
 `init_project_memory`, and ask for a **session restart**. NEVER hand-merge harness files, never skip the
-restart. Afterwards gates may require newly added fields in existing filled YAMLs — fill those small deltas;
-nothing filled is ever lost.
+restart. The scaffold resets each agent's `model:`/`effort:` frontmatter to kit defaults — **re-sync them to
+`model_map`/`effort_map` (§11) right after the update**, and review any `[kept]` lines the scaffold prints
+(a project file that diverged from the kit template — propose the delta, don't ignore it). Afterwards gates
+may require newly added fields in existing filled YAMLs — fill those small deltas; nothing filled is ever lost.
 
 ## Defects (bugs)
 A bug found **during** development/QA stays in the QA loop (the task's `qa_failures`) — no `bugs.yaml` entry.

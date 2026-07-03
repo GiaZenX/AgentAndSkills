@@ -83,6 +83,10 @@ if [ -d "$KIT/templates/repo" ]; then
       mkdir -p "$(dirname "$dst")"
       cp "$KIT/templates/repo/$rel" "$dst"
       echo "  [ok] repo: $rel"
+    elif ! cmp -s "$KIT/templates/repo/$rel" "$dst"; then
+      # copy-if-absent keeps the project's version — but say so, or a kit fix (e.g. quality.py)
+      # silently never reaches existing projects while the update reads as "applied".
+      echo "  [kept] repo: $rel (differs from the kit template - review/merge manually)"
     fi
   done < <(cd "$KIT/templates/repo" && find . -type f -not -path '*/__pycache__/*' \
            -not -path '*/.ruff_cache/*' -not -path '*/.mypy_cache/*' -not -path '*/.pytest_cache/*')

@@ -1,3 +1,5 @@
 * text=auto
 *.py text eol=lf
 *.sh text eol=lf
+team-kits/*/VERSION text eol=lf
+*.woff2 binary

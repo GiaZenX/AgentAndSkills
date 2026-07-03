@@ -87,6 +87,17 @@ if (Test-Path $vscodePrompts) {
 }
 Write-Host "  [ok]   backup complete" -ForegroundColor Green
 
+# --- Sanity: never stage a broken or unbumped kit ---------------------------
+$pyCheck = Get-Command python -ErrorAction SilentlyContinue
+$validateScript = Join-Path $repoRoot "tools\validate.py"
+if ($pyCheck -and (Test-Path $validateScript)) {
+    & $pyCheck.Source $validateScript
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "validate.py FAILED - not installing a broken kit. Fix it (e.g. python tools/bump_kit_version.py) and rerun." -ForegroundColor Red
+        exit 1
+    }
+}
+
 # --- Team kits (shared staging) -------------------------------------------
 Write-Host "`n-> Team kits (shared staging)"
 if (Test-Path $teamKitsSrc) {
