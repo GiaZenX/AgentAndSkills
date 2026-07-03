@@ -63,7 +63,7 @@ def main():
         data = json.load(sys.stdin)
     except Exception:
         sys.exit(0)
-    if data.get("tool_name") != "Bash":
+    if data.get("tool_name") not in ("Bash", "PowerShell"):
         sys.exit(0)
     low = ((data.get("tool_input") or {}).get("command") or "").lower()
     if "git push" not in low and "git merge" not in low:

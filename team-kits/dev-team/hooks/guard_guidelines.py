@@ -17,6 +17,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _root import find_repo_root
+import _audit
 
 # Alias TOKENS per extension. A `languages:` key satisfies the guard when ANY of its underscore/
 # dash-separated tokens equals one of these aliases — so canonical keys (javascript:) match, and so
@@ -39,6 +40,7 @@ CODE_TOP = {"src", "frontend", "backend", "lib", "server", "app", "packages", "c
 
 
 def block(lang, rel):
+    _audit.record("guard_guidelines", rel)
     sys.stderr.write(
         "[team-kit guard] Blocked writing '%s': coding_guidelines.yaml has no `languages: %s` block yet.\n"
         "The architect MUST fill the coding guidelines for %s BEFORE code in it is written "

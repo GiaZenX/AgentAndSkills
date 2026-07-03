@@ -31,4 +31,7 @@ milestones: []
 #     items: [RQ-0001, RQ-0002] # the research-question ids this milestone covers
 
 last_update: ""        # YYYY-MM-DD
-status: ""             # one-line project status
+status: ""             # ONE line: current state + concrete next action. NEVER a growing prose blob —
+                       # history belongs in `log:` below (giant status re-edits caused parse failures).
+log: []                # append-only, newest last: short dated entries (one per RQ/EXP/merge/event)
+#   - "2026-07-04: EXP-0001 reviewer PASS + report rendered; next: EXP-0002 real trace"

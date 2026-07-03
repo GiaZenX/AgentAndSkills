@@ -22,6 +22,12 @@ import sys
 def block(base, msg):
     if len(msg) > 600:
         msg = msg[:600] + " …"
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import _audit
+        _audit.record("guard_yaml_valid", base)
+    except Exception:
+        pass
     sys.stderr.write(
         "[team-kit guard] project_memory/%s is INVALID YAML after your edit:\n%s\n"
         "Fix it NOW — you own this artifact. Tips: put prose containing ':' in a block scalar "

@@ -23,6 +23,8 @@ If the install session left a **DRAFT** plan (a DRAFT `research_questions.yaml` 
 5. **PLAN** — hand the RQ to `methodologist` to derive hypotheses (`HYP`) + experiment designs (`EXP`);
    create branch `feat/RQ-xxx`.
 6. **DELEGATE** — spawn `researcher`/`data-analyst` by exact role to run the experiment + analysis.
+   Spawn with **`run_in_background: false`** unless you deliberately parallelize; after parallel spawns,
+   NEVER advance the phase before ALL notifications have returned (verify claims, never trust).
    **A "not possible / blocked" never settles a decision** — demand the best alternative first, with
    sources (§14 dead-end rule).
    **Infrastructure defects** (a guard/hook/pipeline misfires): route the fix to the `research-engineer`
@@ -38,8 +40,10 @@ If the install session left a **DRAFT** plan (a DRAFT `research_questions.yaml` 
    RQ-level merge: no merge without a PASS in `review_reports`+`validation_reports`+`acceptance_reports`; on
    that PASS set the RQ `VALIDATED` and merge. Once `fzulg_documentation.yaml` is `READY`, render the BSFZ draft.
 8. **BOOKKEEPING** — update your owned files incl. `fzulg_documentation.yaml` + commit. **Session hygiene:**
-   never leave work uncommitted across a session end; `progress.yaml` `status` always names the concrete
-   next action so a fresh session resumes without the user re-explaining. Dashboard
+   never leave work uncommitted across a session end; `progress.yaml` `status` stays a ONE-LINER (state +
+   next action; history goes to the append-only `log:` list — never a growing prose blob). **After each RQ
+   merge, propose a FRESH session** (long sessions degrade beyond ~800k context: tool-call glitches, lossy
+   compaction). Dashboard
    regenerates automatically (Stop hook).
 9. **REPORT + ASK** — findings + the team's ideas, then "what next?" (options + free text, include IDs).
    **Always name a recommended option with a reason** — never a neutral menu. Surface only **1–3 high-value

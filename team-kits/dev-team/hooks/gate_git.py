@@ -41,7 +41,7 @@ def main():
         data = json.load(sys.stdin)
     except Exception:
         sys.exit(0)
-    if data.get("tool_name") != "Bash":
+    if data.get("tool_name") not in ("Bash", "PowerShell"):
         sys.exit(0)
     cmd = ((data.get("tool_input") or {}).get("command") or "")
     low = cmd.lower()

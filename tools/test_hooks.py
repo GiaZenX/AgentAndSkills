@@ -94,6 +94,13 @@ def test_gate_git_force_push_blocked(prd_repo):
     assert run_hook("gate_git.py", payload, prd_repo) == 2
 
 
+def test_gate_git_blocks_powershell_tool_too(prd_repo):
+    # the gates must not be bypassable via the separate PowerShell tool (a real setup has both)
+    payload = {"tool_name": "PowerShell", "tool_input": {"command": "git push --force origin main"},
+               "cwd": str(prd_repo)}
+    assert run_hook("gate_git.py", payload, prd_repo) == 2
+
+
 def test_gate_git_stray_prd_pass_blocked(prd_repo):
     payload = _merge(prd_repo, "reports:\n  R1: { prd: PRD-0002, result: pass }\n")
     assert run_hook("gate_git.py", payload, prd_repo) == 2

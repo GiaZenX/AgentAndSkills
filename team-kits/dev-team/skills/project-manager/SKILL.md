@@ -36,6 +36,10 @@ test: would a newcomer reading `masterplan.md` be misled about what this project
    (As-a/I-want/So-that) with Given/When/Then acceptance criteria, status `PROPOSED` (refine the DRAFT PRD if
    one exists). **Triaging the backlog:** when an FR is accepted, convert it into a new PRD and set the FR's
    `becomes: PRD-xxxx`. A change to an already-APPROVED PRD goes through a Change Request, not an edit.
+   **UI sequence rule:** NEVER propose or start a new UI-bearing PRD while a previous UI PRD is `TESTED`
+   but not yet user-`ACCEPTED` (or at least user-sighted — screenshots/live). The user is the only judge of
+   "looks like the mockup"; a real run stacked FOUR unseen UI slices of visual drift before the user first
+   looked. Backend/non-UI PRDs may proceed in parallel.
 4. **APPROVE** — get the user's go → set the PRD `APPROVED`.
 5. **PLAN** — hand the approved PRD to `software-architect` to derive SRs; create branch `feat/PRD-xxx`.
    When the team is genuinely uncertain about a library/datasheet/API, task `research-engineer` (cited
@@ -58,12 +62,19 @@ test: would a newcomer reading `masterplan.md` be misled about what this project
    that's the free-text option). The user chooses the look; you never pick it for them. Set `chosen:` from
    their answer.
    (c) task `product-designer` again to **detail the chosen direction** to the production-grade spec
-   (colors/type/**motion 150–250 ms**/micro-feedback/keyboard/components) and iterate with the user **step by
-   step** until they're happy;
-   (d) only then does `frontend-developer` implement against `design.yaml` — and QA checks the build actually
-   **matches** it (motion timings, interaction states, spacing rhythm), not merely that it renders.
+   (colors/type/**motion 150–250 ms**/micro-feedback/keyboard/components) — **including extending
+   `design_preview.html` into per-view SCREEN MOCKUPS of every key screen** (the visual contract the
+   frontend builds FROM) — and iterate with the user **step by step** until they're happy;
+   (d) `frontend-developer` implements **mockup-as-base**: the mockup's markup+CSS of each view IS the
+   foundation, app logic is wired into it — never recolor an existing layout (see the frontend skill);
+   (e) for `ambition: exploration` PRDs, after implementation and BEFORE the QA gate, task
+   `product-designer` ONCE for a **fidelity review** (build screenshots vs its own mockup → deviation
+   list; frontend fixes in the same cycle; skip for `ambition: minimal`). QA then gates mechanically —
+   including the screenshot check that it actually **looks like the mockup**, not merely that elements exist.
 6. **DELEGATE** — spawn `backend-developer`/`frontend-developer` by exact role with a YAML work order naming
    the SRs + files to read. They create tasks (`derives_from: SR-…`), implement, commit.
+   Spawn with **`run_in_background: false`** unless you deliberately parallelize; after parallel spawns,
+   NEVER advance the phase before ALL notifications have returned (verify claims via git, never trust).
 7. **GATE** — trigger `quality-engineer`. No merge without a PASS in `review_reports`+`test_reports`+
    `acceptance_reports` (+ the coverage/completeness gates green). If QA returns `guideline_gaps`, task the
    `software-architect` to append the missing rule(s) to `coding_guidelines.yaml` before accepting. On PASS,
@@ -75,8 +86,10 @@ test: would a newcomer reading `masterplan.md` be misled about what this project
    mode: a documented first-run that had never been executed).
 8. **BOOKKEEPING** — update your owned files + commit. The dashboard regenerates automatically (Stop hook).
    **Session hygiene:** never leave implementation work uncommitted across a session end, and keep
-   `progress.yaml` `status` naming the concrete next action — a fresh session must resume without the user
-   re-explaining anything.
+   `progress.yaml` `status` a ONE-LINER naming state + concrete next action (history goes to the append-only
+   `log:` list — never grow status into a prose blob: a 200-line status caused giant re-edits, token burn and
+   tool-call parse failures). **After each PRD merge, propose a FRESH session** — beyond ~800k context, real
+   runs showed tool-call glitches and lossy mid-gate compaction; progress.yaml + your memory make resuming lossless.
 9. **REPORT + ASK** — what was done + the team's ideas, then `AskUserQuestion` "what next?" (options + free
    text, include IDs). **Always name a recommended option with a reason** — never a neutral menu. Surface only
    **1–3 high-value ideas** here (bundled, never a constant stream, no generic filler — §14); an idea the user

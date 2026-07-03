@@ -58,6 +58,9 @@
 #       <name>: { states: [default, hover, active, focus, disabled, loading, empty, error], notes: <...> }
 #     iconography: { set: "<lucide / heroicons / custom>", style: "<line / solid>" }
 #   a11y_rules: [ "visible focus ring", "WCAG AA contrast", "full keyboard path", "respect reduced-motion" ]
+#   NOTE Phase 2: design_preview.html MUST grow into per-view SCREEN MOCKUPS (the visual contract the
+#   frontend builds FROM), and the design_system MUST include the base reset (box-sizing, form controls
+#   `font: inherit`, reduced-motion fallback, focus-visible baseline).
 
 ambition: ""              # exploration | minimal — the user's call (the PM asks FIRST; never decide silently)
 directions: []

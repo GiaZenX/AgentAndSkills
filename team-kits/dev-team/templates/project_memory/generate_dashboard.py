@@ -290,6 +290,15 @@ def archive_current():
     stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     dest = os.path.join(HISTORY_DIR, "progress.dashboard.%s.html" % stamp)
     os.replace(OUTPUT, dest)
+    # retention: keep only the newest 20 snapshots (a real run accumulated 174 snapshots / 9.9 MB
+    # of generated HTML in git; history is a convenience, not an archive)
+    snaps = sorted(f for f in os.listdir(HISTORY_DIR)
+                   if f.startswith("progress.dashboard.") and f.endswith(".html"))
+    for old in snaps[:-20]:
+        try:
+            os.remove(os.path.join(HISTORY_DIR, old))
+        except OSError:
+            pass
 
 
 def render(data):

@@ -30,4 +30,8 @@ milestones: []
 #     items: [PRD-0001, FR-0002]    # the requirement / feature ids this milestone covers
 
 last_update: ""        # YYYY-MM-DD
-status: ""             # one-line project status
+status: ""             # ONE line: current state + concrete next action. NEVER a growing prose blob —
+                       # a real run's ~200-line status paragraph caused giant re-edits, token burn and
+                       # tool-call parse failures. History belongs in `log:` below.
+log: []                # append-only, newest last: short dated entries (one per PRD/merge/event)
+#   - "2026-07-04: PRD-0003 merged (QA PASS #2); next: PRD-0004 design loop"

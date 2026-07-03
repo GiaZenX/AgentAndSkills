@@ -14,3 +14,6 @@ frontend/dist/
 .venv/
 venv/
 target/
+
+# generated dashboard snapshots (churn + security-review noise; retention keeps last 20 locally)
+project_memory/dashboard_history/

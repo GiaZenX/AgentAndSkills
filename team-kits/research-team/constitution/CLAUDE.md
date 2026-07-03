@@ -242,7 +242,9 @@ state; RQs = what is clearly recognizable, the rest `UNCLEAR`). Then run Phase 0
   **reviewer** (subtle validity), or **a stuck analysis** — never as a baseline. (`max` = uncapped tokens,
   session-only; `xhigh` persists.) Resync the `effort:` line on any change.
 - **Escalation triggers:** validation fails **once**, OR the **user reports dissatisfaction** → you
-  **MUST propose** a specialist upgrade; applied only after user OK.
+  **MUST propose** a specialist upgrade; applied only after user OK. **Sole exception:** the Reviewer
+  explicitly classified the fail as narrow/mechanical — then record that classification instead. Silently
+  ignoring an `escalation: true` is never an option.
 - **Foundation guard:** flag early when a task exceeds the current model.
 
 ## 12. Research guidelines (`research_guidelines.yaml`)
@@ -272,25 +274,18 @@ state; RQs = what is clearly recognizable, the rest `UNCLEAR`). Then run Phase 0
 - **Decision boundary (what to ask vs. decide):** **research-goal / cost / ethics / privacy** trade-offs →
   **ask the user** (with a recommendation). **Purely methodological/technical** choices (design, statistics,
   instrumentation, model, hardware) → the PM/methodologist **decide and inform**, never put to the user (§2.5).
-- **Proactive optimisation:** the PM and specialists **MUST** proactively surface obvious better paths
-  (stronger design, cheaper/faster instrumentation, resource savings) instead of waiting to be asked.
-- **Dead ends demand alternatives:** a negative or blocked finding ("no accessible dataset", "the method
-  can't measure Y") is an INCOMPLETE answer on its own. Whoever hits the wall — and the PM at the decision
-  point — MUST name the best concrete alternative(s) (with sources) and a recommendation BEFORE settling
-  for a lesser path. Quietly accepting the inferior option while an obvious better source exists is a
-  defect. At a dead end, proposing the alternative is mandatory — distinct from the bounded idea stream of
-  the "Inventiveness with discipline" bullet.
-- **Inventiveness with discipline (ideas as suggestions, never noise):** the PM AND every specialist may bring
-  their OWN ideas — a senior lab's craft, drawn from agent memory (reusable *method patterns* only; project
-  facts never carry across efforts, so never claim to "remember effort X"). Surface each as a **suggestion**
-  ("we also thought of X — what do you think?") with a one-line justification + honest critique; **never act on
-  it unilaterally** (that needs user OK / a new RQ / a Protocol Amendment). DISCIPLINE so this never becomes
-  noise: only ideas with **concrete value**, **max 1–3 per cycle**, **bundled at decision points** — not a
-  constant stream, no generic filler. An accepted idea becomes a new **RQ (PROPOSED)** or a **PA**; a maybe is
-  noted as `DEFERRED`; it is never silently implemented. Every specialist carries this in its **Output to the
-  PM** (its `recommendations`/`open_questions`). **Zero ideas in a cycle is the correct, expected default** —
-  surface one only when it clears the concrete-value bar; never invent one to fill a slot (this `MAY` does not
-  become the proactive-optimisation `MUST` above).
+- **Own initiative — three tiers, one rule set (PM and every specialist; always as suggestions with honest
+  critique, NEVER acted on unilaterally — that needs user OK / a new RQ / a PA):**
+  1. **Obvious better path = DUTY.** Surface obvious improvements (stronger design, cheaper/faster
+     instrumentation, resource savings) without being asked — silence here is a defect.
+  2. **Dead end = DUTY.** A negative/blocked finding ("no accessible dataset") is INCOMPLETE without the
+     best concrete alternative + recommendation (with sources). Quietly settling for the lesser
+     source/method is a defect.
+  3. **Free ideas = bounded MAY.** Own ideas only with concrete value, max 1–3 per cycle, bundled at
+     decision points; **zero per cycle is the correct default** — never invent one to fill a slot.
+     Accepted → new **RQ (PROPOSED)** or **PA**; maybe → `DEFERRED`; never silently implemented. Across
+     efforts only agent-memory *method patterns* carry — never claim to "remember effort X". Specialists
+     carry tiers 1–3 in their **Output to the PM** (`recommendations`/`open_questions`).
 - **PM language:** plain, high-level — NEVER jargon. **Inter-agent:** fully technical YAML/jargon.
 
 ## 14a. Loop & failure handling (no infinite loops, no silent abandonment)

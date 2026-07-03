@@ -15,14 +15,18 @@
       "Read(./.env.*)",
       "Read(**/secrets/**)",
       "Read(**/*.key)",
-      "Read(**/*.pem)"
+      "Read(**/*.pem)",
+      "Agent(project-manager)"
     ]
   },
   "hooks": {
     "SessionStart": [
       {
         "hooks": [
-          { "type": "command", "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/session_status.py\"" }
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/session_status.py\""
+          }
         ]
       }
     ],
@@ -30,27 +34,46 @@
       {
         "matcher": "Write",
         "hooks": [
-          { "type": "command", "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard_no_adhoc.py\"" }
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard_no_adhoc.py\""
+          }
         ]
       },
       {
         "matcher": "Edit|Write",
         "hooks": [
-          { "type": "command", "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard_pm_scope.py\"" }
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard_pm_scope.py\""
+          }
         ]
       },
       {
-        "matcher": "Bash",
+        "matcher": "Bash|PowerShell",
         "hooks": [
-          { "type": "command", "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/gate_git.py\"" },
-          { "type": "command", "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/gate_memory_complete.py\"" },
-          { "type": "command", "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/gate_pipeline.py\"", "timeout": 1800 }
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/gate_git.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/gate_memory_complete.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/gate_pipeline.py\"",
+            "timeout": 1800
+          }
         ]
       },
       {
         "matcher": "Agent|Task",
         "hooks": [
-          { "type": "command", "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard_agent_spawn.py\"" }
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard_agent_spawn.py\""
+          }
         ]
       }
     ],
@@ -58,16 +81,25 @@
       {
         "matcher": "Edit|Write",
         "hooks": [
-          { "type": "command", "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard_yaml_valid.py\"" }
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard_yaml_valid.py\""
+          }
         ]
       }
     ],
     "Stop": [
       {
         "hooks": [
-          { "type": "command", "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/auto_dashboard.py\"" }
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/auto_dashboard.py\""
+          }
         ]
       }
     ]
+  },
+  "env": {
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "80"
   }
 }

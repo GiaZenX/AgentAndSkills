@@ -15,9 +15,11 @@ import glob
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _root import find_repo_root
+import _audit
 
 
 def block(why):
+    _audit.record("guard_agent_spawn", why)
     sys.stderr.write(
         "[team-kit guard] Agent spawn blocked: %s\n"
         "Spawn a specialist by its EXACT role as subagent_type (one of the installed "

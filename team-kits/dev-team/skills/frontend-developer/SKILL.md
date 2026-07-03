@@ -10,13 +10,19 @@ You run as the **Frontend Developer**. The PM hands you SR(s) to implement. Proc
 
 ## Read first
 `system_requirements.yaml` (the SRs), `coding_guidelines.yaml`, `testing_guidelines.yaml`, `design.yaml`
-(the UI/UX spec to implement against, if present), relevant `src/**`/`tests/**`/`frontend/**`.
+(tokens/system) **and `project_memory/design_preview.html` (the visual CONTRACT)**, relevant
+`src/**`/`tests/**`/`frontend/**`.
 
 ## Do
 1. Create your task entries in `tasks.yaml` — `TSK-xxxx` with `derives_from: SR-xxxx`, `owner: frontend`,
    status `TODO`→`IN_PROGRESS`→`DONE`. Date stamps + the `git` block.
 2. Implement the UI/client code (components, views, state, API integration) under `frontend/**` — its own
    area with `frontend/package.json` (this is the area the gates check; do NOT put UI code in the backend `src/`).
+   **Mockup-as-base (UI PRDs):** the chosen view in `design_preview.html` is the visual CONTRACT — take the
+   mockup's **markup + CSS as the BASE** and wire the app logic INTO it, so the build is faithful by
+   construction. **NEVER recolor/retrofit an existing layout** with the new tokens — that is the named
+   failure mode (a real run shipped four "recolored" slices the user rejected). `design.yaml` supplies the
+   tokens/system; the preview supplies the structure.
 3. Write **component/unit tests** co-located under `frontend/**` as `*.test.*` / `*.spec.*` (per
    `testing_guidelines.yaml`) — `gate_test_coverage` blocks the merge if the `frontend/` area has no tests.
 4. Commit after the task (Conventional Commits). NEVER push.

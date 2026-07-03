@@ -29,9 +29,11 @@ ALLOWED_ROOT_DOCS = {
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _root import find_repo_root
+import _audit
 
 
 def block(rel, why):
+    _audit.record("guard_no_adhoc", rel)
     sys.stderr.write(
         "[team-kit guard] Blocked creating '%s': %s.\n"
         "Single source of truth = project_memory/*.yaml (+ src/ + tests/). "
