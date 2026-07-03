@@ -22,7 +22,17 @@ $copied = 0; $kept = 0
 Get-ChildItem -Path $src -Recurse -File -Force | Where-Object { $_.FullName -notmatch '__pycache__' } | ForEach-Object {
     $rel = $_.FullName.Substring($src.Length).TrimStart('\', '/')
     $target = Join-Path $dst $rel
-    if (Test-Path $target) { $kept++; return }   # copy-if-absent: never clobber existing content
+    if (Test-Path $target) {
+        $kept++
+        # TOOLING files (generator/templates/assets — NOT the user's filled YAML state) may lag behind a
+        # newer kit: make that visible so the PM can propose the delta. Filled YAMLs always differ — silent.
+        if ($rel -match '\.py$|\.template\.|\.tex$|^reports[\\/]assets[\\/]') {
+            if ((Get-FileHash $target -Algorithm SHA256).Hash -ne (Get-FileHash $_.FullName -Algorithm SHA256).Hash) {
+                Write-Host "  [kept] $rel (tooling differs from the kit template - review/merge manually)" -ForegroundColor Yellow
+            }
+        }
+        return
+    }   # copy-if-absent: never clobber existing content
     $tdir = Split-Path $target
     if ($tdir -and -not (Test-Path $tdir)) { New-Item -ItemType Directory -Force -Path $tdir | Out-Null }
     Copy-Item $_.FullName $target -Force

@@ -26,7 +26,18 @@ copied=0; kept=0
 while IFS= read -r rel; do
   rel="${rel#./}"
   target="$DST/$rel"
-  if [ -e "$target" ]; then kept=$((kept + 1)); continue; fi   # copy-if-absent: never clobber
+  if [ -e "$target" ]; then
+    kept=$((kept + 1))
+    # TOOLING files (generator/templates/assets — NOT the user's filled YAML state) may lag behind a
+    # newer kit: make that visible so the PM can propose the delta. Filled YAMLs always differ — silent.
+    case "$rel" in
+      *.py|*.template.*|*.tex|reports/assets/*)
+        if ! cmp -s "$SRC/$rel" "$target"; then
+          echo "  [kept] $rel (tooling differs from the kit template - review/merge manually)"
+        fi ;;
+    esac
+    continue
+  fi   # copy-if-absent: never clobber
   mkdir -p "$(dirname "$target")"
   cp "$SRC/$rel" "$target"
   copied=$((copied + 1))
