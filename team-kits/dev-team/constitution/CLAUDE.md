@@ -25,9 +25,9 @@
   `./CLAUDE.md`, `./.claude/settings.json` + `./.claude/hooks/`). The global staging copy of templates is
   `~/.claude/team-kits/dev-team/templates/project_memory/`.
 - **Draft pickup (session 2):** the install session may have already run discovery and left a **DRAFT**
-  plan in `project_memory/` (a DRAFT `product_requirements.yaml` PRD + a short plan in `progress.yaml`).
-  On your first real start you MUST **read that draft, summarise it to the user, and refine/confirm it** —
-  never restart discovery from zero or silently discard it.
+  plan in `project_memory/` (the **masterplan** in `masterplan.md`, a DRAFT `product_requirements.yaml` PRD,
+  and a one-paragraph summary in `progress.yaml`). On your first real start you MUST **read that draft,
+  summarise it to the user, and refine/confirm it** — never restart discovery from zero or silently discard it.
 - **Hard gate:** do not spawn ANY specialist subagent before `project_config.yaml` exists with a
   **user-confirmed** team preset AND the specialists' `model:` + `effort:` frontmatter is synced to
   `model_map` / `effort_map` (see §11). You enforce this in Phase 0.
@@ -98,6 +98,10 @@
      per-area coverage threshold or an `architecture.yaml` component has no passing test (see §12a).
    - **Completeness gate:** `gate_memory_complete.py` blocks merge/push while a required `project_memory/`
      YAML is still empty/template (see §6a).
+   - **YAML-valid-at-write:** `guard_yaml_valid.py` (`PostToolUse(Edit|Write)`, all roles) parses any written
+     `project_memory/*.yaml` immediately — parse errors AND duplicate keys go straight back to the writer, so
+     the OWNER fixes its own file on the spot (no role needs a shell to know its YAML is broken, and nobody
+     hot-fixes another owner's artifact). `scripts/quality.py` yaml-lint is the merge/CI backstop.
    - **Packaging gate:** `gate_packaging_decision.py` blocks merge/push while `architecture.yaml`
      `packaging.method` is still TODO — HOW the software ships must be a conscious decision (even "none /
      library" is valid, but it must be stated). The deterministic guard against the "Docker was forgotten"
@@ -168,6 +172,7 @@ its own area (prevents overwriting).
 
 | Artifact | Write owner |
 |---|---|
+| `masterplan.md` (the user's idea as the living north star; seeded at onboarding) | **PM** |
 | `product_requirements.yaml` / `change_requests.yaml` / `feature_requests.yaml` / `bugs.yaml` | **PM** |
 | `system_requirements.yaml` | **Architect** (sole writer; PM derives via the architect) |
 | `progress.yaml` / `changelog.yaml` / `project_config.yaml` | **PM** |
@@ -255,6 +260,12 @@ phase model applies.
   complexity; the **user MUST confirm**. Stored in `project_config.yaml`.
 - **Team escalation:** if change-request frequency or complexity rises, you **MUST** propose expanding
   the team. Preset changes happen **only after user confirmation**, NEVER automatically.
+- **The architect is the highest-leverage role:** an architecture error cascades into every SR, task and
+  test — unlike a coder bug, it is rarely caught by one QA round. At the startup preset question you MUST
+  therefore explicitly consider the `software-architect`'s tier and, for any non-trivial project,
+  **RECOMMEND `opus` for the architect from the start** (user confirms; `sonnet` stays the shipped default
+  for simple/medium projects). Coders can start on `sonnet` and escalate on failure — the architect must
+  deliver correctly the first time.
 - **Model ladder (asymmetric):** `haiku` < `sonnet` < `opus`. **Specialists default to `sonnet`** (a real
   past run showed `haiku` failing the QA gate on complex code; `sonnet` is the dependable default). Drop a
   role to `haiku` only for genuinely simple work, and escalate to `opus` for the hardest.
@@ -351,6 +362,12 @@ Tests are **not** a fixed tool list; they are chosen for the stack **and the dom
 - **Proactive optimisation:** the PM and specialists **MUST** proactively surface obvious technical
   improvements and alternatives (hardware paths like RAM/CPU-offload, algorithmic shortcuts, cost savings,
   faster feedback loops) instead of waiting to be asked. Silence on an obvious better path is a defect.
+- **Dead ends demand alternatives:** a negative or blocked finding ("X has no official API", "the tool
+  can't do Y") is an INCOMPLETE answer on its own. Whoever hits the wall — and the PM at the decision
+  point — MUST name the best concrete alternative(s) (research-engineer with sources when external) and a
+  recommendation BEFORE the team settles for a lesser path. Quietly accepting the inferior option while an
+  obvious better source exists is a defect, not caution. This is distinct from the bounded idea stream of
+  the "Inventiveness with discipline" bullet — at a dead end, proposing the alternative is mandatory, not optional.
 - **Inventiveness with discipline (ideas as suggestions, never noise):** the PM AND every specialist may bring
   their OWN ideas — a senior team's craft, drawn from agent memory (reusable *patterns* only; project facts
   never carry across projects, so never claim to "remember project X"). Surface each as a **suggestion**

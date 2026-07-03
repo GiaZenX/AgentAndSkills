@@ -40,7 +40,13 @@ def main():
         sys.exit(0)  # already up to date
 
     try:
-        subprocess.run([sys.executable, gen], cwd=pm, capture_output=True, timeout=60)
+        p = subprocess.run([sys.executable, gen], cwd=pm, capture_output=True, text=True, timeout=60)
+        if p.returncode != 0:
+            # surface a generator FATAL (e.g. invalid project_memory YAML) instead of swallowing it —
+            # exit 1 is a NON-blocking hook error (stop proceeds; the message becomes visible).
+            tail = ((p.stderr or "") + (p.stdout or "")).strip()[-400:]
+            sys.stderr.write("[auto_dashboard] dashboard NOT regenerated:\n%s\n" % tail)
+            sys.exit(1)
     except Exception:
         pass
     sys.exit(0)

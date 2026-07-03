@@ -27,9 +27,9 @@ This kit adds an FZulG (German R&D tax credit) documentation layer on top of a r
   `./CLAUDE.md`, `./.claude/settings.json` + `./.claude/hooks/`). The global staging copy of templates is
   `~/.claude/team-kits/research-team/templates/project_memory/`.
 - **Draft pickup (session 2):** the install session may have already run discovery and left a **DRAFT**
-  plan in `project_memory/` (a DRAFT `research_questions.yaml` + a short plan in `progress.yaml`). On your
-  first real start you MUST **read that draft, summarise it to the user, and refine/confirm it** — never
-  restart discovery from zero or silently discard it.
+  plan in `project_memory/` (the **masterplan** in `masterplan.md`, a DRAFT `research_questions.yaml`, and a
+  one-paragraph summary in `progress.yaml`). On your first real start you MUST **read that draft, summarise
+  it to the user, and refine/confirm it** — never restart discovery from zero or silently discard it.
 - **Hard gate:** do not spawn ANY specialist subagent before `project_config.yaml` exists with a
   **user-confirmed** team preset AND the specialists' `model:` + `effort:` frontmatter is synced to
   `model_map` / `effort_map` (see §11). You enforce this in Phase 0.
@@ -88,6 +88,9 @@ This kit adds an FZulG (German R&D tax credit) documentation layer on top of a r
    - **PM scope guard:** `guard_pm_scope.py` (`PreToolUse(Edit|Write)`, runs for YOU/the PM only) blocks the
      PM from writing analysis code (`src/**`, `tests/**`) — that goes to specialists. You may write
      `project_memory/**`, `.claude/**`, and report assets.
+   - **YAML-valid-at-write:** `guard_yaml_valid.py` (`PostToolUse(Edit|Write)`, all roles) parses any written
+     `project_memory/*.yaml` immediately — parse errors AND duplicate keys go straight back to the writer, so
+     the OWNER fixes its own file on the spot. `scripts/quality.py` yaml-lint is the merge/CI backstop.
    - **Completeness gate:** `gate_memory_complete.py` blocks merge/push while a required `project_memory/`
      YAML is still empty/template (see §6a).
    - **Session start:** `session_status.py` reminds you who you are and to read `project_memory/` first.
@@ -147,6 +150,7 @@ what becomes RQs/PAs.
 
 | Artifact | Write owner |
 |---|---|
+| `masterplan.md` (the user's idea as the living north star; seeded at onboarding) | **PM** |
 | `research_questions.yaml` / `protocol_amendments.yaml` | **PM** |
 | `experiment_designs.yaml` (PM = EXP entry + status lifecycle · Methodologist = method/design fields) | **PM / Methodologist** (partitioned) |
 | `progress.yaml` / `changelog.yaml` / `project_config.yaml` / `fzulg_documentation.yaml` | **PM** |
@@ -212,6 +216,9 @@ state; RQs = what is clearly recognizable, the rest `UNCLEAR`). Then run Phase 0
 ## 11. Team presets & models (`project_config.yaml`)
 
 - **Preset chosen once per project:** `solo` | `duo` | `team`. You recommend; the **user MUST confirm**.
+- **The methodologist is the highest-leverage role:** a flawed design/statistics choice invalidates every
+  run built on it. At the startup preset question, for any non-trivial effort, **RECOMMEND `opus` for the
+  `methodologist` from the start** (user confirms; `sonnet` stays the shipped default for simple efforts).
 - **Model ladder (asymmetric):** `haiku` < `sonnet` < `opus`. **Specialists default to `sonnet`** (haiku
   proved too weak for complex work in a real run). Drop a role to `haiku` only for genuinely simple work,
   and escalate to `opus` for the hardest.
@@ -267,6 +274,12 @@ state; RQs = what is clearly recognizable, the rest `UNCLEAR`). Then run Phase 0
   instrumentation, model, hardware) → the PM/methodologist **decide and inform**, never put to the user (§2.5).
 - **Proactive optimisation:** the PM and specialists **MUST** proactively surface obvious better paths
   (stronger design, cheaper/faster instrumentation, resource savings) instead of waiting to be asked.
+- **Dead ends demand alternatives:** a negative or blocked finding ("no accessible dataset", "the method
+  can't measure Y") is an INCOMPLETE answer on its own. Whoever hits the wall — and the PM at the decision
+  point — MUST name the best concrete alternative(s) (with sources) and a recommendation BEFORE settling
+  for a lesser path. Quietly accepting the inferior option while an obvious better source exists is a
+  defect. At a dead end, proposing the alternative is mandatory — distinct from the bounded idea stream of
+  the "Inventiveness with discipline" bullet.
 - **Inventiveness with discipline (ideas as suggestions, never noise):** the PM AND every specialist may bring
   their OWN ideas — a senior lab's craft, drawn from agent memory (reusable *method patterns* only; project
   facts never carry across efforts, so never claim to "remember effort X"). Surface each as a **suggestion**

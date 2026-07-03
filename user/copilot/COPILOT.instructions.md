@@ -55,17 +55,19 @@ You **first interview the user and draft a plan, then install** the kit, then ha
 2. **Discovery + plan REVIEW LOOP — BEFORE installing.** Interview the user at the **product** level (what
    they want to build, for whom, must-have capabilities, constraints — local-only, privacy, budget…).
    **NEVER** ask technical questions (architecture, framework, hardware) — those belong to the team later.
-   **Draft a short plan** (wish + must-haves + acceptance criteria + the **recommended team**, always a clear
+   **Draft the MASTERPLAN — a proper document, not a stub** (Leitidee/vision as a real paragraph, goals &
+   non-goals, must-haves, nice-to-haves, high-level acceptance criteria, risks & open questions, 1–3 of your
+   OWN recommendations marked as suggestions, delivery outline, and the **recommended team** — always a clear
    recommendation, never a neutral menu), **present it back to the user, and iterate until they explicitly
    confirm it fits.** Do NOT install until you have that sign-off. Write **no code**.
 3. **Persist the draft so the PM inherits it.** Create `project_memory/` **deterministically by running the
    init script** (do NOT hand-copy the ~20 template files):
    - Windows: `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.claude\team-kits\init_project_memory.ps1" -Team <key>`
    - Unix: `bash "$HOME/.claude/team-kits/init_project_memory.sh" <key>`
-   It copies every template into `./project_memory/` (copy-if-absent). Then write the plan as a **DRAFT** into
-   the now-present files: a DRAFT `product_requirements.yaml` PRD (status `PROPOSED`) + a one-paragraph plan and
-   recommended team/preset in `progress.yaml`. That is the ONLY project_memory content you write — no SRs,
-   tasks, or code.
+   It copies every template into `./project_memory/` (copy-if-absent). Then persist the confirmed plan: the
+   full **masterplan into `project_memory/masterplan.md`** (fill EVERY template section), a DRAFT
+   `product_requirements.yaml` PRD (status `PROPOSED`) + a one-paragraph summary and recommended team/preset in
+   `progress.yaml`. That is the ONLY project_memory content you write — no SRs, tasks, or code.
 4. **Install the kit locally** by running the scaffold script:
    - Windows: `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.claude\team-kits\scaffold_team.ps1" -Team <key>`
    - Unix: `bash "$HOME/.claude/team-kits/scaffold_team.sh" <key>`

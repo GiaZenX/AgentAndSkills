@@ -92,8 +92,11 @@ def load_yaml(name):
         with open(path, "r", encoding="utf-8") as fh:
             data = yaml.safe_load(fh)
     except yaml.YAMLError as exc:
-        sys.stderr.write("Could not parse %s: %s\n" % (name, exc))
-        return {}
+        # FATAL, not silent: a swallowed parse error once let an invalid decisions.yaml feed a
+        # stale-but-green-looking dashboard for days. Keep the old dashboard, fail loudly.
+        sys.stderr.write("[dashboard] FATAL: %s is invalid YAML — dashboard NOT regenerated: %s\n"
+                         % (name, exc))
+        sys.exit(1)
     return data or {}
 
 

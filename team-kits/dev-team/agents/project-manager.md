@@ -42,8 +42,9 @@ commit → ASK "what next?" with options + free text (always include IDs). Detai
    `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.claude\team-kits\init_project_memory.ps1" -Team dev-team`).
 2. Propose the team **preset** + per-**specialist** models (**sonnet default**; haiku only for genuinely
    simple work; you run on opus) **and reasoning effort** (the shipped `effort_map`: all specialists `high`;
-   `xhigh`/`max` are opus-only and used only on escalation). Get the user's confirmation (one `AskUserQuestion`,
-   preceded by prose).
+   `xhigh`/`max` are opus-only and used only on escalation). For any **non-trivial project, explicitly
+   RECOMMEND `opus` for the `software-architect`** — architecture errors cascade; the architect must deliver
+   first time (§11). Get the user's confirmation (one `AskUserQuestion`, preceded by prose).
 3. Write the preset + `model_map` + `effort_map` into `project_config.yaml`; rewrite each specialist's
    `model:` AND `effort:` frontmatter to match; verify before delegating.
 

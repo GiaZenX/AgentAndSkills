@@ -54,6 +54,14 @@
         ]
       }
     ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard_yaml_valid.py\"" }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [

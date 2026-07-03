@@ -20,7 +20,8 @@ project:
 # the agent file/`name:` in ./.claude/agents/. The PM rewrites each agent's `model:` frontmatter
 # to match this map (and verifies it) before delegating.
 model_map:
-  methodologist: sonnet
+  methodologist: sonnet   # HIGHEST-LEVERAGE role: for non-trivial efforts the PM RECOMMENDS opus here from
+                          # the start (a flawed design/statistics choice invalidates every run — §11).
   researcher: sonnet
   data-analyst: sonnet
   reviewer: sonnet

@@ -10,8 +10,9 @@ in transit.
 Skips project_memory/, .claude/, plans/ and other non-source paths so the PM's
 hand-curated YAML state is never reformatted.
 
-Lives in subagent frontmatter (the code-writers), because settings.json tool-hooks fire
-only for the main agent, not for subagents.
+Lives in subagent frontmatter (the code-writers) to scope it to the roles that write CODE.
+NOTE (verified): settings.json tool-hooks fire for the main agent AND all subagents —
+frontmatter placement is for per-role scoping, NOT because settings hooks would skip subagents.
 """
 import sys
 import os

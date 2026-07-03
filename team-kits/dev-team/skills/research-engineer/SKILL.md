@@ -21,6 +21,11 @@ context, and any existing `research_notes.yaml`.
    **inference**. Never present a guess as a fact. If sources conflict, say so.
 4. **Record** — write findings to `research_notes.yaml`: question, answer, `evidence:` (source URLs +
    quoted/located facts), `confidence`, and a clear **recommendation** for the architect/devs.
+5. **A dead end is NOT an answer.** When the finding is negative ("X has no official API", "the library
+   can't do Y"), your job is only half done: identify the **best concrete alternative(s)** — another
+   API/source/tool/approach — with the same sourced evidence, and recommend one. Returning "not possible"
+   without the best alternative is an incomplete result (the real failure mode: "Ollama has no
+   list-all-models API" was returned, and nobody proposed the obvious Hugging-Face API).
 
 ## Files you WRITE
 `research_notes.yaml` (sole owner). Never write code, requirements, or architecture — you inform the roles

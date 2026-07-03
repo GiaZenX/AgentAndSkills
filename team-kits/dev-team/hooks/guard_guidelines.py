@@ -18,13 +18,21 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _root import find_repo_root
 
+# Alias TOKENS per extension. A `languages:` key satisfies the guard when ANY of its underscore/
+# dash-separated tokens equals one of these aliases — so canonical keys (javascript:) match, and so
+# do compound project keys like `html_vanilla_js:` (token "js"). A real run hard-coded its compound
+# key into this map because the old exact-key match rejected it; token matching keeps the hook generic.
 LANG = {
-    ".py": ["python"],
-    ".ts": ["typescript"], ".tsx": ["typescript"],
-    ".js": ["javascript", "typescript"], ".jsx": ["javascript", "typescript"], ".mjs": ["javascript", "typescript"],
-    ".go": ["go"], ".rs": ["rust"], ".java": ["java"], ".rb": ["ruby"], ".php": ["php"],
-    ".cs": ["csharp", "dotnet"], ".kt": ["kotlin"], ".swift": ["swift"],
-    ".c": ["c"], ".h": ["c", "cpp"], ".cpp": ["cpp"], ".cc": ["cpp"], ".hpp": ["cpp"], ".ino": ["cpp", "embedded"],
+    ".py": ["python", "py"],
+    ".ts": ["typescript", "ts"], ".tsx": ["typescript", "tsx", "ts"],
+    ".js": ["javascript", "js", "ecmascript", "node", "typescript", "ts"],
+    ".jsx": ["javascript", "js", "jsx", "typescript", "ts"],
+    ".mjs": ["javascript", "js", "typescript", "ts"],
+    ".go": ["go", "golang"], ".rs": ["rust", "rs"], ".java": ["java"], ".rb": ["ruby", "rb"],
+    ".php": ["php"],
+    ".cs": ["csharp", "dotnet", "cs"], ".kt": ["kotlin", "kt"], ".swift": ["swift"],
+    ".c": ["c"], ".h": ["c", "cpp"], ".cpp": ["cpp", "cxx"], ".cc": ["cpp", "cc"],
+    ".hpp": ["cpp", "hpp"], ".ino": ["cpp", "embedded", "arduino", "ino"],
 }
 CODE_TOP = {"src", "frontend", "backend", "lib", "server", "app", "packages", "cmd", "internal", "api",
             "ui", "web", "firmware", "include", "hardware"}
@@ -74,10 +82,36 @@ def main():
         text = open(cg, encoding="utf-8", errors="ignore").read()
     except Exception:
         sys.exit(0)
-    # a filled language has an indented `<lang>:` key under languages: (not `languages: {}`)
-    for lang in langs:
-        if re.search(r"(?mi)^\s+%s:" % re.escape(lang), text):
-            sys.exit(0)  # guidelines for this language exist
+    # a filled language block = a key under `languages:` whose tokens (split on non-letters) include one
+    # of the language's alias tokens. `javascript:` matches, and so does `html_vanilla_js:` (token "js").
+    aliases = {a.lower() for a in langs}
+
+    def key_matches(key):
+        tokens = {t for t in re.split(r"[^a-z+]+", str(key).lower()) if t}
+        return bool(tokens & aliases)
+
+    # preferred: parse and check ONLY the keys under `languages:` (a stray `node_version:` elsewhere in
+    # the file must not satisfy the guard). guard_yaml_valid keeps the file parseable.
+    matched = None  # None -> undetermined, use the regex fallback
+    try:
+        import yaml  # type: ignore[import-untyped]
+        data = yaml.safe_load(text)
+        if isinstance(data, dict):
+            lb = data.get("languages")
+            matched = (any(key_matches(k) and v for k, v in lb.items())
+                       if isinstance(lb, dict) else False)
+    except Exception:
+        matched = None  # no pyyaml / unparsable -> fall back, never block blind
+    if matched is True:
+        sys.exit(0)
+    if matched is False:
+        block(langs[0], rel)
+
+    # fallback (no parser available): whole-file token scan — the pre-existing looseness, still better
+    # than blocking legitimate work.
+    for m in re.finditer(r"(?m)^\s+([A-Za-z][\w+-]*):", text):
+        if key_matches(m.group(1)):
+            sys.exit(0)
     block(langs[0], rel)
 
 

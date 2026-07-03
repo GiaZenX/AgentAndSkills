@@ -154,6 +154,99 @@ def test_quality_declared_embedded_no_platformio_red(tmp_path):
     assert run_quality(str(tmp_path)) == 1
 
 
+# ---------------- guard_yaml_valid (write-time YAML validity, the synaipse decisions.yaml saga) ----------------
+def _yaml_payload(repo, fname):
+    return {"tool_name": "Write",
+            "tool_input": {"file_path": str(repo / "project_memory" / fname)}, "cwd": str(repo)}
+
+
+def test_yaml_valid_blocks_parse_error(tmp_path):
+    pytest.importorskip("yaml")
+    write(str(tmp_path / "project_memory" / "decisions.yaml"),
+          "decisions:\n  ADR-0001:\n    title: STRIDE: threat: model\n")  # unquoted colons -> invalid
+    assert run_hook("guard_yaml_valid.py", _yaml_payload(tmp_path, "decisions.yaml"), tmp_path) == 2
+
+
+def test_yaml_valid_blocks_duplicate_key(tmp_path):
+    pytest.importorskip("yaml")
+    write(str(tmp_path / "project_memory" / "architecture.yaml"),
+          "components:\n  api:\n    responsibility: a\n  api:\n    responsibility: b\n")
+    assert run_hook("guard_yaml_valid.py", _yaml_payload(tmp_path, "architecture.yaml"), tmp_path) == 2
+
+
+def test_yaml_valid_allows_good_yaml(tmp_path):
+    pytest.importorskip("yaml")
+    write(str(tmp_path / "project_memory" / "decisions.yaml"),
+          'decisions:\n  ADR-0001:\n    title: "STRIDE: threat model"\n    body: |\n      prose: with colons is fine\n')
+    assert run_hook("guard_yaml_valid.py", _yaml_payload(tmp_path, "decisions.yaml"), tmp_path) == 0
+
+
+def test_yaml_valid_ignores_non_project_memory(tmp_path):
+    write(str(tmp_path / "src" / "broken.yaml"), "a: b: c: [\n")
+    payload = {"tool_name": "Write", "tool_input": {"file_path": str(tmp_path / "src" / "broken.yaml")},
+               "cwd": str(tmp_path)}
+    assert run_hook("guard_yaml_valid.py", payload, tmp_path) == 0
+
+
+# ---------------- guard_guidelines token matching (compound keys like html_vanilla_js) ----------------
+def test_guidelines_compound_key_satisfies_js(prd_repo):
+    # the synaipse case: the architect named the block `html_vanilla_js:` — token "js" must match
+    write(str(prd_repo / "project_memory" / "coding_guidelines.yaml"),
+          "global:\n  - x\nlanguages:\n  html_vanilla_js:\n    - no inline handlers\n")
+    payload = {"tool_name": "Write",
+               "tool_input": {"file_path": str(prd_repo / "src" / "app.js")}, "cwd": str(prd_repo)}
+    assert run_hook("guard_guidelines.py", payload, prd_repo) == 0
+
+
+def test_guidelines_still_blocks_js_without_block(prd_repo):
+    write(str(prd_repo / "project_memory" / "coding_guidelines.yaml"), "global:\n  - x\nlanguages: {}\n")
+    payload = {"tool_name": "Write",
+               "tool_input": {"file_path": str(prd_repo / "src" / "app.js")}, "cwd": str(prd_repo)}
+    assert run_hook("guard_guidelines.py", payload, prd_repo) == 2
+
+
+def test_guidelines_stray_key_outside_languages_does_not_satisfy(prd_repo):
+    # a `node_version:` under global must NOT satisfy .js — only keys under `languages:` count
+    pytest.importorskip("yaml")
+    write(str(prd_repo / "project_memory" / "coding_guidelines.yaml"),
+          "global:\n  node_version: 20\nlanguages: {}\n")
+    payload = {"tool_name": "Write",
+               "tool_input": {"file_path": str(prd_repo / "src" / "app.js")}, "cwd": str(prd_repo)}
+    assert run_hook("guard_guidelines.py", payload, prd_repo) == 2
+
+
+def test_yaml_valid_survives_recursive_alias(tmp_path):
+    # anchors/aliases make the node graph cyclic — the dup-key walker must terminate (visited set)
+    pytest.importorskip("yaml")
+    write(str(tmp_path / "project_memory" / "decisions.yaml"), "a: &x\n  b: ok\nc: *x\n")
+    assert run_hook("guard_yaml_valid.py", _yaml_payload(tmp_path, "decisions.yaml"), tmp_path) == 0
+
+
+def test_memory_complete_blocks_template_masterplan(prd_repo):
+    write(str(prd_repo / "project_memory" / "masterplan.md"),
+          "# Masterplan — <project name>\n\n> One-line essence of the idea.\n")
+    write(str(prd_repo / "project_memory" / "project_config.yaml"),
+          'project:\n  name: "X"\n  stacks: [python]\n')
+    payload = {"tool_name": "Bash", "tool_input": {"command": "git merge feat/PRD-0001-x"}, "cwd": str(prd_repo)}
+    assert run_hook("gate_memory_complete.py", payload, prd_repo) == 2
+
+
+def test_memory_complete_allows_filled_masterplan(prd_repo):
+    write(str(prd_repo / "project_memory" / "masterplan.md"),
+          "# Masterplan — Chatly\n\n> A local chat platform.\n\n## 1. Leitidee\nReal prose here.\n")
+    write(str(prd_repo / "project_memory" / "project_config.yaml"),
+          'project:\n  name: "X"\n  stacks: [python]\n')
+    payload = {"tool_name": "Bash", "tool_input": {"command": "git merge feat/PRD-0001-x"}, "cwd": str(prd_repo)}
+    assert run_hook("gate_memory_complete.py", payload, prd_repo) == 0
+
+
+# ---------------- quality.py: project_memory yaml-lint backstop ----------------
+def test_quality_red_on_invalid_project_memory_yaml(tmp_path):
+    pytest.importorskip("yaml")
+    write(str(tmp_path / "project_memory" / "decisions.yaml"), "decisions:\n  ADR-1:\n    a: b: c\n")
+    assert run_quality(str(tmp_path)) == 1
+
+
 # ---------------- gate_test_coverage + guard_guidelines for C/C++ (embedded) ----------------
 def test_coverage_blocks_cpp_without_tests(prd_repo):
     write(str(prd_repo / "src" / "main.cpp"), "int main(){return 0;}\n")

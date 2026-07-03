@@ -207,6 +207,64 @@ STACKS = {
 }
 
 
+def check_project_memory_yaml():
+    """Every project_memory/*.yaml must parse and carry no duplicate keys (safe_load keeps only the
+    last duplicate silently). A real run shipped invalid decisions.yaml that the dashboard generator
+    swallowed; the write-time hook (guard_yaml_valid) catches this immediately — this stage is the
+    merge/CI backstop."""
+    d = os.path.join(ROOT, "project_memory")
+    if not os.path.isdir(d):
+        return
+    try:
+        import yaml  # type: ignore[import-untyped]
+    except ImportError:
+        warn("yaml-lint (project_memory)", "pyyaml not installed; runs + hard-fails in CI")
+        return
+
+    def dup_keys(text):
+        found = []
+        try:
+            root = yaml.compose(text, Loader=yaml.SafeLoader)
+        except Exception:
+            return found
+        stack = [root] if root is not None else []
+        visited = set()  # anchors/aliases make the node graph cyclic — never walk a node twice
+        while stack:
+            node = stack.pop()
+            if id(node) in visited:
+                continue
+            visited.add(id(node))
+            if isinstance(node, yaml.MappingNode):
+                seen = set()
+                for k, v in node.value:
+                    if isinstance(k, yaml.ScalarNode):
+                        if k.value in seen:
+                            found.append("duplicate key %r line %d" % (k.value, k.start_mark.line + 1))
+                        seen.add(k.value)
+                    stack.append(k)
+                    stack.append(v)
+            elif isinstance(node, yaml.SequenceNode):
+                stack.extend(node.value)
+        return found
+
+    bad = []
+    for fn in sorted(os.listdir(d)):
+        if not fn.endswith((".yaml", ".yml")):
+            continue
+        try:
+            text = open(os.path.join(d, fn), encoding="utf-8", errors="ignore").read()
+        except Exception:
+            continue
+        try:
+            yaml.safe_load(text)
+        except yaml.YAMLError as e:
+            bad.append("%s: %s" % (fn, str(e).splitlines()[0]))
+            continue
+        for msg in dup_keys(text):
+            bad.append("%s: %s" % (fn, msg))
+    ok("yaml-lint (project_memory)") if not bad else fail("yaml-lint (project_memory)", "; ".join(bad[:6]))
+
+
 def secret_scan():
     if have("gitleaks"):
         rc, out = run(["gitleaks", "detect", "--no-banner", "-r", os.devnull])
@@ -258,6 +316,7 @@ def main():
                  "declare the project's stacks + domain so the gate enforces the right toolchain — "
                  "auto-detect is not a substitute (this is exactly how a critical tool gets forgotten)."
                  % ", ".join(sorted(set(detected))))
+    check_project_memory_yaml()
     secret_scan()
     sbom()
 

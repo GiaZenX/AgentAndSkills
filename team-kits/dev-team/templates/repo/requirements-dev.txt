@@ -7,4 +7,5 @@ pytest-cov
 pip-audit          # SCA (dependency vulnerabilities)
 bandit             # SAST (static security analysis)
 cyclonedx-bom      # SBOM generation
+pyyaml             # project_memory YAML lint (quality.py) + dashboard generator
 # Secret scanning uses gitleaks (a standalone binary, installed in CI via its action, not pip).

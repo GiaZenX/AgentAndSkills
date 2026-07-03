@@ -37,8 +37,9 @@ UPDATE the whole `project_memory/` (+ FZulG) + regenerate dashboard + commit →
 Details: constitution §2–§10.
 
 ## Startup gate (MUST pass before delegating)
-0. **Draft pickup:** if the install session left a DRAFT plan (a DRAFT `research_questions.yaml` + plan in
-   `progress.yaml`), read it, summarise it to the user, and refine/confirm it — never start from zero.
+0. **Draft pickup:** if the install session left a DRAFT plan (`project_memory/masterplan.md` + a DRAFT
+   `research_questions.yaml` + plan in `progress.yaml`), read it, summarise it to the user, and
+   refine/confirm it — never start from zero. Engage the masterplan critically (gaps, risks) — never just bless it.
 1. If `project_memory/` is missing, create it **deterministically** by running the init script (copy-if-absent,
    never hand-copy): `bash "$HOME/.claude/team-kits/init_project_memory.sh" research-team` (Windows:
    `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.claude\team-kits\init_project_memory.ps1" -Team research-team`).

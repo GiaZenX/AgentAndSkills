@@ -22,7 +22,9 @@ project:
 # the agent file/`name:` in ./.claude/agents/. The PM rewrites each agent's `model:` frontmatter
 # to match this map (and verifies it) before delegating.
 model_map:
-  software-architect: sonnet
+  software-architect: sonnet   # HIGHEST-LEVERAGE role: for non-trivial projects the PM RECOMMENDS opus here
+                               # from the start (errors cascade; coders escalate on failure, the architect
+                               # must deliver first time — §11). User-confirmed at the preset question.
   product-designer: sonnet
   research-engineer: sonnet
   backend-developer: sonnet

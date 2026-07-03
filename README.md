@@ -211,7 +211,8 @@ the only customer-facing role.
 Structured YAML files in the repo — the **single source of truth**. Each role writes only its own area
 (no overwriting); the **PM** creates `project_memory/` on the first run via the deterministic
 `init_project_memory` script (copy-if-absent from the kit templates) and owns the requirement/progress
-bookkeeping itself. The project evolves through four explicit requirement types, never silent edits: a
+bookkeeping itself. The user's idea lives as a proper **`masterplan.md`** (seeded richly at onboarding, PM-owned,
+critically engaged — never just blessed) — the living north star the PRDs derive from. The project evolves through four explicit requirement types, never silent edits: a
 **user-story Feature Request (FR)** for new capability → triaged into a **PRD** (the delivered unit), a
 **Change Request (CR)** for a change to an approved PRD, and a **Bug (BUG)** for a defect against approved
 behaviour (with a mandatory regression test). **No ad-hoc status/summary/report files** are allowed — findings
@@ -269,6 +270,9 @@ Because instructions alone get skipped, each kit ships a small **deterministic**
   `src/`, `frontend/src/`) has no tests, so a strong area can't mask an untested one.
 - **Completeness gate** (`gate_memory_complete`) — blocks merge while a required `project_memory/` YAML is
   still empty/template (unless it is explicitly marked `applicable: false`).
+- **YAML-valid-at-write** (`guard_yaml_valid`) — parses every written `project_memory/*.yaml` immediately
+  (parse errors + duplicate keys go straight back to the writer), so a spec role without a shell can never
+  leave broken YAML behind; the pipeline's yaml-lint stage is the merge/CI backstop.
 - **Packaging gate** (`gate_packaging_decision`, dev-team) — blocks merge while `architecture.yaml`
   `packaging.method` is still TODO, so HOW the software ships is always a conscious decision (even "none /
   library" is valid) — the deterministic guard against a critical packaging tool (e.g. Docker) being forgotten.

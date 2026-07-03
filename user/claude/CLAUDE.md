@@ -55,8 +55,12 @@ You **first interview the user and draft a plan, then install** the kit, then ha
    - **Interview** at the **product** level (prose first, then `AskUserQuestion`): what they want to build,
      for whom, the must-have capabilities, constraints (local-only, privacy, budget…). **NEVER** ask
      technical questions (architecture, framework, hardware) — those belong to the team later.
-   - **Draft a short plan** — the wish, the must-haves, acceptance criteria, and the **recommended team**
-     (always a clear recommendation, never a neutral menu) — and **present it back to the user**.
+   - **Draft the MASTERPLAN — a proper document, not a stub.** Well-structured and generously written:
+     Leitidee/vision (a real paragraph), goals & non-goals, must-haves, nice-to-haves, high-level acceptance
+     criteria, risks & open questions, **1–3 of your OWN recommendations/ideas** the user did not ask for
+     (clearly marked as suggestions), a rough delivery outline, and the **recommended team** (always a clear
+     recommendation, never a neutral menu). Quality bar: what a thorough claude.ai planning chat would
+     produce — NOT a three-line summary. **Present it back to the user.**
    - **Iterate** with the user until they **explicitly confirm the plan fits**. Do NOT proceed to install
      until you have that sign-off. Write **no code**.
 3. **Persist the draft so the PM inherits it.** Create `project_memory/` **deterministically by running the
@@ -64,10 +68,12 @@ You **first interview the user and draft a plan, then install** the kit, then ha
    on goodwill):
    - `bash "$HOME/.claude/team-kits/init_project_memory.sh" <key>`
    - (Windows: `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.claude\team-kits\init_project_memory.ps1" -Team <key>`)
-   The script copies every template into `./project_memory/` (copy-if-absent, never clobbering). Then write the
-   plan as a **DRAFT** into the now-present files: a DRAFT `product_requirements.yaml` PRD (status `PROPOSED`)
-   capturing the wish + acceptance criteria, plus a one-paragraph plan and the recommended team/preset in
-   `progress.yaml`. That is the ONLY project_memory content you write — you do NOT derive SRs, tasks, or code.
+   The script copies every template into `./project_memory/` (copy-if-absent, never clobbering). Then persist
+   the confirmed plan: the full **masterplan into `project_memory/masterplan.md`** (the template ships the
+   structure — fill EVERY section with the real content from the review loop, including your recommendations),
+   a DRAFT `product_requirements.yaml` PRD (status `PROPOSED`) capturing the wish + acceptance criteria, plus a
+   one-paragraph summary and the recommended team/preset in `progress.yaml`. That is the ONLY project_memory
+   content you write — you do NOT derive SRs, tasks, or code.
 4. **Install the kit locally** by running the scaffold script (your only shell write here):
    - `bash "$HOME/.claude/team-kits/scaffold_team.sh" <key>`
    - (Windows: `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:USERPROFILE\.claude\team-kits\scaffold_team.ps1" -Team <key>`)

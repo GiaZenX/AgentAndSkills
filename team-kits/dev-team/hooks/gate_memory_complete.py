@@ -120,6 +120,11 @@ def main():
         sys.exit(0)
 
     stale = []
+    # the masterplan (a .md, outside the *.yaml glob) must not still be the raw template once real
+    # work exists — an unfilled north star means the plan lives only in chat (the observed gap).
+    mp = os.path.join(pm, "masterplan.md")
+    if os.path.isfile(mp) and "<project name>" in read(mp):
+        stale.append("masterplan.md (still the unfilled template — write the real masterplan)")
     for path in sorted(glob.glob(os.path.join(pm, "*.yaml"))):
         text = read(path)
         if re.search(r"(?m)^\s*applicable:\s*false", text):

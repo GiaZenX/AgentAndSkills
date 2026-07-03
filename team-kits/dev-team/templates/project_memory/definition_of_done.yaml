@@ -16,7 +16,7 @@ pipeline:
   - coverage: at or above the threshold in testing_guidelines.yaml
   - per_area_coverage: EACH top-level source area (src/, frontend/src/, …) meets the threshold on its own
   - component_coverage: every architecture.yaml component is tested with its prescribed test_strategy (no component untested)
-  - real_run: user-/runtime-critical paths verified for real (not mock-only) with the DOMAIN's tools — e.g. UI smoke (Playwright) for web, real `docker build`+health for containers, Wokwi/HIL simulation for embedded, a real training/eval run for ML, a golden-file run for calculation. QA-verified per the domain ADR (decisions.yaml)
+  - real_run: user-/runtime-critical paths verified for real (not mock-only) with the DOMAIN's tools — e.g. UI smoke (Playwright) for web, real `docker build`+health for containers, Wokwi/HIL simulation for embedded, a real training/eval run for ML, a golden-file run for calculation. INCLUDES the documented first-run from a CLEAN state (fresh clone, no leftover local config). A skipped real_run is NOT satisfied. QA-verified per the domain ADR (decisions.yaml)
   - security_sast: SAST clean (bandit for python; per-stack equivalents) — high-severity finding is a FAIL
   - security_secrets: secret scan clean (gitleaks, run + hard-failed in CI) — no committed secret
   - dependencies: SCA audit clean (pip-audit / npm audit) — no known high/critical vulns; deps pinned
