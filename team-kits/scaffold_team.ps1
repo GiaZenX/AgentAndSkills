@@ -83,6 +83,10 @@ if (Test-Path $verSrc) {
 
 # Repo-level quality templates (scripts/quality.py, CI, pre-commit, requirements-dev) -- copy-if-absent
 # so DevOps can customise them without a re-scaffold clobbering changes. The merge gate runs quality.py.
+# Diverged files additionally land in .claude/kit_update_pending.repo: printed [kept] lines were shown
+# but never acted on in a real project (kit fixes silently never arrived) -- session_status now reminds
+# the PM until every line is merged or consciously skipped and the file is DELETED.
+$keptList = @()
 $repoTplSrc = Join-Path $kit "templates\repo"
 if (Test-Path $repoTplSrc) {
     Get-ChildItem -Path $repoTplSrc -Recurse -File -Force | Where-Object { $_.FullName -notmatch '__pycache__|\.ruff_cache|\.mypy_cache|\.pytest_cache' } | ForEach-Object {
@@ -97,8 +101,18 @@ if (Test-Path $repoTplSrc) {
             # copy-if-absent keeps the project's version — but say so, or a kit fix (e.g. quality.py)
             # silently never reaches existing projects while the update reads as "applied".
             Write-Host "  [kept] repo: $rel (differs from the kit template - review/merge manually)" -ForegroundColor Yellow
+            $keptList += ($rel -replace '\\', '/')
         }
     }
 }
+$pendFile = Join-Path $repo ".claude\kit_update_pending.repo"
+if ($keptList.Count -gt 0) {
+    $lines = @("# Repo templates that DIFFER from kit $Team $((Get-Content (Join-Path $kit 'VERSION') -TotalCount 1 -ErrorAction SilentlyContinue)) -- the PM reviews each against the kit template, merges the kit's fixes (or documents a conscious skip in progress.yaml log:), then DELETES this file. session_status reminds every session until it is gone.")
+    $lines += ($keptList | ForEach-Object { "- $_" })
+    Set-Content -Path $pendFile -Value $lines -Encoding utf8
+    Write-Host "  [!] $($keptList.Count) diverged repo file(s) -> .claude/kit_update_pending.repo (merge or consciously skip, then delete it)" -ForegroundColor Yellow
+} elseif (Test-Path $pendFile) {
+    Remove-Item $pendFile -Force
+}
 
-Write-Host "Team '$Team' installed locally. RESTART the session (close/reopen, or start a new session in this folder) -- the new agents and the 'agent: project-manager' setting only load at session start. After the restart the Project Manager greets you automatically with the plan (no need to type anything) and picks up any draft in project_memory/." -ForegroundColor Cyan
+Write-Host "Team '$Team' installed locally. RESTART the session (close/reopen, or start a new session in this folder) -- the new agents and the 'agent: project-manager' setting only load at session start. After the restart, type anything (e.g. 'weiter') -- nothing is auto-sent, YOU stay in control of the first message; the Project Manager then greets you with a one-line status and picks up any draft plan in project_memory/." -ForegroundColor Cyan

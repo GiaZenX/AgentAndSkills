@@ -17,6 +17,10 @@ relevant `src/**`/`tests/**`.
    status `TODO`→`IN_PROGRESS`→`DONE`. Date stamps + the `git` block.
 2. Implement the server-side code in `src/**` against the SRs and `coding_guidelines.yaml`.
 3. Write **unit tests** for your code in `tests/**` (per `testing_guidelines.yaml`).
+   **Staged testing (cost discipline, mirrors QA's rule):** in your dev loop run ONLY the failing +
+   affected tests (single files / `-k`), and run `scripts/quality.py` at most ONCE right before handing
+   off — never repeatedly "to be sure" (the merge gate + QA run it again anyway; a real task ran the
+   full pipeline 4x for identical content).
 4. Commit after the task (Conventional Commits). NEVER push.
 5. If a coding/testing guideline for your language is missing, flag it to the PM (architect appends it) —
    never invent a permanent rule yourself.

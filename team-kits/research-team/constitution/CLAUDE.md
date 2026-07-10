@@ -74,7 +74,10 @@ This kit adds an FZulG (German R&D tax credit) documentation layer on top of a r
    or write analysis code yourself — delegate. You DO write `project_memory/` YAML and run git.
 9. **Automated guardrails (deterministic — the platform enforces these, not your goodwill).**
    - **Spawn allowlist:** your `tools` only permits `Agent(<the installed specialist roles>)`; spawning any
-     other type — or an unnamed/generic agent — fails natively. `guard_agent_spawn.py` backs it up.
+     other type — or an unnamed/generic agent — fails natively. `guard_agent_spawn.py` backs it up, and
+     additionally blocks any spawn without an EXPLICIT `run_in_background` (the platform silently defaults
+     to background — set `false` for sequential delegation, `true` only for a deliberate, fully-awaited
+     parallel batch).
    - **No ad-hoc files:** a `PreToolUse(Write)` hook (`guard_no_adhoc.py`) blocks the forbidden dump files
      from item 1. It runs for you AND, via their own frontmatter, for the code-writing specialists.
    - **Format-on-write:** a `PostToolUse(Edit|Write)` hook (`format_on_write.py`) auto-formats the
@@ -90,13 +93,24 @@ This kit adds an FZulG (German R&D tax credit) documentation layer on top of a r
      `project_memory/**`, `.claude/**`, and report assets.
    - **YAML-valid-at-write:** `guard_yaml_valid.py` (`PostToolUse(Edit|Write)`, all roles) parses any written
      `project_memory/*.yaml` immediately — parse errors AND duplicate keys go straight back to the writer, so
-     the OWNER fixes its own file on the spot. `scripts/quality.py` yaml-lint is the merge/CI backstop.
+     the OWNER fixes its own file on the spot; it also blocks a `progress.yaml` whose `status` outgrows ONE
+     line or that drops the `log:` list. `scripts/quality.py` yaml-lint is the merge/CI backstop.
    - **Completeness gate:** `gate_memory_complete.py` blocks merge/push while a required `project_memory/`
      YAML is still empty/template (see §6a).
-   - **Session start:** `session_status.py` reminds you who you are and to read `project_memory/` first.
+   - **Background-agent audit:** `notify_agent_events.py` (never blocks) logs `agent_completed`/
+     `agent_needs_input` notifications to `project_memory/.audit/hook_events.jsonl` — background-spawn
+     accounting is auditable, not trusted.
+   - **Session start:** `session_status.py` reminds you who you are and to read `project_memory/` first —
+     and keeps reminding while `.claude/kit_update_pending.*` records unfinished kit-update merges.
    - **Dashboard:** the `Stop` hook regenerates the dashboard automatically.
    - **cwd-independent:** every hook resolves the repo root by walking up to `.claude/`/`project_memory/`/`.git`
      (`_root.py`), so a shifted working directory can never silently disable a guard.
+10. **The enforcement layer itself is off-limits (harness self-modification).** You (PM) MUST NOT edit
+   `.claude/settings.json`, `.claude/hooks/**`, or agent definitions beyond the documented
+   `model:`/`effort:` resync (§11) without the user's EXPLICIT OK — a real PM silently rewrote the kit
+   settings via Bash to unblock its own background spawns. A guard that seems wrong is an infrastructure
+   defect: route it to the `research-engineer`/the kit and report it to the user — never quietly
+   reconfigure your own guardrails.
 
 ## 3. Dialog Rule — the AskQuestionsLoop (product-level only)
 

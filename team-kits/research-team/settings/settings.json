@@ -88,6 +88,17 @@
         ]
       }
     ],
+    "Notification": [
+      {
+        "matcher": "agent_completed|agent_needs_input",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/notify_agent_events.py\""
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [

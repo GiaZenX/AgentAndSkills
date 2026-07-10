@@ -75,6 +75,9 @@ test: would a newcomer reading `masterplan.md` be misled about what this project
    the SRs + files to read. They create tasks (`derives_from: SR-…`), implement, commit.
    Spawn with **`run_in_background: false`** unless you deliberately parallelize; after parallel spawns,
    NEVER advance the phase before ALL notifications have returned (verify claims via git, never trust).
+   `guard_agent_spawn` BLOCKS any spawn that does not set `run_in_background` explicitly (the platform
+   silently defaults to background — a real run spawned 37/37 that way), and `notify_agent_events` logs
+   every background completion to `project_memory/.audit/hook_events.jsonl` so your accounting is auditable.
 7. **GATE** — trigger `quality-engineer`. No merge without a PASS in `review_reports`+`test_reports`+
    `acceptance_reports` (+ the coverage/completeness gates green). If QA returns `guideline_gaps`, task the
    `software-architect` to append the missing rule(s) to `coding_guidelines.yaml` before accepting. On PASS,
@@ -120,9 +123,14 @@ When `session_status` reports **KIT UPDATE AVAILABLE**, propose the update to th
 templates are added copy-if-absent). On their OK run the platform's `scaffold_team` script and then
 `init_project_memory`, and ask for a **session restart**. NEVER hand-merge harness files, never skip the
 restart. The scaffold resets each agent's `model:`/`effort:` frontmatter to kit defaults — **re-sync them to
-`model_map`/`effort_map` (§11) right after the update**, and review any `[kept]` lines the scaffold prints
-(a project file that diverged from the kit template — propose the delta, don't ignore it). Afterwards gates
-may require newly added fields in existing filled YAMLs — fill those small deltas; nothing filled is ever lost.
+`model_map`/`effort_map` (§11) right after the update**. Diverged project files (repo templates like
+`scripts/quality.py`, project_memory tooling like `generate_dashboard.py`) are recorded in
+**`.claude/kit_update_pending.repo` / `.memory`** — the update is NOT finished until you worked through
+them: diff each against the kit template, have the owning role merge the kit's fixes (or document a
+conscious skip in `progress.yaml` `log:`), then **DELETE the pending file(s)**. `session_status` reminds
+you every session until they are gone — a real project showed `[kept]` lines alone get ignored and kit
+fixes silently never arrive. Afterwards gates may require newly added fields in existing filled YAMLs —
+fill those small deltas; nothing filled is ever lost.
 
 ## Defects (bugs)
 A bug found **during** development/QA stays in the QA loop (the task's `qa_failures`) — no `bugs.yaml` entry.

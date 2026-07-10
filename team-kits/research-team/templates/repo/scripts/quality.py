@@ -20,6 +20,7 @@ from any tool are a hard FAIL (with a tail of the tool's own output for debuggin
 
 Exit 0 = all green. Exit 1 = at least one hard failure. Cross-platform (uses shutil.which).
 """
+import importlib.util
 import os
 import re
 import shutil
@@ -130,9 +131,19 @@ def check_python():
     _core("ruff (lint)", "ruff", ["ruff", "check", "."], "lint errors")
     _core("mypy (types)", "mypy", ["mypy", tgt], "type errors")
     if os.path.isdir(os.path.join(ROOT, "tests")) and has_files("tests", {".py"}):
-        _core("pytest (+cov>=%d%%)" % thr, "pytest",
-              ["pytest", "-q", "--cov=" + tgt, "--cov-fail-under=" + str(thr)],
-              "tests failed or coverage below %d%%" % thr)
+        # pytest-xdist (requirements-dev) parallelizes across cores when installed — a serial suite is
+        # the measured top time eater; pytest-cov combines per-worker coverage correctly.
+        par = ["-n", "auto"] if importlib.util.find_spec("xdist") else []
+        name = "pytest (+cov>=%d%%%s)" % (thr, ", -n auto" if par else "")
+        if not have("pytest"):
+            fail(name, "pytest not installed — set up the dev requirements")
+        else:
+            rc, out = run(["pytest", "-q", *par, "--cov=" + tgt, "--cov-fail-under=" + str(thr)])
+            if rc != 0 and par and "unrecognized arguments" in out:
+                # xdist importable in THIS interpreter but the PATH pytest lacks the plugin —
+                # retry serial instead of hard-failing on a tooling mismatch (mirrors check_node)
+                rc, out = run(["pytest", "-q", "--cov=" + tgt, "--cov-fail-under=" + str(thr)])
+            ok(name) if rc == 0 else fail(name, "tests failed or coverage below %d%%" % thr + _tail(out))
     _sec("bandit (SAST)", "bandit", ["bandit", "-r", tgt, "-ll", "-q"], "high-severity finding")
     _sec("pip-audit (SCA)", "pip-audit", ["pip-audit"], "vulnerable dependency")
 
@@ -265,6 +276,93 @@ def check_project_memory_yaml():
     ok("yaml-lint (project_memory)") if not bad else fail("yaml-lint (project_memory)", "; ".join(bad[:6]))
 
 
+# Browser APIs that need a SECURE CONTEXT (https / localhost) — raw use is silently dead on a
+# plain-http LAN origin, and jsdom/unit tests stay green (a real run shipped a browser-dead send
+# button exactly this way). Route them through ONE helper with a fallback; mark the reviewed helper
+# line with a `secure-context` comment to satisfy this check.
+SECURE_CONTEXT_APIS = ("crypto.randomUUID", "navigator.clipboard")
+_LOCAL_HOSTS = ("localhost", "127.0.0.1", "0.0.0.0", "[::1]")
+
+
+def _local_first_declared():
+    p = os.path.join(ROOT, "project_memory", "project_config.yaml")
+    try:
+        return bool(re.search(r"(?m)^\s*local_first:\s*true\b",
+                              open(p, encoding="utf-8", errors="ignore").read()))
+    except Exception:
+        return False
+
+
+def _frontend_sources():
+    """Browser-facing sources: everything under frontend/static/public, plus .html anywhere in src/
+    and js/css under a static|public|www subdir of src/ (vanilla apps served by the backend). Plain
+    backend .js under src/ is deliberately excluded — Node has no secure-context restriction."""
+    exts = {".js", ".mjs", ".ts", ".jsx", ".tsx", ".html", ".css", ".svelte", ".vue"}
+    # vendored/generated code is not ours to fix — a `.next/` chunk or a vendored lib containing
+    # crypto.randomUUID must not turn the gate red (dot-dirs, vendor dirs, *.min.* are skipped below).
+    skip = ("node_modules", "dist", "build", "__pycache__", ".venv", "venv", "coverage", "target",
+            "vendor", "third_party")
+    for rel, browser_only in (("frontend", False), ("static", False), ("public", False), ("src", True)):
+        d = os.path.join(ROOT, rel)
+        if not os.path.isdir(d):
+            continue
+        for dp, dn, fn in os.walk(d):
+            dn[:] = [x for x in dn if x not in skip and not x.startswith(".")]
+            for f in fn:
+                ext = os.path.splitext(f)[1].lower()
+                if ext not in exts:
+                    continue
+                if browser_only and ext != ".html":
+                    parts = os.path.relpath(dp, ROOT).replace("\\", "/").split("/")
+                    if not {"static", "public", "www"} & set(parts):
+                        continue
+                yield os.path.join(dp, f)
+
+
+def check_frontend_pitfalls():
+    """Greps for what jsdom-green tests cannot catch: (a) raw secure-context-only APIs (see
+    SECURE_CONTEXT_APIS above); (b) with project_config `local_first: true`, frontend RESOURCES
+    loaded from an external origin (CDN fonts/scripts — a real local-first run shipped a Google-CDN
+    font no gate caught). Only resource loads count (link/script/img src, css url()/@import) — a
+    plain <a href> link to an external site stays legal."""
+    api_hits, cdn_hits, scanned = [], [], False
+    local_first = _local_first_declared()
+    # (?:https?:)?// also catches protocol-relative loads like href="//fonts.googleapis.com/…"
+    res_html = re.compile(r"<(?:link|script|img)\b[^>]*?(?:href|src)\s*=\s*[\"']((?:https?:)?//[^\"']+)", re.I)
+    res_css = re.compile(r"(?:url\(\s*[\"']?|@import\s+[\"'])((?:https?:)?//[^\"')]+)", re.I)
+    for path in _frontend_sources():
+        scanned = True
+        rel = os.path.relpath(path, ROOT)
+        minified = os.path.basename(path).lower().endswith((".min.js", ".min.css"))
+        try:
+            lines = open(path, encoding="utf-8", errors="ignore").read().splitlines()
+        except Exception:
+            continue
+        prev = ""
+        for i, line in enumerate(lines, 1):
+            # minified bundles keep API names but are vendored — only OUR code gets the API grep;
+            # the local-first RESOURCE grep still applies (an external font in a .min.css is a violation)
+            if not minified and any(api in line for api in SECURE_CONTEXT_APIS):
+                if "secure-context" not in line and "secure-context" not in prev:
+                    api_hits.append("%s:%d" % (rel, i))
+            if local_first and os.path.splitext(path)[1].lower() in (".html", ".css"):
+                for rx in (res_html, res_css):
+                    for m in rx.finditer(line):
+                        if not any(h in m.group(1) for h in _LOCAL_HOSTS):
+                            cdn_hits.append("%s:%d %s" % (rel, i, m.group(1)[:80]))
+            prev = line
+    if api_hits:
+        fail("secure-context APIs", "raw %s used (%s%s) — silently dead on a non-secure origin "
+             "(http:// over LAN); use ONE helper with a fallback and mark it `secure-context`"
+             % ("/".join(SECURE_CONTEXT_APIS), "; ".join(api_hits[:5]), " …" if len(api_hits) > 5 else ""))
+    if cdn_hits:
+        fail("local-first assets", "external asset load(s) in a local_first project: %s%s — bundle "
+             "them locally (fonts/scripts/styles must not leave the machine)"
+             % ("; ".join(cdn_hits[:5]), " …" if len(cdn_hits) > 5 else ""))
+    if scanned and not api_hits and not cdn_hits:
+        ok("frontend pitfalls (secure-context%s)" % (", local-first assets" if local_first else ""))
+
+
 def secret_scan():
     if have("gitleaks"):
         rc, out = run(["gitleaks", "detect", "--no-banner", "-r", os.devnull])
@@ -317,6 +415,7 @@ def main():
                  "auto-detect is not a substitute (this is exactly how a critical tool gets forgotten)."
                  % ", ".join(sorted(set(detected))))
     check_project_memory_yaml()
+    check_frontend_pitfalls()
     secret_scan()
     sbom()
 

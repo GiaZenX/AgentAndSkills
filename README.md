@@ -257,7 +257,8 @@ Because instructions alone get skipped, each kit ships a small **deterministic**
 - **No ad-hoc files** (`guard_no_adhoc`) — blocks writing status/summary/report files outside the allowlist
   (`project_memory/**`, `src/**`, `tests/**`, `docs/**`, configs).
 - **No rogue spawns** (`guard_agent_spawn`) — blocks spawning a generic/unnamed agent; only the installed
-  specialist roles may be spawned.
+  specialist roles may be spawned, and every spawn must set `run_in_background` EXPLICITLY (the platform
+  silently defaults to background — a real run spawned 37/37 specialists that way by omission).
 - **PM stays out of code** (`guard_pm_scope`) — blocks the PM (main agent) from writing `src/**`, `tests/**`,
   `frontend/**`; code goes to specialists, QA gates it.
 - **Guidelines before code** (`guard_guidelines`) — blocks a code-writer from writing a language before its
@@ -272,7 +273,11 @@ Because instructions alone get skipped, each kit ships a small **deterministic**
   still empty/template (unless it is explicitly marked `applicable: false`).
 - **YAML-valid-at-write** (`guard_yaml_valid`) — parses every written `project_memory/*.yaml` immediately
   (parse errors + duplicate keys go straight back to the writer), so a spec role without a shell can never
-  leave broken YAML behind; the pipeline's yaml-lint stage is the merge/CI backstop.
+  leave broken YAML behind; also enforces the `progress.yaml` contract (ONE-line `status`, `log:` present —
+  a real PM regrew a 300-line status blob). The pipeline's yaml-lint stage is the merge/CI backstop.
+- **Background-agent audit** (`notify_agent_events`) — never blocks; logs `agent_completed` /
+  `agent_needs_input` notifications to `project_memory/.audit/hook_events.jsonl`, so parallel-spawn
+  accounting is auditable instead of trusted.
 - **Packaging gate** (`gate_packaging_decision`, dev-team) — blocks merge while `architecture.yaml`
   `packaging.method` is still TODO, so HOW the software ships is always a conscious decision (even "none /
   library" is valid) — the deterministic guard against a critical packaging tool (e.g. Docker) being forgotten.

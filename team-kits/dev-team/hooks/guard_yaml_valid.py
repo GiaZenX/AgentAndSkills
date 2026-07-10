@@ -13,13 +13,20 @@ Parsing uses yaml.safe_load only; duplicate keys are found by walking yaml.compo
 (compose builds nodes, never constructs objects — no code-execution surface). PostToolUse exit 2
 feeds stderr back to the writing agent. Defensive: not a project_memory yaml / no PyYAML /
 internal error -> exit 0.
+
+Also the format backstop for progress.yaml: a real PM regrew `status` into a 307-line blob and
+dropped `log:` although the template says "ONE line" — prompt-level rules the PM applies to itself
+get ignored, so the artifact's own contract is enforced here mechanically.
 """
 import json
 import os
 import sys
 
+YAML_TIPS = ("Tips: put prose containing ':' in a block scalar (key: |), quote strings with special "
+             "characters, and never repeat a key at the same level.")
 
-def block(base, msg):
+
+def block(base, msg, why="is INVALID YAML after your edit", tips=YAML_TIPS):
     if len(msg) > 600:
         msg = msg[:600] + " …"
     try:
@@ -29,10 +36,9 @@ def block(base, msg):
     except Exception:
         pass
     sys.stderr.write(
-        "[team-kit guard] project_memory/%s is INVALID YAML after your edit:\n%s\n"
-        "Fix it NOW — you own this artifact. Tips: put prose containing ':' in a block scalar "
-        "(key: |), quote strings with special characters, and never repeat a key at the same "
-        "level. Do not hand the file to another role; do not leave it broken.\n" % (base, msg)
+        "[team-kit guard] project_memory/%s %s:\n%s\n"
+        "Fix it NOW — you own this artifact. %s Do not hand the file to another role; "
+        "do not leave it broken.\n" % (base, why, msg, tips)
     )
     sys.exit(2)
 
@@ -66,6 +72,28 @@ def find_duplicate_keys(yaml_mod, text):
     return dupes
 
 
+def progress_format_problems(data):
+    """progress.yaml contract (V10 backstop): `status` stays ONE line (state + next action); history
+    lives in the append-only `log:` list. Returns problem strings, empty when compliant."""
+    if not isinstance(data, dict):
+        return []
+    problems = []
+    status = data.get("status")
+    if isinstance(status, str):
+        lines = [ln for ln in status.splitlines() if ln.strip()]
+        if len(lines) > 3 or len(status) > 700:
+            problems.append(
+                "`status` is %d non-empty lines / %d chars — it MUST stay ONE line: current state + the "
+                "concrete next action. Move history/details into the append-only `log:` list (a real run's "
+                "300-line status blob caused giant re-edits, token burn and tool-call parse failures)."
+                % (len(lines), len(status)))
+    if "log" not in data:
+        problems.append(
+            "the append-only `log:` list is missing — keep a `log:` key (even empty: `log: []`); dated "
+            "one-line history entries belong there, NEVER in `status`.")
+    return problems
+
+
 def main():
     try:
         data = json.load(sys.stdin)
@@ -95,8 +123,9 @@ def main():
     except Exception:
         sys.exit(0)
 
+    data_y = None
     try:
-        yaml.safe_load(text)
+        data_y = yaml.safe_load(text)
     except yaml.YAMLError as e:
         block(base, str(e))
     except Exception:
@@ -105,6 +134,12 @@ def main():
     dupes = find_duplicate_keys(yaml, text)
     if dupes:
         block(base, "\n".join(dupes))
+
+    if base == "progress.yaml":
+        problems = progress_format_problems(data_y)
+        if problems:
+            block(base, "\n".join(problems), why="violates its format contract after your edit",
+                  tips="See the header comments in the shipped progress.yaml template.")
     sys.exit(0)
 
 

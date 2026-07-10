@@ -83,13 +83,15 @@ You **first interview the user and draft a plan, then install** the kit, then ha
    `agent: project-manager` setting only become active at the **next** session start. So do not delegate or
    derive anything now. Tell the user clearly and **STOP**, naming the follow-up prompt:
    "✅ Team installiert und dein Plan liegt als Entwurf bereit. **Bitte starte die Session neu** (Fenster
-   schließen/öffnen oder neue Session im selben Ordner). Du musst nichts tippen — ich melde mich dann
-   automatisch als Project Manager (Opus) mit dem Plan und verfeinere ihn mit dir."
+   schließen/öffnen oder neue Session im selben Ordner). Schreib dann einfach irgendwas (z. B. »weiter«) —
+   es wird nichts automatisch abgeschickt, die erste Nachricht gehört dir; ich melde mich als Project
+   Manager (Opus) mit dem Plan und verfeinere ihn mit dir."
 
 From the next session the repo starts directly as the `project-manager` agent (opus, persistent memory,
-preloaded playbook). It **reads your DRAFT plan/PRD, summarises it, and refines/confirms it** with the user
-— never starting discovery from zero. The `project-manager` definition is the session agent; never spawn it
-as a subagent.
+preloaded playbook). On the user's first message — whatever it says — it **reads your DRAFT plan/PRD,
+summarises it, and refines/confirms it** with the user — never starting discovery from zero (nothing is
+auto-submitted; the session-start hook briefs the PM instead). The `project-manager` definition is the
+session agent; never spawn it as a subagent.
 
 ## Free mode (user chose "Nein")
 

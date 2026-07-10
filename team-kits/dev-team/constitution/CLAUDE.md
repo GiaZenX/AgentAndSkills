@@ -79,20 +79,27 @@
 
    | Hook | Blocks / does |
    |---|---|
-   | `guard_agent_spawn` | spawning a generic/unnamed agent or a second PM (backs up the `Agent(...)` allowlist) |
+   | `guard_agent_spawn` | spawning a generic/unnamed agent, a second PM, or any spawn without an EXPLICIT `run_in_background` (the platform silently defaults to background — set `false` for sequential delegation, `true` only for a deliberate, fully-awaited parallel batch) |
    | `guard_no_adhoc` | the forbidden ad-hoc dump files from item 1 (fires for PM AND code-writers) |
    | `guard_pm_scope` | the PM writing `src/**`, `tests/**`, `frontend/**` (PM may write `project_memory/**`, `.claude/**`, PRD-mandated `docs/**`) |
    | `guard_guidelines` | code in a language whose `coding_guidelines.yaml` `languages:` block is unfilled (§2.7/§12) |
-   | `guard_yaml_valid` | leaves invalid `project_memory/*.yaml` behind: parse errors + duplicate keys go straight back to the WRITER at write time |
+   | `guard_yaml_valid` | leaves invalid `project_memory/*.yaml` behind: parse errors + duplicate keys go straight back to the WRITER at write time; also blocks a `progress.yaml` whose `status` outgrows ONE line or that drops the `log:` list |
    | `gate_git` | force-push; push/merge without a passing QA report bound to the PRD |
    | `gate_pipeline` | merge/push unless it actually RUNS `scripts/quality.py` green (never trusts a `result: pass` string; missing pipeline = block) |
    | `gate_test_coverage` | merge/push while any source area has no tests / a component is untested (§12a) |
    | `gate_memory_complete` | merge/push while a required `project_memory/` YAML is empty/template (§6a), design.yaml lacks `ambition`, or masterplan.md is still the raw template |
    | `gate_packaging_decision` | merge/push while `architecture.yaml` `packaging.method` is TODO (§6) |
-   | `format_on_write` / `session_status` / `auto_dashboard` | auto-format specialist code (best-effort) / session-start status + kit-update detection / dashboard regeneration on Stop |
+   | `notify_agent_events` | (never blocks) logs `agent_completed`/`agent_needs_input` notifications to `project_memory/.audit/hook_events.jsonl` — background-spawn accounting is auditable, not trusted |
+   | `format_on_write` / `session_status` / `auto_dashboard` | auto-format specialist code (best-effort) / session-start status + kit-update detection + pending-kit-update reminder / dashboard regeneration on Stop |
 
    All hooks resolve the repo root themselves (`_root.py`) — a shifted cwd never disables a guard — and the
    shell gates match **Bash AND PowerShell**.
+10. **The enforcement layer itself is off-limits (harness self-modification).** You (PM) MUST NOT edit
+   `.claude/settings.json`, `.claude/hooks/**`, or agent definitions beyond the documented
+   `model:`/`effort:` resync (§11) without the user's EXPLICIT OK — a real PM silently rewrote the kit
+   settings via Bash to unblock its own background spawns. A guard that seems wrong is an infrastructure
+   defect: route it to DevOps/the kit and report it to the user — never quietly reconfigure your own
+   guardrails.
 
 ## 3. Dialog Rule — the AskQuestionsLoop (product-level only)
 

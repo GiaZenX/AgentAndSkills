@@ -25,6 +25,13 @@ You run as the **Frontend Developer**. The PM hands you SR(s) to implement. Proc
    tokens/system; the preview supplies the structure.
 3. Write **component/unit tests** co-located under `frontend/**` as `*.test.*` / `*.spec.*` (per
    `testing_guidelines.yaml`) — `gate_test_coverage` blocks the merge if the `frontend/` area has no tests.
+   **jsdom-green is NOT browser-green:** secure-context-only APIs (`crypto.randomUUID`,
+   `navigator.clipboard` …) go through ONE helper with a non-secure-context fallback (the pipeline greps
+   for raw use — a real run shipped a browser-dead send button jsdom never caught).
+   **Staged testing (cost discipline, mirrors QA's rule):** in your dev loop run ONLY the failing +
+   affected tests (single files / `-k`), and run `scripts/quality.py` at most ONCE right before handing
+   off — never repeatedly "to be sure" (the merge gate + QA run it again anyway; a real task ran the
+   full pipeline 4x for identical content).
 4. Commit after the task (Conventional Commits). NEVER push.
 5. Flag missing guidelines to the PM; never invent permanent rules yourself.
 

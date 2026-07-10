@@ -75,6 +75,10 @@ fi
 
 # Repo-level quality templates (scripts/quality.py, CI, pre-commit, requirements-dev) -- copy-if-absent
 # so DevOps can customise them without a re-scaffold clobbering changes. The merge gate runs quality.py.
+# Diverged files additionally land in .claude/kit_update_pending.repo: printed [kept] lines were shown
+# but never acted on in a real project (kit fixes silently never arrived) -- session_status now reminds
+# the PM until every line is merged or consciously skipped and the file is DELETED.
+kept_list=()
 if [ -d "$KIT/templates/repo" ]; then
   while IFS= read -r rel; do
     rel="${rel#./}"
@@ -87,9 +91,21 @@ if [ -d "$KIT/templates/repo" ]; then
       # copy-if-absent keeps the project's version — but say so, or a kit fix (e.g. quality.py)
       # silently never reaches existing projects while the update reads as "applied".
       echo "  [kept] repo: $rel (differs from the kit template - review/merge manually)"
+      kept_list+=("$rel")
     fi
   done < <(cd "$KIT/templates/repo" && find . -type f -not -path '*/__pycache__/*' \
            -not -path '*/.ruff_cache/*' -not -path '*/.mypy_cache/*' -not -path '*/.pytest_cache/*')
 fi
+PEND="$REPO/.claude/kit_update_pending.repo"
+if [ ${#kept_list[@]} -gt 0 ]; then
+  mkdir -p "$REPO/.claude"
+  {
+    echo "# Repo templates that DIFFER from kit $TEAM $(head -n 1 "$KIT/VERSION" 2>/dev/null) -- the PM reviews each against the kit template, merges the kit's fixes (or documents a conscious skip in progress.yaml log:), then DELETES this file. session_status reminds every session until it is gone."
+    printf -- "- %s\n" "${kept_list[@]}"
+  } > "$PEND"
+  echo "  [!] ${#kept_list[@]} diverged repo file(s) -> .claude/kit_update_pending.repo (merge or consciously skip, then delete it)"
+else
+  rm -f "$PEND"
+fi
 
-echo "Team '$TEAM' installed locally. RESTART the session (close/reopen, or start a new session in this folder) -- the new agents and the 'agent: project-manager' setting only load at session start. After the restart the Project Manager greets you automatically with the plan (no need to type anything) and picks up any draft in project_memory/."
+echo "Team '$TEAM' installed locally. RESTART the session (close/reopen, or start a new session in this folder) -- the new agents and the 'agent: project-manager' setting only load at session start. After the restart, type anything (e.g. 'weiter') -- nothing is auto-sent, YOU stay in control of the first message; the Project Manager then greets you with a one-line status and picks up any draft plan in project_memory/."

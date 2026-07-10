@@ -61,7 +61,20 @@ tooling_defaults:
     - Trivy
     - Snyk
   load_perf:
-    optional: [k6]
+    optional: [k6]   # omitting load/stress testing MUST be an explicit line in the test-approach ADR
+                     # (like property/golden-file omissions) — a conscious decision, never silence
+
+# Parallel execution (speed — a real project's SERIAL e2e suite ate 11+ minutes per verdict, repeated
+# per fix round). QA/DevOps wire this; it changes nothing about WHAT is verified, only how fast:
+parallel_execution:
+  - "unit+integration: pytest-xdist (`-n auto`, shipped in requirements-dev — quality.py uses it
+     automatically). Safe when tests avoid shared module state, fixed ports and shared files
+     (per-test tmp_path / in-memory fixtures)."
+  - "e2e (Playwright): NEVER naively parallel against ONE shared app instance — shared server state
+     makes a flake factory. Parallel-safe pattern: `--dist loadfile` + one app instance PER worker
+     (derive port/BASE_URL + data dir from PYTEST_XDIST_WORKER) + pin GPU/real-model tests to a
+     single worker via `xdist_group`."
+  - "container smoke stays SERIAL — it starts/stops the compose stack itself."
 
 # Per-stack specifics — QA MUST fill this for EVERY language/stack actually in use (not "on demand":
 # leaving it empty for a used stack is the exact defect that shipped 0 frontend tests in a real run).

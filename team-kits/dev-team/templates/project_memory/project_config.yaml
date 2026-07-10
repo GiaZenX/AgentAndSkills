@@ -6,6 +6,9 @@ project:
   name: ""                  # set at init
   preset: solo              # solo | duo | team
   repo_mode: greenfield     # greenfield | onboarded
+  local_first: false        # true for local-only/offline products: the pipeline then FAILs any frontend
+                            # asset loaded from an external origin (CDN fonts/scripts — a real local-first
+                            # run shipped a Google-CDN font no gate caught)
   stacks: [TODO]            # REQUIRED — the architect declares the languages/stacks AND domain in use,
                             # e.g. [python, typescript, go, rust, dotnet, embedded, c, cpp]. The merge gate
                             # (scripts/quality.py) runs EACH declared stack's checks; a declared stack with

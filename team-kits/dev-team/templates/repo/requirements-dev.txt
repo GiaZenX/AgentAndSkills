@@ -4,6 +4,7 @@ ruff
 mypy
 pytest
 pytest-cov
+pytest-xdist       # parallel test execution — quality.py adds `-n auto` when installed (the serial suite was the measured top time eater)
 pip-audit          # SCA (dependency vulnerabilities)
 bandit             # SAST (static security analysis)
 cyclonedx-bom      # SBOM generation

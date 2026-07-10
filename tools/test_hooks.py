@@ -68,7 +68,23 @@ def test_spawn_lead_blocked(kit_repo):
 
 
 def test_spawn_specialist_allowed(kit_repo):
+    payload = {"tool_name": "Agent",
+               "tool_input": {"subagent_type": "backend-developer", "run_in_background": False},
+               "cwd": str(kit_repo)}
+    assert run_hook("guard_agent_spawn.py", payload, kit_repo) == 0
+
+
+def test_spawn_without_background_flag_blocked(kit_repo):
+    # V14 backstop: the platform defaults to background — 37/37 real spawns went that way by omission.
     payload = {"tool_name": "Agent", "tool_input": {"subagent_type": "backend-developer"}, "cwd": str(kit_repo)}
+    assert run_hook("guard_agent_spawn.py", payload, kit_repo) == 2
+
+
+def test_spawn_explicit_background_allowed(kit_repo):
+    # explicit true = a deliberate parallel batch — allowed (the PM must await all notifications)
+    payload = {"tool_name": "Agent",
+               "tool_input": {"subagent_type": "backend-developer", "run_in_background": True},
+               "cwd": str(kit_repo)}
     assert run_hook("guard_agent_spawn.py", payload, kit_repo) == 0
 
 
@@ -447,3 +463,179 @@ def test_memory_complete_allows_design_with_ambition(prd_repo):
           'project:\n  name: "X"\n  stacks: [python]\n')
     payload = {"tool_name": "Bash", "tool_input": {"command": "git merge feat/PRD-0001-x"}, "cwd": str(prd_repo)}
     assert run_hook("gate_memory_complete.py", payload, prd_repo) == 0
+
+
+# ---------------- guard_yaml_valid: progress.yaml format backstop (V10 — status blob / dropped log) ----------------
+def test_progress_status_blob_blocked(tmp_path):
+    pytest.importorskip("yaml")
+    blob = "\n".join("line %d of a growing prose status" % i for i in range(12))
+    write(str(tmp_path / "project_memory" / "progress.yaml"),
+          "status: |\n" + "".join("  %s\n" % ln for ln in blob.splitlines()) + "log: []\n")
+    assert run_hook("guard_yaml_valid.py", _yaml_payload(tmp_path, "progress.yaml"), tmp_path) == 2
+
+
+def test_progress_missing_log_blocked(tmp_path):
+    pytest.importorskip("yaml")
+    write(str(tmp_path / "project_memory" / "progress.yaml"),
+          'status: "PRD-0001 merged; next: PRD-0002 design loop"\nmetrics: {}\n')
+    assert run_hook("guard_yaml_valid.py", _yaml_payload(tmp_path, "progress.yaml"), tmp_path) == 2
+
+
+def test_progress_compliant_allowed(tmp_path):
+    pytest.importorskip("yaml")
+    write(str(tmp_path / "project_memory" / "progress.yaml"),
+          'status: "PRD-0001 merged; next: PRD-0002 design loop"\nlog:\n  - "2026-07-09: PRD-0001 merged"\n')
+    assert run_hook("guard_yaml_valid.py", _yaml_payload(tmp_path, "progress.yaml"), tmp_path) == 0
+
+
+def test_progress_rule_does_not_hit_other_yaml(tmp_path):
+    # a long status field in ANOTHER artifact must not trigger the progress.yaml contract
+    pytest.importorskip("yaml")
+    body = "status: |\n" + "".join("  line %d\n" % i for i in range(12))
+    write(str(tmp_path / "project_memory" / "test_reports.yaml"), body)
+    assert run_hook("guard_yaml_valid.py", _yaml_payload(tmp_path, "test_reports.yaml"), tmp_path) == 0
+
+
+# ---------------- notify_agent_events: background-agent lifecycle -> audit log ----------------
+def _notify(tmp_path, ntype):
+    payload = {"hook_event_name": "Notification", "notification_type": ntype,
+               "message": "agent done", "cwd": str(tmp_path)}
+    return run_hook("notify_agent_events.py", payload, tmp_path)
+
+
+def test_notify_logs_agent_completed(tmp_path):
+    (tmp_path / "project_memory").mkdir()
+    assert _notify(tmp_path, "agent_completed") == 0
+    audit = tmp_path / "project_memory" / ".audit" / "hook_events.jsonl"
+    assert audit.is_file() and "agent_completed" in audit.read_text(encoding="utf-8")
+
+
+def test_notify_ignores_other_types(tmp_path):
+    (tmp_path / "project_memory").mkdir()
+    assert _notify(tmp_path, "permission_prompt") == 0
+    assert not (tmp_path / "project_memory" / ".audit" / "hook_events.jsonl").exists()
+
+
+def test_notify_never_blocks_without_project(tmp_path):
+    assert _notify(tmp_path, "agent_completed") == 0  # no project_memory -> silent no-op
+
+
+# ---------------- quality.py: secure-context + local-first asset greps ----------------
+def test_quality_red_on_raw_secure_context_api(tmp_path):
+    write(str(tmp_path / "src" / "static" / "index.html"),
+          "<html><script>const id = crypto.randomUUID();</script></html>\n")
+    assert run_quality(str(tmp_path)) == 1
+
+
+def test_quality_green_with_marked_fallback(tmp_path):
+    write(str(tmp_path / "src" / "static" / "index.html"),
+          "<html><script>// secure-context: has fallback\n"
+          "const id = crypto.randomUUID ? crypto.randomUUID() : fallbackUuid();</script></html>\n")
+    assert run_quality(str(tmp_path)) == 0
+
+
+def test_quality_red_on_cdn_asset_when_local_first(tmp_path):
+    write(str(tmp_path / "project_memory" / "project_config.yaml"),
+          "project:\n  local_first: true\n  stacks: []\n")
+    write(str(tmp_path / "src" / "static" / "index.html"),
+          '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat">\n')
+    assert run_quality(str(tmp_path)) == 1
+
+
+def test_quality_external_link_anchor_stays_legal(tmp_path):
+    # local_first bans loaded RESOURCES, not plain hyperlinks the user may click
+    write(str(tmp_path / "project_memory" / "project_config.yaml"),
+          "project:\n  local_first: true\n  stacks: []\n")
+    write(str(tmp_path / "src" / "static" / "index.html"),
+          '<a href="https://github.com/x/y">source</a>\n')
+    assert run_quality(str(tmp_path)) == 0
+
+
+# ---------------- session_status: unfinished kit-update reminder (pending files) ----------------
+def test_session_status_reminds_on_pending_kit_update(tmp_path):
+    repo = tmp_path / "repo"
+    write(str(repo / ".claude" / "kit_update_pending.repo"),
+          "# diverged\n- scripts/quality.py\n- requirements-dev.txt\n")
+    env = dict(os.environ, CLAUDE_PROJECT_DIR=str(repo))
+    p = subprocess.run([sys.executable, os.path.join(HOOKS, "session_status.py")],
+                       input=json.dumps({"cwd": str(repo)}), capture_output=True, text=True,
+                       env=env, timeout=60)
+    assert "KIT UPDATE NOT FINISHED" in p.stdout and "scripts/quality.py" in p.stdout
+
+
+def test_session_status_quiet_without_pending(tmp_path):
+    repo = tmp_path / "repo"
+    (repo / ".claude").mkdir(parents=True)
+    env = dict(os.environ, CLAUDE_PROJECT_DIR=str(repo))
+    p = subprocess.run([sys.executable, os.path.join(HOOKS, "session_status.py")],
+                       input=json.dumps({"cwd": str(repo)}), capture_output=True, text=True,
+                       env=env, timeout=60)
+    assert "KIT UPDATE NOT FINISHED" not in p.stdout
+
+
+# ---------------- retro.py: agent lifecycle events must not count as gate blocks ----------------
+def test_retro_separates_blocks_from_agent_events(tmp_path):
+    retro_src = os.path.join(ROOT, "team-kits", "dev-team", "templates", "repo", "scripts", "retro.py")
+    os.makedirs(str(tmp_path / "scripts"), exist_ok=True)
+    shutil.copy(retro_src, str(tmp_path / "scripts" / "retro.py"))
+    lines = (
+        ['{"ts": "t", "hook": "gate_git", "event": "block", "reason": "x"}'] * 2
+        + ['{"ts": "t", "hook": "notify_agent_events", "event": "agent_completed", "reason": "done"}'] * 3
+    )
+    write(str(tmp_path / "project_memory" / ".audit" / "hook_events.jsonl"), "\n".join(lines) + "\n")
+    p = subprocess.run([sys.executable, str(tmp_path / "scripts" / "retro.py")],
+                       capture_output=True, text=True, cwd=str(tmp_path), timeout=60)
+    assert p.returncode == 0, p.stdout + p.stderr
+    assert "gates blocked work: gate_git x2" in p.stdout
+    assert "background-agent events: agent_completed x3" in p.stdout
+    assert "notify_agent_events x" not in p.stdout  # lifecycle events must never read as blocks
+
+
+# ---------------- init_project_memory: diverged tooling -> pending file; resolution deletes it ----------------
+def test_init_pending_file_written_and_removed(tmp_path):
+    home = tmp_path / "home"
+    tpl = home / ".claude" / "team-kits" / "demo-team" / "templates" / "project_memory"
+    write(str(tpl / "gen.py"), "print('v2')\n")
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    if os.name == "nt":
+        script = os.path.join(ROOT, "team-kits", "init_project_memory.ps1")
+        cmd = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script, "-Team", "demo-team"]
+        env = dict(os.environ, USERPROFILE=str(home))
+    else:
+        if not shutil.which("bash"):
+            pytest.skip("bash not available")
+        script = os.path.join(ROOT, "team-kits", "init_project_memory.sh")
+        cmd = ["bash", script, "demo-team"]
+        env = dict(os.environ, HOME=str(home))
+
+    def run_init():
+        r = subprocess.run(cmd, cwd=str(repo), capture_output=True, text=True, env=env, timeout=60)
+        assert r.returncode == 0, r.stdout + r.stderr
+
+    run_init()  # fresh copy — no divergence, no pending file
+    pend = repo / ".claude" / "kit_update_pending.memory"
+    assert not pend.exists()
+
+    (repo / "project_memory" / "gen.py").write_text("print('v1')\n", encoding="utf-8")
+    run_init()  # tooling diverged -> pending file records it
+    assert pend.is_file() and "gen.py" in pend.read_text(encoding="utf-8-sig")
+
+    (repo / "project_memory" / "gen.py").write_text("print('v2')\n", encoding="utf-8")
+    run_init()  # divergence resolved -> pending file removed
+    assert not pend.exists()
+
+
+# ---------------- kit mirroring: shared files must stay byte-identical across kits ----------------
+def test_shared_kit_files_identical():
+    shared = [
+        ("hooks", "guard_yaml_valid.py"), ("hooks", "guard_agent_spawn.py"),
+        ("hooks", "notify_agent_events.py"), ("hooks", "_root.py"), ("hooks", "_audit.py"),
+        ("templates", os.path.join("repo", "scripts", "quality.py")),
+        ("templates", os.path.join("repo", "scripts", "retro.py")),
+    ]
+    for sub, name in shared:
+        a = os.path.join(ROOT, "team-kits", "dev-team", sub, name)
+        b = os.path.join(ROOT, "team-kits", "research-team", sub, name)
+        assert open(a, "rb").read() == open(b, "rb").read(), "%s/%s diverged between kits" % (sub, name)

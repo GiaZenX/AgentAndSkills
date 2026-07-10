@@ -43,10 +43,11 @@ def main():
 
     if os.path.isdir(os.path.join(cwd, "project_memory")):
         parts.append(
-            "project_memory/ exists. BEFORE acting, read project_memory/progress.yaml, "
-            "research_questions.yaml and any open experiment/review reports, then give the user a "
-            "one-line status (active RQ, running experiments, pending validation) and ask what to do next. "
-            "Also consult your agent memory."
+            "project_memory/ exists. On the user's FIRST message (whatever it says — even just 'weiter'), "
+            "BEFORE acting read project_memory/progress.yaml, research_questions.yaml, any DRAFT "
+            "plan/masterplan left by the install session, and any open experiment/review reports, then "
+            "give the user a one-line status (active RQ, running experiments, pending validation) and ask "
+            "what to do next. Also consult your agent memory."
         )
     else:
         parts.append(
@@ -79,6 +80,27 @@ def main():
                     "restart. Never hand-merge harness files; re-sync each agent's model:/effort: frontmatter to model_map/effort_map afterwards (the scaffold resets them) and review any [kept] lines. After updating, gates may require newly added "
                     "fields in existing YAMLs — fill those small deltas." % (kit, sv, lv)
                 )
+    except Exception:
+        pass
+
+    # kit-update follow-through: diverged tooling the scripts recorded stays pending until the PM
+    # merged (or consciously skipped) every line and DELETED the file — [kept] lines alone were
+    # ignored in a real project, so kit fixes silently never arrived.
+    try:
+        pend_lines = []
+        for suffix in ("repo", "memory"):
+            p = os.path.join(cwd, ".claude", "kit_update_pending." + suffix)
+            if os.path.isfile(p):
+                with open(p, encoding="utf-8", errors="ignore") as fh:
+                    pend_lines += [ln.strip()[2:] for ln in fh if ln.strip().startswith("- ")]
+        if pend_lines:
+            parts.append(
+                "KIT UPDATE NOT FINISHED: %d project file(s) still diverge from the kit templates (%s%s) "
+                "— see .claude/kit_update_pending.*. Diff each against the kit template, merge the kit's "
+                "fixes via the owning role (or document a conscious skip in progress.yaml log:), then "
+                "DELETE the pending file(s). Do not leave this sitting."
+                % (len(pend_lines), "; ".join(pend_lines[:5]), " …" if len(pend_lines) > 5 else "")
+            )
     except Exception:
         pass
 

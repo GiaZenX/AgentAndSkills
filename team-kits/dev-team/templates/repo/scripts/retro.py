@@ -56,13 +56,20 @@ def main():
     qa_failures_field = sum(int(x) for x in re.findall(r"(?mi)qa_failures:\s*(\d+)",
                                                        read(os.path.join(PM, "tasks.yaml"))))
 
-    # gate blocks from the hook event log
+    # gate blocks from the hook event log. The log also carries NON-block lifecycle events
+    # (notify_agent_events: agent_completed / agent_needs_input) — count those separately, or one
+    # parallel batch would misreport as "gates blocked work: notify_agent_events x37".
     blocks = collections.Counter()
+    agent_events = collections.Counter()
     log = os.path.join(PM, ".audit", "hook_events.jsonl")
     if os.path.isfile(log):
         for line in read(log).splitlines():
             try:
-                blocks[json.loads(line).get("hook", "?")] += 1
+                rec = json.loads(line)
+                if rec.get("event") == "block":
+                    blocks[rec.get("hook", "?")] += 1
+                else:
+                    agent_events[rec.get("event", "?")] += 1
             except Exception:
                 pass
 
@@ -73,6 +80,9 @@ def main():
     findings = []
     if blocks:
         findings.append("gates blocked work: " + ", ".join("%s x%d" % (k, v) for k, v in blocks.most_common()))
+    if agent_events:
+        findings.append("background-agent events: " + ", ".join(
+            "%s x%d" % (k, v) for k, v in agent_events.most_common()))
     if qa_fail:
         findings.append("%d QA FAIL verdict(s) recorded" % qa_fail)
     if qa_failures_field:

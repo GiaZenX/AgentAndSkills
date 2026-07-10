@@ -6,6 +6,12 @@ Kills the `subagent_type=None` / generic-agent spawn bug from the real test run.
 The PM (main agent) MUST spawn specialists by their exact role. This hook reads the
 allowed roles from the installed `./.claude/agents/*.md` basenames, so it is
 kit-agnostic and always correct. Exit 2 + stderr blocks; uncertainty -> exit 0.
+
+Also the V14 backstop: `run_in_background` MUST be set EXPLICITLY on every spawn. The platform
+defaults to background, and a real run spawned 37/37 specialists that way by omission — losing
+completion accounting and pushing the PM into a settings workaround. false = normal sequential
+delegation; true = a deliberate parallel batch the PM fully awaits (notify_agent_events logs the
+completions). Forcing the field makes the choice conscious instead of a silent default.
 """
 import sys
 import os
@@ -61,6 +67,11 @@ def main():
         block("the %r (PM/lead) is the session agent and MUST NOT be spawned as a subagent" % lead)
     if str(sub) not in roles:
         block("subagent_type %r is not an installed specialist role (%s)" % (sub, ", ".join(sorted(roles))))
+    if "run_in_background" not in inp:
+        block("run_in_background not set — the platform silently defaults to background. Set it "
+              "EXPLICITLY: `run_in_background: false` for normal sequential delegation (the default "
+              "choice), `true` ONLY for a deliberate parallel batch — then NEVER advance the phase "
+              "before ALL completion notifications have returned")
 
     sys.exit(0)
 

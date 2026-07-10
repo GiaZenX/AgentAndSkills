@@ -26,13 +26,19 @@ pipeline:
       (not TODO) and argued in an ADR; gate-enforced by gate_packaging_decision.py (even "none/library" is valid)
   - bugfix_regression: a fix for a bugs.yaml BUG carries a regression test that FAILS pre-fix and PASSES
       post-fix (QA-verified, recorded in test_reports.yaml) before the bug may be VERIFIED
+  - perf_regression: test_reports.yaml records per QA gate the suite runtime_s and the app startup_s
+      (plus one core-endpoint latency where an API exists) AND compares them to the previous gate; an
+      unexplained regression >25% is investigated + documented before PASS. This is the minimum
+      performance floor — a gate that only measures what is automated rewards the fastest path, not the
+      best one. Full load/stress testing stays a per-domain ADR decision (see testing_guidelines).
   # WHAT IS TOOL-ENFORCED vs VERIFIED — be honest:
   #  * EXECUTED by scripts/quality.py (gate_pipeline at merge + CI): format, lint, types, unit tests,
-  #    GLOBAL coverage>=threshold, SAST, SCA, secret scan (gitleaks: hard in CI / warn-only locally), SBOM.
+  #    GLOBAL coverage>=threshold, SAST, SCA, secret scan (gitleaks: hard in CI / warn-only locally), SBOM,
+  #    secure-context/local-first frontend greps.
   #  * per_area_coverage: only partially backstopped by gate_test_coverage.py (src/ + frontend/, "area has
   #    zero tests"); NOT a per-stack %-gate.
-  #  * component_coverage, real_run (UI smoke, real docker build/run, E2E) and the license review are
-  #    QA/DevOps-VERIFIED, not yet tool-enforced — QA must confirm them and record it in the reports.
+  #  * component_coverage, real_run (UI smoke, real docker build/run, E2E), perf_regression and the license
+  #    review are QA/DevOps-VERIFIED, not yet tool-enforced — QA must confirm them and record it in the reports.
   #  A self-reported "result: pass" never satisfies the EXECUTED stages.
 
 task_done:

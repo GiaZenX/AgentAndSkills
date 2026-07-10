@@ -17,3 +17,7 @@ target/
 
 # generated dashboard snapshots (churn + security-review noise; retention keeps last 20 locally)
 project_memory/dashboard_history/
+
+# append-only hook/agent event log (diagnostic, read by scripts/retro.py — never project state;
+# the notify_agent_events hook writes here on every background-agent completion = git-status churn)
+project_memory/.audit/

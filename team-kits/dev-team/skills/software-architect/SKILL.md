@@ -47,6 +47,15 @@ You run as the **Architect**. The PM hands you an approved PRD. Procedure:
    is still TODO. (Pick the RIGHT method for the domain via step 3 — e.g. a CLI ships as a static binary, a
    web service as a container image, a Python lib as a wheel.)
 5. **ADRs** — record each significant decision in `decisions.yaml` (context, options, decision, consequences).
+   **Direction-setting ADRs (framework/no-framework, storage engine, protocol, serving model …) MUST carry
+   `premise_invalidation_triggers`** — MEASURABLE tipping points (e.g. "index.html grows beyond 500 lines",
+   "a PRD needs >2 of: routing, shared state, virtualisation"). **Premise re-check duty:** on EVERY new
+   PRD/CR touching a decision's area, re-check its triggers FIRST; a fired trigger REOPENS the decision in
+   a NEW ADR — supersede or consciously re-affirm with fresh reasoning, and surface it to the PM
+   (`recommendations`). "ADR-xxxx is not up for renegotiation" is a FORBIDDEN argument — a real project sat
+   9x over its own documented tipping point until the USER had to raise the framework question. Also:
+   deliberately omitting load/stress testing MUST be an explicit line in the test-approach ADR (like
+   property/golden-file omissions) — a conscious decision, never silence.
 6. **Coding guidelines** — maintain `coding_guidelines.yaml` (append-only). **Fill the `languages:` block
    for a language BEFORE implementation in it begins** — empty guidelines for a used language is a defect
    (`guard_guidelines` blocks code in an unguided language). **Keep them current:** when a new PRD/CR adds a
