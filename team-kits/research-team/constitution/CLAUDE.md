@@ -101,7 +101,8 @@ This kit adds an FZulG (German R&D tax credit) documentation layer on top of a r
      `agent_needs_input` notifications to `project_memory/.audit/hook_events.jsonl` — background-spawn
      accounting is auditable, not trusted.
    - **Session start:** `session_status.py` reminds you who you are and to read `project_memory/` first —
-     and keeps reminding while `.claude/kit_update_pending.*` records unfinished kit-update merges.
+     keeps reminding while `.claude/kit_update_pending.*` records unfinished kit-update merges, and flags
+     any agent `model:`/`effort:` frontmatter drifting from the user-confirmed §11 maps.
    - **Dashboard:** the `Stop` hook regenerates the dashboard automatically.
    - **cwd-independent:** every hook resolves the repo root by walking up to `.claude/`/`project_memory/`/`.git`
      (`_root.py`), so a shifted working directory can never silently disable a guard.

@@ -90,7 +90,7 @@
    | `gate_memory_complete` | merge/push while a required `project_memory/` YAML is empty/template (§6a), design.yaml lacks `ambition`, or masterplan.md is still the raw template |
    | `gate_packaging_decision` | merge/push while `architecture.yaml` `packaging.method` is TODO (§6) |
    | `notify_agent_events` | (never blocks) logs `agent_completed`/`agent_needs_input` notifications to `project_memory/.audit/hook_events.jsonl` — background-spawn accounting is auditable, not trusted |
-   | `format_on_write` / `session_status` / `auto_dashboard` | auto-format specialist code (best-effort) / session-start status + kit-update detection + pending-kit-update reminder / dashboard regeneration on Stop |
+   | `format_on_write` / `session_status` / `auto_dashboard` | auto-format specialist code (best-effort) / session-start status + kit-update detection + pending-kit-update reminder + model/effort sync nag (§11 — flags agent frontmatter drifting from the user-confirmed maps) / dashboard regeneration on Stop |
 
    All hooks resolve the repo root themselves (`_root.py`) — a shifted cwd never disables a guard — and the
    shell gates match **Bash AND PowerShell**.

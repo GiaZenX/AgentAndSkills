@@ -27,6 +27,58 @@ def git(cwd, *args):
         return ""
 
 
+def _parse_map(txt, name):
+    """Parse a flat `<name>:` block of `key: value` lines (stdlib only — no yaml import here by
+    design, so this hook never fails on a fresh machine). Comments and blank lines are skipped;
+    the block ends at the first non-indented content line."""
+    m = re.search(r"(?m)^%s:[ \t]*(?:#.*)?$" % name, txt)
+    if not m:
+        return {}
+    out = {}
+    for line in txt[m.end():].splitlines():
+        if line.strip().startswith("#") or not line.strip():
+            continue
+        mm = re.match(r"[ \t]+([A-Za-z0-9_-]+):[ \t]*([A-Za-z0-9_-]+)", line)
+        if mm:
+            out[mm.group(1)] = mm.group(2)
+        elif not line.startswith((" ", "\t")):
+            break  # left the block
+    return out
+
+
+def model_effort_mismatches(cwd):
+    """Deterministic §11 sync check: every model_map/effort_map entry must equal the agent's
+    frontmatter. The scaffold resets frontmatter to kit defaults — when a kit update happens
+    outside a session, nothing else reminds the PM (a real project ran its user-approved opus
+    frontend on sonnet for two days this way)."""
+    cfg = os.path.join(cwd, "project_memory", "project_config.yaml")
+    agents = os.path.join(cwd, ".claude", "agents")
+    if not os.path.isfile(cfg) or not os.path.isdir(agents):
+        return []
+    try:
+        # utf-8-sig: a PS 5.1 Set-Content/Out-File writes a BOM — without stripping it the first
+        # line never matches and a perfectly synced repo would nag forever (audit finding)
+        txt = open(cfg, encoding="utf-8-sig", errors="ignore").read()
+    except Exception:
+        return []
+    mism = []
+    for mapname, field in (("model_map", "model"), ("effort_map", "effort")):
+        for role, want in _parse_map(txt, mapname).items():
+            ap = os.path.join(agents, role + ".md")
+            if not os.path.isfile(ap):
+                continue
+            try:
+                raw = open(ap, encoding="utf-8-sig", errors="ignore").read()
+            except Exception:
+                continue
+            fm = raw.split("---", 2)[1] if raw.startswith("---") and raw.count("---") >= 2 else ""
+            got = re.search(r"(?m)^%s:[ \t]*([A-Za-z0-9_-]+)" % field, fm)
+            have = got.group(1) if got else "MISSING"
+            if have != want:
+                mism.append("%s %s=%s (map says %s)" % (role, field, have, want))
+    return mism
+
+
 def main():
     try:
         data = json.load(sys.stdin)
@@ -100,6 +152,20 @@ def main():
                 "fixes via the owning role (or document a conscious skip in progress.yaml log:), then "
                 "DELETE the pending file(s). Do not leave this sitting."
                 % (len(pend_lines), "; ".join(pend_lines[:5]), " …" if len(pend_lines) > 5 else "")
+            )
+    except Exception:
+        pass
+
+    # §11 model/effort sync: scaffold resets agent frontmatter to kit defaults — nag on any drift
+    # from the user-confirmed maps BEFORE the PM delegates on the wrong tier.
+    try:
+        mism = model_effort_mismatches(cwd)
+        if mism:
+            parts.append(
+                "MODEL/EFFORT OUT OF SYNC with project_config.yaml: %s%s. Re-sync each named agent's "
+                "model:/effort: frontmatter line in .claude/agents/ to model_map/effort_map (§11) BEFORE "
+                "delegating — or, if the map itself is outdated, correct the map with a reported reason."
+                % ("; ".join(mism[:6]), " …" if len(mism) > 6 else "")
             )
     except Exception:
         pass

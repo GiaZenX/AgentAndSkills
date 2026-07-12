@@ -573,6 +573,56 @@ def test_session_status_quiet_without_pending(tmp_path):
     assert "KIT UPDATE NOT FINISHED" not in p.stdout
 
 
+# ---------------- session_status: model/effort frontmatter must match the user-confirmed maps ----------------
+def _sync_repo(tmp_path, agent_model):
+    repo = tmp_path / "repo"
+    write(str(repo / "project_memory" / "project_config.yaml"),
+          "project:\n  name: x\nmodel_map:\n  backend-developer: opus   # user-approved upscale\n"
+          "effort_map:\n  backend-developer: high\n")
+    write(str(repo / ".claude" / "agents" / "backend-developer.md"),
+          "---\nname: backend-developer\nmodel: %s\neffort: high\n---\nbody\n" % agent_model)
+    return repo
+
+
+def _run_status(repo):
+    env = dict(os.environ, CLAUDE_PROJECT_DIR=str(repo))
+    return subprocess.run([sys.executable, os.path.join(HOOKS, "session_status.py")],
+                          input=json.dumps({"cwd": str(repo)}), capture_output=True, text=True,
+                          env=env, timeout=60).stdout
+
+
+def test_session_status_flags_model_drift(tmp_path):
+    # the scaffold reset the frontmatter to sonnet although the map says opus -> must nag
+    out = _run_status(_sync_repo(tmp_path, "sonnet"))
+    assert "MODEL/EFFORT OUT OF SYNC" in out and "backend-developer model=sonnet (map says opus)" in out
+
+
+def test_session_status_quiet_when_synced(tmp_path):
+    out = _run_status(_sync_repo(tmp_path, "opus"))
+    assert "MODEL/EFFORT OUT OF SYNC" not in out
+
+
+# ---------------- quality.py: progress.yaml contract at the pipeline (catches shell-written blobs) ----------------
+def test_quality_red_on_progress_status_blob(tmp_path):
+    pytest.importorskip("yaml")
+    write(str(tmp_path / "project_memory" / "progress.yaml"),
+          'status: "%s"\nlog: []\n' % ("x" * 800))
+    assert run_quality(str(tmp_path)) == 1
+
+
+def test_quality_red_on_progress_missing_log(tmp_path):
+    pytest.importorskip("yaml")
+    write(str(tmp_path / "project_memory" / "progress.yaml"), 'status: "ok; next: PRD-2"\n')
+    assert run_quality(str(tmp_path)) == 1
+
+
+def test_quality_green_on_compliant_progress(tmp_path):
+    pytest.importorskip("yaml")
+    write(str(tmp_path / "project_memory" / "progress.yaml"),
+          'status: "PRD-1 merged; next: PRD-2 design"\nlog:\n  - "2026-07-12: PRD-1 merged"\n')
+    assert run_quality(str(tmp_path)) == 0
+
+
 # ---------------- retro.py: agent lifecycle events must not count as gate blocks ----------------
 def test_retro_separates_blocks_from_agent_events(tmp_path):
     retro_src = os.path.join(ROOT, "team-kits", "dev-team", "templates", "repo", "scripts", "retro.py")

@@ -267,12 +267,27 @@ def check_project_memory_yaml():
         except Exception:
             continue
         try:
-            yaml.safe_load(text)
+            data = yaml.safe_load(text)
         except yaml.YAMLError as e:
             bad.append("%s: %s" % (fn, str(e).splitlines()[0]))
             continue
         for msg in dup_keys(text):
             bad.append("%s: %s" % (fn, msg))
+        # progress.yaml contract (same thresholds as the write-time guard_yaml_valid): the guard only
+        # sees Edit/Write tool calls — a status blob written via a SHELL heredoc/script bypasses it
+        # (a real PM grew a 42k-char "one-liner" exactly that way). This stage catches it at every
+        # pipeline run and at merge, whatever wrote the file.
+        if fn == "progress.yaml" and isinstance(data, dict):
+            status = data.get("status")
+            if isinstance(status, str):
+                nlines = len([ln for ln in status.splitlines() if ln.strip()])
+                if nlines > 3 or len(status) > 700:
+                    bad.append("progress.yaml: status is %d non-empty lines / %d chars — it MUST stay "
+                               "ONE line (state + concrete next action); history belongs in the "
+                               "append-only log: list" % (nlines, len(status)))
+            if "log" not in data:
+                bad.append("progress.yaml: the append-only log: list is missing (keep `log: []` even "
+                           "when empty; history goes there, never into status)")
     ok("yaml-lint (project_memory)") if not bad else fail("yaml-lint (project_memory)", "; ".join(bad[:6]))
 
 
