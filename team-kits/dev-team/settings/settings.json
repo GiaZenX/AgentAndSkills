@@ -92,6 +92,10 @@
           {
             "type": "command",
             "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard_yaml_valid.py\""
+          },
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/guard_scratchpad_ref.py\""
           }
         ]
       }
@@ -99,6 +103,16 @@
     "Notification": [
       {
         "matcher": "agent_completed|agent_needs_input",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python \"${CLAUDE_PROJECT_DIR}/.claude/hooks/notify_agent_events.py\""
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
         "hooks": [
           {
             "type": "command",

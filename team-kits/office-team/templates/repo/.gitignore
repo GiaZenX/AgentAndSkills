@@ -1,0 +1,15 @@
+# Business documents are NOT tracked: binary PDFs bloat the repo, and GDPR erasure (Art. 17)
+# must stay possible — git history is forever. project_memory/, ledger/ (text CSV), reports/
+# and manifests ARE tracked.
+inbox/
+archive/
+outbox/
+
+# tooling artifacts
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# append-only hook/agent event log (diagnostic — never project state)
+project_memory/.audit/

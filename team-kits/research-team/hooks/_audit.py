@@ -15,7 +15,9 @@ except Exception:
         return os.environ.get("CLAUDE_PROJECT_DIR") or start or os.getcwd()
 
 
-def record(hook, reason):
+def record_event(hook, event, reason):
+    """Generic append (event != block for lifecycle records, e.g. spawns/completions — retro.py
+    counts non-block events separately)."""
     try:
         root = find_repo_root()
         d = os.path.join(root, "project_memory", ".audit")
@@ -25,10 +27,14 @@ def record(hook, reason):
         line = json.dumps({
             "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
             "hook": hook,
-            "event": "block",
+            "event": event,
             "reason": (str(reason) or "")[:300],
         }, ensure_ascii=False)
         with open(os.path.join(d, "hook_events.jsonl"), "a", encoding="utf-8") as fh:
             fh.write(line + "\n")
     except Exception:
         pass
+
+
+def record(hook, reason):
+    record_event(hook, "block", reason)

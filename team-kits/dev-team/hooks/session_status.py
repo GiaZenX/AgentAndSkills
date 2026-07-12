@@ -12,6 +12,7 @@ import os
 import json
 import re
 import subprocess
+import time
 
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -129,30 +130,59 @@ def main():
                     "(%s) — usually a newer harness. Propose the update to the user; on their OK run the "
                     "scaffold_team script and then init_project_memory (both safe: backup first, "
                     "copy-if-absent — project_memory content is NEVER overwritten), then ask for a session "
-                    "restart. Never hand-merge harness files; re-sync each agent's model:/effort: frontmatter to model_map/effort_map afterwards (the scaffold resets them) and review any [kept] lines. After updating, gates may require newly added "
-                    "fields in existing YAMLs — fill those small deltas." % (kit, sv, lv)
+                    "restart. Never hand-merge harness files. The scaffold re-applies the recorded preset "
+                    "from project_config.yaml and re-stamps each agent's model:/effort: from "
+                    "model_map/effort_map automatically (verify; this hook nags on drift), and it records "
+                    "diverged files in .claude/kit_update_pending.* — work those through. After updating, "
+                    "gates may require newly added fields in existing YAMLs — fill those small deltas."
+                    % (kit, sv, lv)
                 )
     except Exception:
         pass
 
     # kit-update follow-through: diverged tooling the scripts recorded stays pending until the PM
     # merged (or consciously skipped) every line and DELETED the file — [kept] lines alone were
-    # ignored in a real project, so kit fixes silently never arrived.
+    # ignored in a real project, so kit fixes silently never arrived. The nag ESCALATES across
+    # sessions (a real PM acknowledged it once at 12:08 and never returned for 7 hours).
     try:
-        pend_lines = []
+        pend_lines, pend_files = [], []
         for suffix in ("repo", "memory"):
             p = os.path.join(cwd, ".claude", "kit_update_pending." + suffix)
             if os.path.isfile(p):
+                pend_files.append(suffix)
                 with open(p, encoding="utf-8", errors="ignore") as fh:
                     pend_lines += [ln.strip()[2:] for ln in fh if ln.strip().startswith("- ")]
+        state_p = os.path.join(cwd, ".claude", "kit_update_pending.state")
         if pend_lines:
+            sessions, first = 1, time.strftime("%Y-%m-%d")
+            try:
+                with open(state_p, encoding="utf-8") as fh:
+                    st = json.load(fh)
+                sessions = int(st.get("sessions", 0)) + 1
+                first = st.get("first_seen", first)
+            except Exception:
+                pass
+            try:
+                with open(state_p, "w", encoding="utf-8") as fh:
+                    json.dump({"sessions": sessions, "first_seen": first}, fh)
+            except Exception:
+                pass
+            urgency = ("" if sessions <= 1 else
+                       " OPEN SINCE %s — this is the %d. session that sees it. Work through at least ONE "
+                       "entry NOW (or log a conscious skip in progress.yaml log:) before feature work; "
+                       "acknowledging it once and moving on is the documented failure mode." % (first, sessions))
             parts.append(
-                "KIT UPDATE NOT FINISHED: %d project file(s) still diverge from the kit templates (%s%s) "
-                "— see .claude/kit_update_pending.*. Diff each against the kit template, merge the kit's "
-                "fixes via the owning role (or document a conscious skip in progress.yaml log:), then "
-                "DELETE the pending file(s). Do not leave this sitting."
-                % (len(pend_lines), "; ".join(pend_lines[:5]), " …" if len(pend_lines) > 5 else "")
+                "KIT UPDATE NOT FINISHED (%s): %d file(s) still diverge from the kit templates (%s%s) "
+                "— diff each against the kit template, merge the kit's fixes via the owning role (or "
+                "document a conscious skip in progress.yaml log:), then DELETE the pending file(s).%s"
+                % ("+".join(pend_files), len(pend_lines), "; ".join(pend_lines[:5]),
+                   " …" if len(pend_lines) > 5 else "", urgency)
             )
+        elif os.path.isfile(state_p):
+            try:
+                os.remove(state_p)  # backlog cleared -> reset the counter
+            except Exception:
+                pass
     except Exception:
         pass
 

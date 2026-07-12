@@ -1,0 +1,23 @@
+# master_data.yaml — owned by: Bookkeeper
+# Stable vocabulary for the ledger. Without it the bookkeeper invents categories ad hoc
+# (Q1 "Porto", Q2 "Versandkosten" -> quarterly comparisons become worthless). Append-only;
+# category names align to Anlage-EÜR lines so the Steuerberater maps them 1:1.
+
+categories:
+  expense: []
+  #  - key: goods                 # ledger `category` value (stable, English key)
+  #    label_de: "Wareneinkauf"
+  #    euer_line: "Waren, Roh- und Hilfsstoffe"
+  #  - key: shipping
+  #    label_de: "Versandkosten"
+  #    euer_line: "Übrige Betriebsausgaben"
+  income: []
+  #  - key: sales_shop
+  #    label_de: "Umsätze Onlineshop"
+  #    euer_line: "Betriebseinnahmen"
+
+# Counterparty normalisation: statement/marketplace spellings -> ONE canonical name.
+counterparties: []
+#  - canonical: "Amazon EU S.à r.l."
+#    aliases: ["AMZN Mktp DE", "AMAZON EU SARL"]
+#    default_vat_treatment: reverse_charge   # LU invoices for fees — § 13b UStG

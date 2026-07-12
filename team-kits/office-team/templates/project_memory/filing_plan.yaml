@@ -1,0 +1,17 @@
+# filing_plan.yaml — owned by: Records-Clerk (structure changes need user approval via the manager)
+# The Aktenplan: archive tree + naming rules + retention per node. Filing targets MUST live under
+# archive/ (gate_filing verifies existence); originals are moved, never deleted, never re-saved.
+
+naming_rule: "YYYY-MM-DD_<counterparty>_<doctype>"   # applied to every filed document
+
+# retention: DE defaults (Belege 8 years, Bücher 10 — the user's Steuerberater confirms; source noted).
+tree: []
+#  - path: archive/finance/incoming_invoices/<year>/
+#    doc_types: [invoice, credit_note]
+#    retention: "8y (BEG IV; confirm with Steuerberater)"
+#  - path: archive/products/datasheets/
+#    doc_types: [datasheet, supplier_sheet]
+#    retention: "while product active + 3y"
+#  - path: archive/_unsorted/          # holding node for unclear items — with a question list
+#    doc_types: [unclear]
+#    retention: "until sorted"

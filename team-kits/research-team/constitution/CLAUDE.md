@@ -98,8 +98,13 @@ This kit adds an FZulG (German R&D tax credit) documentation layer on top of a r
    - **Completeness gate:** `gate_memory_complete.py` blocks merge/push while a required `project_memory/`
      YAML is still empty/template (see §6a).
    - **Background-agent audit:** `notify_agent_events.py` (never blocks) logs `agent_completed`/
-     `agent_needs_input` notifications to `project_memory/.audit/hook_events.jsonl` — background-spawn
-     accounting is auditable, not trusted.
+     `agent_needs_input` notifications AND `SubagentStop` completions to
+     `project_memory/.audit/hook_events.jsonl`; `guard_agent_spawn` logs every allowed spawn —
+     accounting is auditable end-to-end, not trusted (the Notification route alone delivered 0 of 15
+     completions in a real run).
+   - **Scratchpad-reference guard:** `guard_scratchpad_ref.py` blocks a repo source file that references
+     a session-scratchpad path — scratchpads are ephemeral; a real fonts.css pointed at a vanished
+     scratchpad tool and the pipeline stopped being reproducible.
    - **Session start:** `session_status.py` reminds you who you are and to read `project_memory/` first —
      keeps reminding while `.claude/kit_update_pending.*` records unfinished kit-update merges, and flags
      any agent `model:`/`effort:` frontmatter drifting from the user-confirmed §11 maps.
@@ -231,6 +236,9 @@ state; RQs = what is clearly recognizable, the rest `UNCLEAR`). Then run Phase 0
 ## 11. Team presets & models (`project_config.yaml`)
 
 - **Preset chosen once per project:** `solo` | `duo` | `team`. You recommend; the **user MUST confirm**.
+  **Presets are MECHANICAL** (kit `presets.yaml`): the scaffold installs ONLY the preset's roles —
+  spawning any other role fails natively (missing agent file) and via `guard_agent_spawn`. Upgrading =
+  user OK, then re-run the scaffold with the larger preset (additive) + session restart.
 - **The methodologist is the highest-leverage role:** a flawed design/statistics choice invalidates every
   run built on it. At the startup preset question, for any non-trivial effort, **RECOMMEND `opus` for the
   `methodologist` from the start** (user confirms; `sonnet` stays the shipped default for simple efforts).

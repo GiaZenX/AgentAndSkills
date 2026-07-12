@@ -7,8 +7,9 @@
 set -euo pipefail
 
 TEAM="${1:-}"
+PRESET="${2:-}"
 if [ -z "$TEAM" ]; then
-  echo "Usage: scaffold_team.sh <team>" >&2
+  echo "Usage: scaffold_team.sh <team> [preset]" >&2
   exit 1
 fi
 
@@ -20,6 +21,49 @@ fi
 
 REPO="$(pwd)"
 echo "Scaffolding team '$TEAM' into $REPO"
+
+# Presets are MECHANICAL (a preset that is only a config comment enforces nothing): with a preset
+# argument only that preset's roles (+ the lead) are installed; spawning any other role then fails
+# natively (missing agent file) and via guard_agent_spawn. Upgrading = re-run with the larger
+# preset (additive) + session restart.
+# No preset argument? Take the RECORDED, user-confirmed preset from project_config.yaml — else
+# the first kit UPDATE would silently install the full roster and the "mechanical preset"
+# guarantee evaporates (the exact inert-preset failure mode this design kills).
+PRESET_SOURCE="argument"
+if [ -z "$PRESET" ] && [ -f "$REPO/project_memory/project_config.yaml" ] && [ -f "$KIT/presets.yaml" ]; then
+  rec="$(sed -n 's/^[ \t]*preset:[ \t]*\([A-Za-z0-9_-]*\).*/\1/p' "$REPO/project_memory/project_config.yaml" | head -n 1)"
+  if [ -n "$rec" ]; then PRESET="$rec"; PRESET_SOURCE="project_config.yaml"; fi
+fi
+PRESET_ROLES=""
+if [ -n "$PRESET" ]; then
+  PF="$KIT/presets.yaml"
+  [ -f "$PF" ] || { echo "Kit '$TEAM' ships no presets.yaml but a preset was given" >&2; exit 1; }
+  line="$(grep -E "^${PRESET}[ \t]*:" "$PF" | head -n 1 || true)"
+  if [ -z "$line" ]; then
+    avail="$(grep -E '^[A-Za-z0-9_-]+[ \t]*:' "$PF" | cut -d: -f1 | tr '\n' ' ')"
+    if [ "$PRESET_SOURCE" = "project_config.yaml" ]; then
+      echo "  [warn] recorded preset '$PRESET' is not in the kit's presets.yaml (available: $avail) -- installing the full roster"
+      PRESET=""
+    else
+      echo "Unknown preset '$PRESET' for kit '$TEAM'. Available: $avail" >&2
+      exit 1
+    fi
+  else
+    val="$(echo "$line" | cut -d: -f2- | sed 's/^[ \t]*//;s/[ \t]*$//')"
+    if [ "$val" != "all" ]; then PRESET_ROLES=" $val "; fi
+    echo "  [preset $PRESET, from $PRESET_SOURCE] specialist roles: ${PRESET_ROLES:-ALL}"
+  fi
+fi
+LEAD="project-manager"
+if [ -f "$KIT/settings/settings.json" ]; then
+  l="$(sed -n 's/.*"agent"[ \t]*:[ \t]*"\([^"]*\)".*/\1/p' "$KIT/settings/settings.json" | head -n 1)"
+  [ -n "$l" ] && LEAD="$l"
+fi
+in_preset() { # role -> 0 when it must be installed
+  [ -z "$PRESET_ROLES" ] && return 0
+  [ "$1" = "$LEAD" ] && return 0
+  case "$PRESET_ROLES" in *" $1 "*) return 0 ;; *) return 1 ;; esac
+}
 
 # Back up any existing local team files before overwriting (project_memory is left untouched).
 STAMP="$(date +%Y%m%d-%H%M%S)"
@@ -33,9 +77,44 @@ backup_local "$REPO/.claude/agents"
 mkdir -p "$REPO/.claude/agents"
 for f in "$KIT"/agents/*.md; do
   [ -e "$f" ] || continue
+  role="$(basename "$f" .md)"
+  in_preset "$role" || continue
   cp -f "$f" "$REPO/.claude/agents/$(basename "$f")"
   echo "  [ok] agent: $(basename "$f")"
 done
+
+# §11 map sync: the scaffold resets agent frontmatter to kit defaults — when the project already
+# carries user-confirmed model_map/effort_map, stamp them back DETERMINISTICALLY instead of leaving
+# an out-of-sync nag for the PM (a real update regressed a user-approved opus role to sonnet).
+CFG="$REPO/project_memory/project_config.yaml"
+if [ -f "$CFG" ]; then
+  synced=0
+  for pair in "model_map:model" "effort_map:effort"; do
+    mapname="${pair%%:*}"; field="${pair##*:}"
+    while IFS= read -r entry; do
+      role="${entry%%=*}"; val="${entry##*=}"
+      ap="$REPO/.claude/agents/$role.md"
+      [ -f "$ap" ] || continue
+      tmp="$ap.tmp"
+      awk -v f="$field" -v v="$val" 'BEGIN{done=0}
+        !done && $0 ~ "^"f":" { print f": "v; done=1; next } { print }' "$ap" > "$tmp"
+      if cmp -s "$tmp" "$ap"; then
+        rm -f "$tmp"          # no-op: kit default already matches the map — do not count it
+      else
+        mv "$tmp" "$ap"
+        synced=$((synced + 1))
+      fi
+    done < <(awk -v m="$mapname" '
+        $0 ~ "^"m":[ \t]*(#.*)?$" { inmap=1; next }
+        inmap && /^[^ \t]/ { inmap=0 }
+        inmap && match($0, /^[ \t]+[A-Za-z0-9_-]+:[ \t]*[A-Za-z0-9_-]+/) {
+          line=$0; sub(/^[ \t]+/, "", line); split(line, a, ":")
+          key=a[1]; valpart=a[2]; sub(/^[ \t]*/, "", valpart); sub(/[ \t].*$/, "", valpart)
+          print key"="valpart
+        }' "$CFG")
+  done
+  [ "$synced" -gt 0 ] && echo "  [ok] re-synced $synced model:/effort: line(s) from project_config.yaml (user-confirmed maps win over kit defaults)"
+fi
 
 if [ -f "$KIT/constitution/CLAUDE.md" ]; then
   cp -f "$KIT/constitution/CLAUDE.md" "$REPO/CLAUDE.md"
@@ -57,6 +136,7 @@ if [ -d "$KIT/skills" ]; then
   for d in "$KIT"/skills/*/; do
     [ -e "$d" ] || continue
     name="$(basename "$d")"
+    in_preset "$name" || continue
     rm -rf "$REPO/.claude/skills/$name"
     cp -R "$d" "$REPO/.claude/skills/$name"
     echo "  [ok] skill: $name"
@@ -83,6 +163,14 @@ if [ -d "$KIT/templates/repo" ]; then
   while IFS= read -r rel; do
     rel="${rel#./}"
     dst="$REPO/$rel"
+    # scripts/kit_checks.py is KIT-OWNED: always overwritten (like the hooks), never pending —
+    # so kit-level check fixes reach even projects whose quality.py runner is a heavy fork.
+    if [ "$rel" = "scripts/kit_checks.py" ]; then
+      mkdir -p "$(dirname "$dst")"
+      cp -f "$KIT/templates/repo/$rel" "$dst"
+      echo "  [ok] repo (kit-owned, always updated): $rel"
+      continue
+    fi
     if [ ! -e "$dst" ]; then
       mkdir -p "$(dirname "$dst")"
       cp "$KIT/templates/repo/$rel" "$dst"
@@ -97,15 +185,17 @@ if [ -d "$KIT/templates/repo" ]; then
            -not -path '*/.ruff_cache/*' -not -path '*/.mypy_cache/*' -not -path '*/.pytest_cache/*')
 fi
 PEND="$REPO/.claude/kit_update_pending.repo"
+STATE="$REPO/.claude/kit_update_pending.state"
 if [ ${#kept_list[@]} -gt 0 ]; then
   mkdir -p "$REPO/.claude"
   {
     echo "# Repo templates that DIFFER from kit $TEAM $(head -n 1 "$KIT/VERSION" 2>/dev/null) -- the PM reviews each against the kit template, merges the kit's fixes (or documents a conscious skip in progress.yaml log:), then DELETES this file. session_status reminds every session until it is gone."
     printf -- "- %s\n" "${kept_list[@]}"
   } > "$PEND"
+  rm -f "$STATE"   # fresh update -> fresh nag counter
   echo "  [!] ${#kept_list[@]} diverged repo file(s) -> .claude/kit_update_pending.repo (merge or consciously skip, then delete it)"
 else
   rm -f "$PEND"
 fi
 
-echo "Team '$TEAM' installed locally. RESTART the session (close/reopen, or start a new session in this folder) -- the new agents and the 'agent: project-manager' setting only load at session start. After the restart, type anything (e.g. 'weiter') -- nothing is auto-sent, YOU stay in control of the first message; the Project Manager then greets you with a one-line status and picks up any draft plan in project_memory/."
+echo "Team '$TEAM' installed locally. RESTART the session (close/reopen, or start a new session in this folder) -- the new agents and the 'agent: $LEAD' setting only load at session start. After the restart, type anything (e.g. 'weiter') -- nothing is auto-sent, YOU stay in control of the first message; the '$LEAD' lead then greets you with a one-line status and picks up any draft plan in project_memory/."

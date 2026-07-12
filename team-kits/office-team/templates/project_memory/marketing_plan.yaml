@@ -1,0 +1,21 @@
+# marketing_plan.yaml — owned by: Marketing-Planner
+# Research-backed channel strategy + account inventory + content calendar. Drafts live in
+# outbox/marketing-planner/ — NOTHING is posted by the kit; the user publishes and updates status.
+
+channels: []
+#  - name: instagram
+#    why: "…, source: <URL>"        # every channel choice is argued with a source
+#    effort_per_week: "2h"
+#    expected_effect: "honest estimate, no growth-hack promises"
+
+accounts: []
+#  - platform: instagram
+#    status: needed                  # exists | needed
+#    owner_note: "user creates; kit never stores credentials"
+
+calendar: []
+#  - date: "2026-08-01"
+#    channel: instagram
+#    theme: ""
+#    draft: "outbox/marketing-planner/2026-08-01_instagram.md"
+#    status: draft                   # draft | approved | published-by-user

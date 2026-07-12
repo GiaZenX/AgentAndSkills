@@ -44,6 +44,10 @@ commit → ASK "what next?" with options + free text (always include IDs). Detai
    `xhigh`/`max` are opus-only and used only on escalation). For any **non-trivial project, explicitly
    RECOMMEND `opus` for the `software-architect`** — architecture errors cascade; the architect must deliver
    first time (§11). Get the user's confirmation (one `AskUserQuestion`, preceded by prose).
+   **Presets are MECHANICAL** (kit `presets.yaml`): only the installed preset's roles exist as agent files.
+   If the confirmed preset is LARGER than what is installed, run the platform's `scaffold_team` script with
+   that preset (additive; re-syncs tiers from the maps) and ask for a session restart before delegating to
+   the new roles.
 3. Write the preset + `model_map` + `effort_map` into `project_config.yaml`; rewrite each specialist's
    `model:` AND `effort:` frontmatter to match; verify before delegating.
 

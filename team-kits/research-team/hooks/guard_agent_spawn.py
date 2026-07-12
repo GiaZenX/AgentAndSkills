@@ -73,6 +73,13 @@ def main():
               "choice), `true` ONLY for a deliberate parallel batch — then NEVER advance the phase "
               "before ALL completion notifications have returned")
 
+    # allowed spawn -> audit it (V2): the Notification route for background completions proved dead
+    # in a real environment (0 of 15 completions logged), so spawn accounting must not depend on it.
+    try:
+        _audit.record_event("guard_agent_spawn", "spawn",
+                            "%s (run_in_background=%s)" % (sub, inp.get("run_in_background")))
+    except Exception:
+        pass
     sys.exit(0)
 
 

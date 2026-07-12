@@ -16,12 +16,15 @@ import pytest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HOOKS = os.path.join(ROOT, "team-kits", "dev-team", "hooks")
+OFFICE_HOOKS = os.path.join(ROOT, "team-kits", "office-team", "hooks")
+OFFICE_SCRIPTS = os.path.join(ROOT, "team-kits", "office-team", "templates", "repo", "scripts")
 QUALITY = os.path.join(ROOT, "team-kits", "dev-team", "templates", "repo", "scripts", "quality.py")
+KIT_CHECKS = os.path.join(ROOT, "team-kits", "dev-team", "templates", "repo", "scripts", "kit_checks.py")
 
 
-def run_hook(name, payload, project_dir):
+def run_hook(name, payload, project_dir, hooks_dir=None):
     env = dict(os.environ, CLAUDE_PROJECT_DIR=str(project_dir))
-    p = subprocess.run([sys.executable, os.path.join(HOOKS, name)],
+    p = subprocess.run([sys.executable, os.path.join(hooks_dir or HOOKS, name)],
                        input=json.dumps(payload), capture_output=True, text=True, env=env, timeout=60)
     return p.returncode
 
@@ -146,6 +149,7 @@ def run_quality(repo):
     os.makedirs(os.path.join(repo, "scripts"), exist_ok=True)
     import shutil
     shutil.copy(QUALITY, os.path.join(repo, "scripts", "quality.py"))
+    shutil.copy(KIT_CHECKS, os.path.join(repo, "scripts", "kit_checks.py"))  # kit-owned check lib
     p = subprocess.run([sys.executable, os.path.join(repo, "scripts", "quality.py")],
                        capture_output=True, text=True, cwd=repo, timeout=120)
     return p.returncode
@@ -681,11 +685,377 @@ def test_init_pending_file_written_and_removed(tmp_path):
 def test_shared_kit_files_identical():
     shared = [
         ("hooks", "guard_yaml_valid.py"), ("hooks", "guard_agent_spawn.py"),
-        ("hooks", "notify_agent_events.py"), ("hooks", "_root.py"), ("hooks", "_audit.py"),
+        ("hooks", "notify_agent_events.py"), ("hooks", "guard_scratchpad_ref.py"),
+        ("hooks", "_root.py"), ("hooks", "_audit.py"), ("hooks", "auto_dashboard.py"),
         ("templates", os.path.join("repo", "scripts", "quality.py")),
+        ("templates", os.path.join("repo", "scripts", "kit_checks.py")),
         ("templates", os.path.join("repo", "scripts", "retro.py")),
     ]
     for sub, name in shared:
         a = os.path.join(ROOT, "team-kits", "dev-team", sub, name)
         b = os.path.join(ROOT, "team-kits", "research-team", sub, name)
         assert open(a, "rb").read() == open(b, "rb").read(), "%s/%s diverged between kits" % (sub, name)
+    for name in ("guard_yaml_valid.py", "guard_agent_spawn.py", "notify_agent_events.py",
+                 "guard_scratchpad_ref.py", "_root.py", "_audit.py"):
+        a = os.path.join(ROOT, "team-kits", "dev-team", "hooks", name)
+        b = os.path.join(ROOT, "team-kits", "office-team", "hooks", name)
+        assert open(a, "rb").read() == open(b, "rb").read(), "hooks/%s diverged (office)" % name
+
+
+# ---------------- kit_checks: file budget (the anti-monolith gate) ----------------
+def test_file_budget_blocks_monolith(tmp_path):
+    pytest.importorskip("yaml")
+    write(str(tmp_path / "src" / "static" / "app.js"), "let x = 1;\n" * 900)
+    assert run_quality(str(tmp_path)) == 1
+
+
+def test_file_budget_exemption_with_reason_passes(tmp_path):
+    pytest.importorskip("yaml")
+    write(str(tmp_path / "src" / "static" / "app.js"), "let x = 1;\n" * 900)
+    write(str(tmp_path / "project_memory" / "coding_guidelines.yaml"),
+          "global:\n  - x\nlanguages: {}\nfile_budget:\n  max_lines: 800\n  exempt:\n"
+          "    - path: src/static/app.js\n      reason: \"legacy monolith - split tracked in TSK-1\"\n")
+    write(str(tmp_path / "project_memory" / "progress.yaml"), 'status: "ok"\nlog: []\n')
+    assert run_quality(str(tmp_path)) == 0
+
+
+def test_file_budget_under_limit_green(tmp_path):
+    pytest.importorskip("yaml")
+    write(str(tmp_path / "src" / "static" / "app.js"), "let x = 1;\n" * 100)
+    assert run_quality(str(tmp_path)) == 0
+
+
+# ---------------- session_status: pending nag escalates across sessions ----------------
+def test_pending_nag_escalates(tmp_path):
+    repo = tmp_path / "repo"
+    write(str(repo / ".claude" / "kit_update_pending.repo"), "# d\n- scripts/quality.py\n")
+    env = dict(os.environ, CLAUDE_PROJECT_DIR=str(repo))
+
+    def run_status():
+        return subprocess.run([sys.executable, os.path.join(HOOKS, "session_status.py")],
+                              input=json.dumps({"cwd": str(repo)}), capture_output=True, text=True,
+                              env=env, timeout=60).stdout
+
+    first = run_status()
+    assert "KIT UPDATE NOT FINISHED" in first and "OPEN SINCE" not in first
+    second = run_status()
+    assert "OPEN SINCE" in second and "2. session" in second
+    (repo / ".claude" / "kit_update_pending.repo").unlink()
+    cleared = run_status()
+    assert "KIT UPDATE NOT FINISHED" not in cleared
+    assert not (repo / ".claude" / "kit_update_pending.state").exists()  # counter reset
+
+
+# ---------------- auto_dashboard: once-per-session stop reminder while pending exists ----------------
+def test_stop_reminder_once_per_session(tmp_path):
+    repo = tmp_path / "repo"
+    write(str(repo / ".claude" / "kit_update_pending.repo"), "# d\n- scripts/quality.py\n")
+    env = dict(os.environ, CLAUDE_PROJECT_DIR=str(repo))
+
+    def run_stop(sid):
+        return subprocess.run([sys.executable, os.path.join(HOOKS, "auto_dashboard.py")],
+                              input=json.dumps({"cwd": str(repo), "session_id": sid}),
+                              capture_output=True, text=True, env=env, timeout=60)
+
+    p1 = run_stop("s1")
+    assert p1.returncode == 1 and "kit_update_pending" in p1.stderr
+    p2 = run_stop("s1")
+    assert p2.returncode == 0 and "kit_update_pending" not in p2.stderr  # same session: quiet
+    p3 = run_stop("s2")
+    assert p3.returncode == 1  # new session: reminded again
+
+
+# ---------------- guard_agent_spawn: allowed spawns are audited ----------------
+def test_allowed_spawn_is_audited(kit_repo):
+    (kit_repo / "project_memory").mkdir()
+    payload = {"tool_name": "Agent",
+               "tool_input": {"subagent_type": "backend-developer", "run_in_background": False},
+               "cwd": str(kit_repo)}
+    assert run_hook("guard_agent_spawn.py", payload, kit_repo) == 0
+    audit = kit_repo / "project_memory" / ".audit" / "hook_events.jsonl"
+    text = audit.read_text(encoding="utf-8")
+    assert '"event": "spawn"' in text and "backend-developer" in text
+
+
+# ---------------- notify_agent_events: SubagentStop route ----------------
+def test_notify_logs_subagent_stop(tmp_path):
+    (tmp_path / "project_memory").mkdir()
+    payload = {"hook_event_name": "SubagentStop", "agent_type": "frontend-developer",
+               "cwd": str(tmp_path)}
+    assert run_hook("notify_agent_events.py", payload, tmp_path) == 0
+    text = (tmp_path / "project_memory" / ".audit" / "hook_events.jsonl").read_text(encoding="utf-8")
+    assert "subagent_stop" in text and "frontend-developer" in text
+
+
+# ---------------- guard_scratchpad_ref ----------------
+def test_scratchpad_ref_blocked_in_source(tmp_path):
+    p = tmp_path / "src" / "styles.css"
+    write(str(p), "/* Regenerate via scratchpad/vendor_fonts.py */\nbody{}\n")
+    payload = {"tool_name": "Write", "tool_input": {"file_path": str(p)}, "cwd": str(tmp_path)}
+    assert run_hook("guard_scratchpad_ref.py", payload, tmp_path) == 2
+
+
+def test_scratchpad_ref_allowed_outside_source_areas(tmp_path):
+    p = tmp_path / "project_memory" / "notes.yaml"
+    write(str(p), "note: the scratchpad/ dir is ephemeral\n")
+    payload = {"tool_name": "Write", "tool_input": {"file_path": str(p)}, "cwd": str(tmp_path)}
+    assert run_hook("guard_scratchpad_ref.py", payload, tmp_path) == 0
+
+
+# ---------------- office kit: gate_proc_approved ----------------
+def _office_repo(tmp_path, procs_yaml=None):
+    repo = tmp_path / "repo"
+    (repo / "project_memory").mkdir(parents=True)
+    if procs_yaml is not None:
+        write(str(repo / "project_memory" / "process_definitions.yaml"), procs_yaml)
+    return repo
+
+
+def _spawn(repo, prompt):
+    return {"tool_name": "Agent",
+            "tool_input": {"subagent_type": "bookkeeper", "run_in_background": False,
+                           "prompt": prompt}, "cwd": str(repo)}
+
+
+def _steps_hash(steps):
+    import hashlib
+    yaml = pytest.importorskip("yaml")
+    return hashlib.sha256(yaml.safe_dump(steps, sort_keys=True, allow_unicode=True)
+                          .encode("utf-8")).hexdigest()
+
+
+def test_proc_gate_bootstrap_allows(tmp_path):
+    repo = _office_repo(tmp_path, "processes: {}\n")
+    assert run_hook("gate_proc_approved.py", _spawn(repo, "onboarding interview"), repo,
+                    hooks_dir=OFFICE_HOOKS) == 0
+
+
+def test_proc_gate_blocks_missing_ref(tmp_path):
+    pytest.importorskip("yaml")
+    h = _steps_hash(["file it"])
+    repo = _office_repo(tmp_path,
+                        "processes:\n  PROC-0001:\n    title: x\n    status: APPROVED\n"
+                        "    approved_hash: \"%s\"\n    steps:\n      - file it\n" % h)
+    assert run_hook("gate_proc_approved.py", _spawn(repo, "please file the inbox"), repo,
+                    hooks_dir=OFFICE_HOOKS) == 2
+
+
+def test_proc_gate_passes_approved_with_hash(tmp_path):
+    pytest.importorskip("yaml")
+    h = _steps_hash(["file it"])
+    repo = _office_repo(tmp_path,
+                        "processes:\n  PROC-0001:\n    title: x\n    status: APPROVED\n"
+                        "    approved_hash: \"%s\"\n    steps:\n      - file it\n" % h)
+    assert run_hook("gate_proc_approved.py", _spawn(repo, "execute PROC-0001 sweep"), repo,
+                    hooks_dir=OFFICE_HOOKS) == 0
+
+
+def test_proc_gate_blocks_tampered_steps(tmp_path):
+    pytest.importorskip("yaml")
+    h = _steps_hash(["file it"])
+    repo = _office_repo(tmp_path,
+                        "processes:\n  PROC-0001:\n    title: x\n    status: APPROVED\n"
+                        "    approved_hash: \"%s\"\n    steps:\n      - file it\n"
+                        "      - NEW sneaky step\n" % h)
+    assert run_hook("gate_proc_approved.py", _spawn(repo, "execute PROC-0001"), repo,
+                    hooks_dir=OFFICE_HOOKS) == 2
+
+
+# ---------------- office kit: ledger guards + scripts ----------------
+def test_guard_ledger_direct_blocks(tmp_path):
+    p = tmp_path / "ledger" / "2026.csv"
+    payload = {"tool_name": "Edit", "tool_input": {"file_path": str(p)}, "cwd": str(tmp_path)}
+    assert run_hook("guard_ledger_direct.py", payload, tmp_path, hooks_dir=OFFICE_HOOKS) == 2
+
+
+def _ledger_add(repo, *extra):
+    os.makedirs(os.path.join(repo, "scripts"), exist_ok=True)
+    shutil.copy(os.path.join(OFFICE_SCRIPTS, "ledger_add.py"),
+                os.path.join(repo, "scripts", "ledger_add.py"))
+    base = [sys.executable, os.path.join(repo, "scripts", "ledger_add.py"),
+            "--year", "2026", "--direction", "expense", "--doc-type", "invoice",
+            "--doc-date", "2026-07-01", "--payment-date", "2026-07-03",
+            "--counterparty", "Muster GmbH", "--invoice-no", "RE-1",
+            "--vat-treatment", "standard", "--category", "goods",
+            "--source", "archive/finance/x.pdf"]
+    return subprocess.run(base + list(extra), capture_output=True, text=True, cwd=repo, timeout=60)
+
+
+def test_ledger_add_appends_valid_row(tmp_path):
+    r = _ledger_add(str(tmp_path), "--net", "100.00", "--vat-rate", "19", "--gross", "119.00")
+    assert r.returncode == 0, r.stderr
+    text = (tmp_path / "ledger" / "2026.csv").read_text(encoding="utf-8")
+    assert "L2026-0001" in text and "Muster GmbH" in text
+
+
+def test_ledger_add_refuses_bad_arithmetic(tmp_path):
+    r = _ledger_add(str(tmp_path), "--net", "100.00", "--vat-rate", "19", "--gross", "125.00")
+    assert r.returncode == 1 and "re-read the document" in r.stderr
+
+
+def test_ledger_add_refuses_duplicate(tmp_path):
+    assert _ledger_add(str(tmp_path), "--net", "100.00", "--vat-rate", "19", "--gross", "119.00").returncode == 0
+    r = _ledger_add(str(tmp_path), "--net", "100.00", "--vat-rate", "19", "--gross", "119.00")
+    assert r.returncode == 1 and "duplicate" in r.stderr
+
+
+def test_euer_report_totals(tmp_path):
+    assert _ledger_add(str(tmp_path), "--net", "100.00", "--vat-rate", "19", "--gross", "119.00").returncode == 0
+    shutil.copy(os.path.join(OFFICE_SCRIPTS, "euer_report.py"),
+                os.path.join(str(tmp_path), "scripts", "euer_report.py"))
+    r = subprocess.run([sys.executable, os.path.join(str(tmp_path), "scripts", "euer_report.py"),
+                        "--year", "2026", "--quarter", "3"],
+                       capture_output=True, text=True, cwd=str(tmp_path), timeout=60)
+    assert r.returncode == 0, r.stderr
+    report = (tmp_path / "reports" / "euer_2026_Q3.md").read_text(encoding="utf-8")
+    assert "| Ausgaben | 119.00 EUR |" in report and "Steuerberatung" in report
+
+
+# ---------------- office kit: filing gate + fs tripwire ----------------
+def test_gate_filing_blocks_phantom_target(tmp_path):
+    log = tmp_path / "project_memory" / "filing_log.yaml"
+    write(str(log), 'filed:\n  - source: a.pdf\n    target: "archive/fin/a.pdf"\n')
+    payload = {"tool_name": "Write", "tool_input": {"file_path": str(log)}, "cwd": str(tmp_path)}
+    assert run_hook("gate_filing.py", payload, tmp_path, hooks_dir=OFFICE_HOOKS) == 2
+
+
+def test_gate_filing_passes_real_target(tmp_path):
+    write(str(tmp_path / "archive" / "fin" / "a.pdf"), "x")
+    log = tmp_path / "project_memory" / "filing_log.yaml"
+    write(str(log), 'filed:\n  - source: a.pdf\n    target: "archive/fin/a.pdf"\n')
+    payload = {"tool_name": "Write", "tool_input": {"file_path": str(log)}, "cwd": str(tmp_path)}
+    assert run_hook("gate_filing.py", payload, tmp_path, hooks_dir=OFFICE_HOOKS) == 0
+
+
+def test_fs_tripwire_blocks_archive_delete(tmp_path):
+    payload = {"tool_name": "Bash", "tool_input": {"command": "rm -rf archive/finance/2026"},
+               "cwd": str(tmp_path)}
+    assert run_hook("guard_fs_tripwire.py", payload, tmp_path, hooks_dir=OFFICE_HOOKS) == 2
+
+
+def test_fs_tripwire_allows_filing_move(tmp_path):
+    payload = {"tool_name": "Bash",
+               "tool_input": {"command": 'mv "inbox/scan.pdf" "archive/fin/2026-07-01_x_invoice.pdf"'},
+               "cwd": str(tmp_path)}
+    assert run_hook("guard_fs_tripwire.py", payload, tmp_path, hooks_dir=OFFICE_HOOKS) == 0
+
+
+def test_fs_tripwire_blocks_move_out_of_archive(tmp_path):
+    payload = {"tool_name": "Bash",
+               "tool_input": {"command": "mv archive/fin/a.pdf /tmp/gone.pdf"}, "cwd": str(tmp_path)}
+    assert run_hook("guard_fs_tripwire.py", payload, tmp_path, hooks_dir=OFFICE_HOOKS) == 2
+
+
+# ---------------- audit regressions: reversal maths, re-book flow, year guard, CII id, budget edge ----------------
+def _reversal_ledger(tmp_path):
+    assert _ledger_add(str(tmp_path), "--net", "100.00", "--vat-rate", "19", "--gross", "119.00").returncode == 0
+    r = _ledger_add(str(tmp_path), "--net", "100.00", "--vat-rate", "19", "--gross", "119.00",
+                    "--doc-type", "reversal", "--reverses", "L2026-0001")
+    assert r.returncode == 0, r.stderr
+
+
+def test_euer_report_reversal_nets_to_zero(tmp_path):
+    # BLOCKER regression: booked +119 and reversed 119 in the same quarter must total 0.00, not -119
+    _reversal_ledger(tmp_path)
+    shutil.copy(os.path.join(OFFICE_SCRIPTS, "euer_report.py"),
+                os.path.join(str(tmp_path), "scripts", "euer_report.py"))
+    r = subprocess.run([sys.executable, os.path.join(str(tmp_path), "scripts", "euer_report.py"),
+                        "--year", "2026", "--quarter", "3"],
+                       capture_output=True, text=True, cwd=str(tmp_path), timeout=60)
+    assert r.returncode == 0, r.stderr
+    report = (tmp_path / "reports" / "euer_2026_Q3.md").read_text(encoding="utf-8")
+    assert "| Ausgaben | 0.00 EUR |" in report
+
+
+def test_ledger_rebook_after_reversal_allowed(tmp_path):
+    # MAJOR regression: the sanctioned correction flow (book -> reversal -> re-book) must not dead-end
+    _reversal_ledger(tmp_path)
+    r = _ledger_add(str(tmp_path), "--net", "100.00", "--vat-rate", "19", "--gross", "119.00")
+    assert r.returncode == 0, r.stderr
+
+
+def test_ledger_refuses_year_mismatch(tmp_path):
+    r = _ledger_add(str(tmp_path), "--net", "100.00", "--vat-rate", "19", "--gross", "119.00",
+                    "--payment-date", "2025-12-31")
+    assert r.returncode == 1 and "ledger/2025.csv" in r.stderr
+
+
+def test_einvoice_cii_invoice_no_not_guideline_urn(tmp_path):
+    pytest.importorskip("defusedxml")
+    cii = (
+        '<?xml version="1.0"?>'
+        '<rsm:CrossIndustryInvoice xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"'
+        ' xmlns:ram="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100">'
+        '<rsm:ExchangedDocumentContext><ram:GuidelineSpecifiedDocumentContextParameter>'
+        '<ram:ID>urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0</ram:ID>'
+        '</ram:GuidelineSpecifiedDocumentContextParameter></rsm:ExchangedDocumentContext>'
+        '<rsm:ExchangedDocument><ram:ID>RE-2026-0815</ram:ID>'
+        '<ram:IssueDateTime><udt:DateTimeString xmlns:udt="urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100"'
+        ' format="102">20260701</udt:DateTimeString></ram:IssueDateTime></rsm:ExchangedDocument>'
+        '</rsm:CrossIndustryInvoice>')
+    xml_path = tmp_path / "invoice.xml"
+    xml_path.write_text(cii, encoding="utf-8")
+    r = subprocess.run([sys.executable, os.path.join(OFFICE_SCRIPTS, "einvoice_extract.py"),
+                        str(xml_path)], capture_output=True, text=True, timeout=60)
+    assert r.returncode == 0, r.stderr
+    assert "invoice_no: RE-2026-0815" in r.stdout and "urn:cen.eu" not in r.stdout.split("invoice_no:")[1].splitlines()[0]
+    assert "issue_date: 2026-07-01" in r.stdout
+
+
+def test_file_budget_exactly_at_limit_passes(tmp_path):
+    # MINOR regression: an exactly-800-line file (with trailing newline) is AT the budget, not over
+    pytest.importorskip("yaml")
+    write(str(tmp_path / "src" / "static" / "app.js"), "let x = 1;\n" * 800)
+    assert run_quality(str(tmp_path)) == 0
+
+
+def test_fs_tripwire_allows_archiving_generated_report(tmp_path):
+    # MINOR regression: destination-is-archive must not block (only an archive/ SOURCE blocks)
+    payload = {"tool_name": "Bash",
+               "tool_input": {"command": "mv reports/euer_2026_Q3.md archive/finance/reports/"},
+               "cwd": str(tmp_path)}
+    assert run_hook("guard_fs_tripwire.py", payload, tmp_path, hooks_dir=OFFICE_HOOKS) == 0
+
+
+# ---------------- scaffold: mechanical presets + map re-stamp (Windows: real ps1 run) ----------------
+def test_scaffold_preset_and_map_sync(tmp_path):
+    if os.name != "nt":
+        pytest.skip("ps1 test runs on Windows; the sh mirror is covered by the kit audit")
+    home = tmp_path / "home"
+    kit = home / ".claude" / "team-kits" / "demo-team"
+    for role in ("project-manager", "alpha", "beta", "gamma"):
+        write(str(kit / "agents" / ("%s.md" % role)),
+              "---\nname: %s\nmodel: sonnet\neffort: high\n---\nbody\n" % role)
+        write(str(kit / "skills" / role / "SKILL.md"), "---\nname: %s\n---\nx\n" % role)
+    write(str(kit / "settings" / "settings.json"), '{"agent": "project-manager"}')
+    write(str(kit / "presets.yaml"), "mini: alpha\nfull: all\n")
+    write(str(kit / "VERSION"), "version: 2026.07.13-1\ncontent: x\n")
+    repo = tmp_path / "repo"
+    write(str(repo / "project_memory" / "project_config.yaml"),
+          "project:\n  name: x\n  preset: mini\n"
+          "model_map:\n  alpha: opus   # user-approved\neffort_map:\n  alpha: high\n")
+    script = os.path.join(ROOT, "team-kits", "scaffold_team.ps1")
+
+    def scaffold(*extra):
+        return subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
+                               script, "-Team", "demo-team", *extra],
+                              cwd=str(repo), capture_output=True, text=True,
+                              env=dict(os.environ, USERPROFILE=str(home)), timeout=120)
+
+    r = scaffold("-Preset", "mini")
+    assert r.returncode == 0, r.stdout + r.stderr
+    agents = repo / ".claude" / "agents"
+    assert (agents / "alpha.md").is_file() and (agents / "project-manager.md").is_file()
+    assert not (agents / "beta.md").exists() and not (agents / "gamma.md").exists()
+    skills = repo / ".claude" / "skills"
+    assert (skills / "alpha" / "SKILL.md").is_file() and not (skills / "beta").exists()
+    # V4: the user-approved map value overrides the kit default frontmatter
+    assert "model: opus" in (agents / "alpha.md").read_text(encoding="utf-8-sig")
+
+    # a kit UPDATE without a preset argument must keep the RECORDED preset (project_config.yaml) —
+    # not silently install the full roster (the inert-preset failure mode)
+    r2 = scaffold()
+    assert r2.returncode == 0, r2.stdout + r2.stderr
+    assert "from project_config.yaml" in r2.stdout
+    assert not (agents / "beta.md").exists() and not (agents / "gamma.md").exists()
+    assert "model: opus" in (agents / "alpha.md").read_text(encoding="utf-8-sig")

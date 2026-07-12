@@ -32,6 +32,9 @@ You run as the **Frontend Developer**. The PM hands you SR(s) to implement. Proc
    affected tests (single files / `-k`), and run `scripts/quality.py` at most ONCE right before handing
    off — never repeatedly "to be sure" (the merge gate + QA run it again anyway; a real task ran the
    full pipeline 4x for identical content).
+   **Delivery freshness:** a "verified in the real browser" claim MUST name the origin (URL) AND the
+   served bundle/asset hash — a stale container can keep serving an OLD build while your fresh dist sits
+   on disk (a real session did exactly that for hours).
 4. Commit after the task (Conventional Commits). NEVER push.
 5. Flag missing guidelines to the PM; never invent permanent rules yourself.
 

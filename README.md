@@ -18,9 +18,10 @@ keeps the full conversation as its memory. The local constitution carries a mark
 the entry gate **hands over to it completely** (every session). If you don't want the process, you choose
 *free* and work without bookkeeping.
 
-Two kits ship today: **`dev-team`** (software/product engineering) and **`research-team`** (research +
-experiments with an FZulG R&D-tax-credit documentation layer). The registry maps your intent to the right
-one.
+Three kits ship today: **`dev-team`** (software/product engineering), **`research-team`** (research +
+experiments with an FZulG R&D-tax-credit documentation layer) and **`office-team`** (back-office
+automation: inbox-driven filing, bookkeeping preparation, product/content care, compliance research,
+marketing planning — drafts only, no tax/legal advice). The registry maps your intent to the right one.
 
 Based on [mattpocock/skills](https://github.com/mattpocock/skills) plus a custom role model and a
 global workflow standard.
@@ -124,11 +125,16 @@ AgentAndSkills/
 │   │   ├── constitution/CLAUDE.md       ← project constitution → ./CLAUDE.md (carries team marker)
 │   │   ├── hooks/ + settings/           ← deterministic enforcement hooks + .claude/settings.json (agent, model, …)
 │   │   └── templates/project_memory/    ← YAML artifact templates
-│   └── research-team/
-│       ├── agents/ + skills/            ← project-manager + 6 specialists + their role skills
-│       ├── constitution/CLAUDE.md       ← project research constitution (carries team marker)
-│       ├── hooks/ + settings/           ← enforcement hooks + .claude/settings.json
-│       └── templates/project_memory/    ← research artifacts + LaTeX/HTML report templates + bundled KaTeX preview
+│   ├── research-team/
+│   │   ├── agents/ + skills/            ← project-manager + 6 specialists + their role skills
+│   │   ├── constitution/CLAUDE.md       ← project research constitution (carries team marker)
+│   │   ├── hooks/ + settings/           ← enforcement hooks + .claude/settings.json
+│   │   └── templates/project_memory/    ← research artifacts + LaTeX/HTML report templates + bundled KaTeX preview
+│   └── office-team/
+│       ├── agents/ + skills/            ← office-manager (session agent) + 6 specialists + role skills
+│       ├── constitution/CLAUDE.md       ← office constitution: PROC model, outbox-only, no tax/legal advice
+│       ├── hooks/ + settings/           ← incl. proc-approval gate, ledger guard, filing gate, fs tripwire
+│       └── templates/                   ← office artifacts + deterministic scripts (ledger_add, euer_report, …)
 ├── install.ps1                          ← Windows installer (backup + confirm + overwrite)
 └── install.sh                           ← macOS/Linux installer
 ```
@@ -194,6 +200,25 @@ the only customer-facing role.
 | **Research Engineer** | `research-engineer` | Data pipelines, environments, dataset versioning |
 | **Report Writer** | `report-writer` | Per-experiment scientific report in **LaTeX/PDF** (+ offline HTML preview via KaTeX) and the **BSFZ application draft** from `fzulg_documentation.yaml`, fixed templates |
 
+### Roles (office-team)
+
+Back-office automation for a small business, PROCESS-shaped: the approval unit is a **PROC**
+(`process_definitions.yaml`) — approved once by the user (with a tamper-detecting `approved_hash`),
+then routine runs execute autonomously within it. Inbox → verified filing → script-validated
+append-only ledger → **generated** quarterly income/expense report (Zufluss/Abfluss; drafts only,
+no tax/legal advice, NOTHING is ever sent — `outbox/` is the user's send tray; MCP tools are
+denied by default).
+
+| Role | File | Job |
+|---|---|---|
+| **Office Manager** | `office-manager` (session agent; opus + memory) | Onboarding interview, business profile/masterplan, PROC lifecycle + approvals, inbox routing, report runs, git |
+| **Records Clerk** | `records-clerk` | Filing plan (+ retention), verified filing log, move-only migrations |
+| **Bookkeeper** | `bookkeeper` | E-invoice-first extraction, ledger entries via `scripts/ledger_add.py` (validated, append-only), master data, report commentary — **no tax advice** |
+| **Product Editor** | `product-editor` | Catalog + content guidelines, article texts, supplier-query drafts (single writer for product copy) |
+| **Shop Curator** | `shop-curator` | Read/audit-only SEO/GEO/content audits with sourced findings; page drafts |
+| **Compliance Researcher** | `compliance-researcher` | Sourced regulation register per category × market (CE, RoHS, RED, Ökodesign …) with review dates — **no legal advice** |
+| **Marketing Planner** | `marketing-planner` | Research-backed channel strategy, account inventory, calendar, post drafts |
+
 ### Phase model
 
 `0 READ → 0.5 ASSESSMENT (existing repos only) → 1 PM_DISCOVERY → 2 PM_PROPOSAL →
@@ -229,7 +254,10 @@ by double-click.
 
 - **Branch per PRD** (`feat/PRD-xxx-…`), merge after internal QA, **push only on user confirmation**,
   no force-push, no work on a dirty tree.
-- **Team preset** (`solo` | `duo` | `team`) chosen once per project; escalation is user-gated only.
+- **Team preset** chosen once per project (dev/research: `solo` | `duo` | `team`; office: `core` |
+  `commerce` | `full`) — **mechanical**: the scaffold installs only the preset's roles (kit
+  `presets.yaml`), so spawning any other role fails natively; upgrading = re-run the scaffold with
+  the larger preset + session restart. Escalation is user-gated only.
 - **Models:** the **PM (session agent) runs on `opus`** (set in the kit's `.claude/settings.json` + the PM's
   agent frontmatter); the **specialists default to `sonnet`** (haiku proved too weak for complex work in a
   real run), controlled per repo via `project_config.yaml` (the PM syncs each specialist's `model:`
@@ -275,9 +303,21 @@ Because instructions alone get skipped, each kit ships a small **deterministic**
   (parse errors + duplicate keys go straight back to the writer), so a spec role without a shell can never
   leave broken YAML behind; also enforces the `progress.yaml` contract (ONE-line `status`, `log:` present —
   a real PM regrew a 300-line status blob). The pipeline's yaml-lint stage is the merge/CI backstop.
-- **Background-agent audit** (`notify_agent_events`) — never blocks; logs `agent_completed` /
-  `agent_needs_input` notifications to `project_memory/.audit/hook_events.jsonl`, so parallel-spawn
-  accounting is auditable instead of trusted.
+- **Background-agent audit** (`notify_agent_events` + spawn log) — never blocks; logs
+  `agent_completed`/`agent_needs_input` notifications AND `SubagentStop` completions to
+  `project_memory/.audit/hook_events.jsonl`, while `guard_agent_spawn` logs every allowed spawn —
+  accounting is auditable end-to-end (the Notification route alone delivered 0 of 15 completions
+  in a real run).
+- **Scratchpad-reference guard** (`guard_scratchpad_ref`) — blocks repo source files that reference
+  ephemeral session-scratchpad paths (a real fonts.css pointed at a vanished scratchpad tool and
+  the pipeline stopped being reproducible).
+- **Kit-owned checks + file budget** (`scripts/kit_checks.py`, run by `scripts/quality.py`;
+  dev/research kits — the office kit ships deterministic office scripts instead) — the scaffold
+  OVERWRITES this file on every update (like the hooks), so kit-level check fixes reach even
+  projects whose quality.py runner is a heavy fork; includes the anti-monolith **file budget**
+  (max lines per source file, threshold + reasoned exemptions in `coding_guidelines.yaml`
+  `file_budget:`, research fallback: `research_guidelines.yaml` — a real App.tsx reached 8,966
+  lines while its ui/ library sat unused).
 - **Packaging gate** (`gate_packaging_decision`, dev-team) — blocks merge while `architecture.yaml`
   `packaging.method` is still TODO, so HOW the software ships is always a conscious decision (even "none /
   library" is valid) — the deterministic guard against a critical packaging tool (e.g. Docker) being forgotten.

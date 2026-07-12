@@ -28,3 +28,13 @@ global:
 #   python:
 #     - "type hints everywhere; ruff as linter"
 languages: {}
+
+# Anti-monolith gate (ENFORCED by scripts/kit_checks.py in the pipeline — a real App.tsx reached
+# 8,966 lines while structural flags verpuffed): no hand-written source file beyond max_lines.
+# The Architect owns this block: tighten the limit for UI-heavy projects (e.g. 500), and every
+# exemption REQUIRES a reason (a bare path does not count) plus a split plan where applicable.
+file_budget:
+  max_lines: 800
+  exempt: []
+  #  - path: frontend/src/app/App.tsx
+  #    reason: "legacy monolith — split tracked in TSK-0181"

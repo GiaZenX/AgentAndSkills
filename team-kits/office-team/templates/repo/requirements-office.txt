@@ -1,0 +1,5 @@
+# Tooling the office kit's deterministic scripts need. Install once:
+#   pip install -r requirements-office.txt
+pyyaml             # project_memory YAML (hooks, proc_hash, process_doc)
+defusedxml         # e-invoice XML parsing — supplier XML is UNTRUSTED input (XXE/billion-laughs)
+pypdf              # embedded ZUGFeRD/Factur-X XML extraction from PDF invoices

@@ -1,0 +1,33 @@
+# project_config.yaml — owned by: Manager
+# Created once at init. Preset + model map. Preset and any model change MUST be user-confirmed.
+# Presets are MECHANICAL: the scaffold installs only the preset's roles (kit presets.yaml) —
+# core = records-clerk + bookkeeper; commerce adds product-editor + shop-curator; full adds
+# compliance-researcher + marketing-planner. Upgrading = re-run the scaffold + session restart.
+
+project:
+  name: ""                  # set at init
+  preset: core              # core | commerce | full — user-confirmed
+
+# Model ladder: haiku < sonnet < opus. Specialists DEFAULT to sonnet. Up-scaling needs user
+# confirmation; down-scaling the manager MAY do itself but MUST report it with a reason.
+# The manager is the FOREGROUND agent on opus (kit settings + frontmatter) — NOT listed here.
+# The scaffold re-stamps each installed agent's model:/effort: from these maps on every update;
+# session_status nags on drift. Keys cover the FULL roster — entries for roles the preset did not
+# install are inert until an upgrade installs them.
+model_map:
+  records-clerk: sonnet
+  bookkeeper: sonnet
+  product-editor: sonnet
+  shop-curator: sonnet
+  compliance-researcher: sonnet
+  marketing-planner: sonnet
+
+# Reasoning effort per specialist (low | medium | high | xhigh | max). All default high; on
+# sonnet, high is the ceiling (xhigh/max are opus-only, escalation-only, user-confirmed).
+effort_map:
+  records-clerk: high
+  bookkeeper: high
+  product-editor: high
+  shop-curator: high
+  compliance-researcher: high
+  marketing-planner: high

@@ -1,0 +1,13 @@
+# product_catalog.yaml — owned by: Product-Editor (single writer for ALL product copy)
+# One entry per product. Descriptions follow content_guidelines.yaml strictly; missing mandatory
+# fields keep the entry `incomplete` and feed a consolidated supplier query draft (outbox).
+
+products: {}
+#  PRD-A0001:
+#    name: ""
+#    status: incomplete            # complete | incomplete | retired
+#    attributes: {}                # normalised units (mm, g, V …)
+#    description: ""               # per content_guidelines
+#    missing_fields: []
+#    sources: []                   # inbox files / supplier sheets this entry derives from
+#    compliance_refs: []           # register entries relevant to this product (claims must match)

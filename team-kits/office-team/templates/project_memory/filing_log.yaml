@@ -1,0 +1,10 @@
+# filing_log.yaml — owned by: Records-Clerk
+# One entry per processed inbox item. gate_filing BLOCKS entries whose target does not actually
+# exist under archive/ — log AFTER moving, honestly. Append-only.
+
+filed: []
+#  - source: "scan_0034.pdf"                                   # original inbox name
+#    target: "archive/finance/incoming_invoices/2026/2026-07-01_MusterGmbH_invoice.pdf"
+#    date: "2026-07-12"
+#    proc: PROC-0001
+#    doc_type: invoice

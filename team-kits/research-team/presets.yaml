@@ -1,0 +1,8 @@
+# Preset -> installed specialist roles (the lead/PM is ALWAYS installed).
+# MECHANICAL: scaffold_team installs ONLY the chosen preset's roles — spawning any other role then
+# fails natively (missing agent file) and via guard_agent_spawn. Upgrading = user OK, then re-run
+# the scaffold with the larger preset (additive) + session restart. Flat format, shell-parsed:
+# one preset per line, roles space-separated, `all` = all roles.
+solo: methodologist researcher reviewer
+duo: methodologist researcher data-analyst reviewer report-writer
+team: all

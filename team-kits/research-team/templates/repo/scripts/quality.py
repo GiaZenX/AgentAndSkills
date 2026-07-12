@@ -218,164 +218,22 @@ STACKS = {
 }
 
 
-def check_project_memory_yaml():
-    """Every project_memory/*.yaml must parse and carry no duplicate keys (safe_load keeps only the
-    last duplicate silently). A real run shipped invalid decisions.yaml that the dashboard generator
-    swallowed; the write-time hook (guard_yaml_valid) catches this immediately — this stage is the
-    merge/CI backstop."""
-    d = os.path.join(ROOT, "project_memory")
-    if not os.path.isdir(d):
+def kit_checks_stage():
+    """KIT-OWNED checks live in scripts/kit_checks.py — the scaffold OVERWRITES that file on every
+    kit update (like the hooks), so kit-level fixes reach existing projects even when this runner
+    has been customised (a real 1,241-line fork never received the kit's fixes). Extend THIS file
+    for project checks; never edit kit_checks.py in the project."""
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import kit_checks
+    except Exception as e:
+        fail("kit checks", "scripts/kit_checks.py not loadable (%s) — re-run the kit scaffold to "
+             "restore it (kit-owned, auto-updated)" % e)
         return
     try:
-        import yaml  # type: ignore[import-untyped]
-    except ImportError:
-        warn("yaml-lint (project_memory)", "pyyaml not installed; runs + hard-fails in CI")
-        return
-
-    def dup_keys(text):
-        found = []
-        try:
-            root = yaml.compose(text, Loader=yaml.SafeLoader)
-        except Exception:
-            return found
-        stack = [root] if root is not None else []
-        visited = set()  # anchors/aliases make the node graph cyclic — never walk a node twice
-        while stack:
-            node = stack.pop()
-            if id(node) in visited:
-                continue
-            visited.add(id(node))
-            if isinstance(node, yaml.MappingNode):
-                seen = set()
-                for k, v in node.value:
-                    if isinstance(k, yaml.ScalarNode):
-                        if k.value in seen:
-                            found.append("duplicate key %r line %d" % (k.value, k.start_mark.line + 1))
-                        seen.add(k.value)
-                    stack.append(k)
-                    stack.append(v)
-            elif isinstance(node, yaml.SequenceNode):
-                stack.extend(node.value)
-        return found
-
-    bad = []
-    for fn in sorted(os.listdir(d)):
-        if not fn.endswith((".yaml", ".yml")):
-            continue
-        try:
-            text = open(os.path.join(d, fn), encoding="utf-8", errors="ignore").read()
-        except Exception:
-            continue
-        try:
-            data = yaml.safe_load(text)
-        except yaml.YAMLError as e:
-            bad.append("%s: %s" % (fn, str(e).splitlines()[0]))
-            continue
-        for msg in dup_keys(text):
-            bad.append("%s: %s" % (fn, msg))
-        # progress.yaml contract (same thresholds as the write-time guard_yaml_valid): the guard only
-        # sees Edit/Write tool calls — a status blob written via a SHELL heredoc/script bypasses it
-        # (a real PM grew a 42k-char "one-liner" exactly that way). This stage catches it at every
-        # pipeline run and at merge, whatever wrote the file.
-        if fn == "progress.yaml" and isinstance(data, dict):
-            status = data.get("status")
-            if isinstance(status, str):
-                nlines = len([ln for ln in status.splitlines() if ln.strip()])
-                if nlines > 3 or len(status) > 700:
-                    bad.append("progress.yaml: status is %d non-empty lines / %d chars — it MUST stay "
-                               "ONE line (state + concrete next action); history belongs in the "
-                               "append-only log: list" % (nlines, len(status)))
-            if "log" not in data:
-                bad.append("progress.yaml: the append-only log: list is missing (keep `log: []` even "
-                           "when empty; history goes there, never into status)")
-    ok("yaml-lint (project_memory)") if not bad else fail("yaml-lint (project_memory)", "; ".join(bad[:6]))
-
-
-# Browser APIs that need a SECURE CONTEXT (https / localhost) — raw use is silently dead on a
-# plain-http LAN origin, and jsdom/unit tests stay green (a real run shipped a browser-dead send
-# button exactly this way). Route them through ONE helper with a fallback; mark the reviewed helper
-# line with a `secure-context` comment to satisfy this check.
-SECURE_CONTEXT_APIS = ("crypto.randomUUID", "navigator.clipboard")
-_LOCAL_HOSTS = ("localhost", "127.0.0.1", "0.0.0.0", "[::1]")
-
-
-def _local_first_declared():
-    p = os.path.join(ROOT, "project_memory", "project_config.yaml")
-    try:
-        return bool(re.search(r"(?m)^\s*local_first:\s*true\b",
-                              open(p, encoding="utf-8", errors="ignore").read()))
-    except Exception:
-        return False
-
-
-def _frontend_sources():
-    """Browser-facing sources: everything under frontend/static/public, plus .html anywhere in src/
-    and js/css under a static|public|www subdir of src/ (vanilla apps served by the backend). Plain
-    backend .js under src/ is deliberately excluded — Node has no secure-context restriction."""
-    exts = {".js", ".mjs", ".ts", ".jsx", ".tsx", ".html", ".css", ".svelte", ".vue"}
-    # vendored/generated code is not ours to fix — a `.next/` chunk or a vendored lib containing
-    # crypto.randomUUID must not turn the gate red (dot-dirs, vendor dirs, *.min.* are skipped below).
-    skip = ("node_modules", "dist", "build", "__pycache__", ".venv", "venv", "coverage", "target",
-            "vendor", "third_party")
-    for rel, browser_only in (("frontend", False), ("static", False), ("public", False), ("src", True)):
-        d = os.path.join(ROOT, rel)
-        if not os.path.isdir(d):
-            continue
-        for dp, dn, fn in os.walk(d):
-            dn[:] = [x for x in dn if x not in skip and not x.startswith(".")]
-            for f in fn:
-                ext = os.path.splitext(f)[1].lower()
-                if ext not in exts:
-                    continue
-                if browser_only and ext != ".html":
-                    parts = os.path.relpath(dp, ROOT).replace("\\", "/").split("/")
-                    if not {"static", "public", "www"} & set(parts):
-                        continue
-                yield os.path.join(dp, f)
-
-
-def check_frontend_pitfalls():
-    """Greps for what jsdom-green tests cannot catch: (a) raw secure-context-only APIs (see
-    SECURE_CONTEXT_APIS above); (b) with project_config `local_first: true`, frontend RESOURCES
-    loaded from an external origin (CDN fonts/scripts — a real local-first run shipped a Google-CDN
-    font no gate caught). Only resource loads count (link/script/img src, css url()/@import) — a
-    plain <a href> link to an external site stays legal."""
-    api_hits, cdn_hits, scanned = [], [], False
-    local_first = _local_first_declared()
-    # (?:https?:)?// also catches protocol-relative loads like href="//fonts.googleapis.com/…"
-    res_html = re.compile(r"<(?:link|script|img)\b[^>]*?(?:href|src)\s*=\s*[\"']((?:https?:)?//[^\"']+)", re.I)
-    res_css = re.compile(r"(?:url\(\s*[\"']?|@import\s+[\"'])((?:https?:)?//[^\"')]+)", re.I)
-    for path in _frontend_sources():
-        scanned = True
-        rel = os.path.relpath(path, ROOT)
-        minified = os.path.basename(path).lower().endswith((".min.js", ".min.css"))
-        try:
-            lines = open(path, encoding="utf-8", errors="ignore").read().splitlines()
-        except Exception:
-            continue
-        prev = ""
-        for i, line in enumerate(lines, 1):
-            # minified bundles keep API names but are vendored — only OUR code gets the API grep;
-            # the local-first RESOURCE grep still applies (an external font in a .min.css is a violation)
-            if not minified and any(api in line for api in SECURE_CONTEXT_APIS):
-                if "secure-context" not in line and "secure-context" not in prev:
-                    api_hits.append("%s:%d" % (rel, i))
-            if local_first and os.path.splitext(path)[1].lower() in (".html", ".css"):
-                for rx in (res_html, res_css):
-                    for m in rx.finditer(line):
-                        if not any(h in m.group(1) for h in _LOCAL_HOSTS):
-                            cdn_hits.append("%s:%d %s" % (rel, i, m.group(1)[:80]))
-            prev = line
-    if api_hits:
-        fail("secure-context APIs", "raw %s used (%s%s) — silently dead on a non-secure origin "
-             "(http:// over LAN); use ONE helper with a fallback and mark it `secure-context`"
-             % ("/".join(SECURE_CONTEXT_APIS), "; ".join(api_hits[:5]), " …" if len(api_hits) > 5 else ""))
-    if cdn_hits:
-        fail("local-first assets", "external asset load(s) in a local_first project: %s%s — bundle "
-             "them locally (fonts/scripts/styles must not leave the machine)"
-             % ("; ".join(cdn_hits[:5]), " …" if len(cdn_hits) > 5 else ""))
-    if scanned and not api_hits and not cdn_hits:
-        ok("frontend pitfalls (secure-context%s)" % (", local-first assets" if local_first else ""))
+        kit_checks.run_kit_checks(ROOT, ok, fail, warn)
+    except Exception as e:
+        fail("kit checks", "run_kit_checks errored: %s" % e)
 
 
 def secret_scan():
@@ -429,8 +287,7 @@ def main():
                  "declare the project's stacks + domain so the gate enforces the right toolchain — "
                  "auto-detect is not a substitute (this is exactly how a critical tool gets forgotten)."
                  % ", ".join(sorted(set(detected))))
-    check_project_memory_yaml()
-    check_frontend_pitfalls()
+    kit_checks_stage()
     secret_scan()
     sbom()
 

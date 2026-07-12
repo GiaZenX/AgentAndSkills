@@ -1,0 +1,20 @@
+# compliance_register.yaml — owned by: Compliance-Researcher
+# RESEARCH REGISTER, NOT LEGAL ADVICE (standing disclaimer — never remove): entries are sourced
+# research aids; decisions stay with the user and, where needed, counsel. No entry without a
+# source URL + retrieved date + review_by date. session_status nags on entries past review_by.
+
+disclaimer: >
+  Research aid only — no legal advice (keine Rechtsberatung). Applicability and conformity are
+  decided by the user, with professional counsel where required.
+
+register: []
+#  - product_category: electronics
+#    market: DE
+#    regulation: "RoHS (2011/65/EU)"
+#    applies: true
+#    reasoning: "electrical equipment <= 1000V AC"
+#    obligations: "substance limits, CE marking contribution, technical documentation"
+#    status: open                  # compliant | open | unclear | action-needed
+#    source: "https://eur-lex.europa.eu/…"
+#    retrieved: "2026-07-12"
+#    review_by: "2027-01-12"

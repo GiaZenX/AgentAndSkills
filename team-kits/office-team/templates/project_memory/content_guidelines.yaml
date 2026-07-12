@@ -1,0 +1,13 @@
+# content_guidelines.yaml — owned by: Product-Editor (seeded from the manager's interview;
+# append-only afterwards). Every product description and page/post draft follows these.
+
+tone: ""                       # e.g. "sachlich, präzise, ohne Superlative"
+language: "de"
+structure: []                  # ordered sections, e.g. [hook, key_specs, description, scope_of_delivery]
+mandatory_fields: []           # per product type, e.g. [dimensions, material, weight, ce_marking]
+seo:
+  title_pattern: ""            # e.g. "<name> – <key attribute> | <shop>"
+  keyword_placement: ""        # short rule, no keyword stuffing
+claims_policy: >
+  Product claims must match product_catalog.yaml; certification/compliance claims must match
+  compliance_register.yaml. Unverifiable claims are not written.

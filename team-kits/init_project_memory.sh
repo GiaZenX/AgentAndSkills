@@ -54,6 +54,7 @@ if [ ${#kept_tooling[@]} -gt 0 ]; then
     echo "# project_memory TOOLING that DIFFERS from kit '$TEAM' (templates lag behind the kit) -- the PM reviews each against the kit template, merges the kit's fixes (or documents a conscious skip in progress.yaml log:), then DELETES this file. session_status reminds every session until it is gone. Filled YAML state is NOT listed here and is never overwritten."
     printf -- "- %s\n" "${kept_tooling[@]}"
   } > "$PEND"
+  rm -f "$REPO/.claude/kit_update_pending.state"   # fresh update -> fresh nag counter
   echo "  [!] ${#kept_tooling[@]} diverged tooling file(s) -> .claude/kit_update_pending.memory (merge or consciously skip, then delete it)"
 else
   rm -f "$PEND"

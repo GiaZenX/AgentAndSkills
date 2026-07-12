@@ -51,7 +51,9 @@ Details: constitution §2–§10.
 3. Propose the team **preset** + per-**specialist** models (**sonnet default**; haiku only for genuinely
    simple work; you run on opus) **and reasoning effort** (the shipped `effort_map`: all specialists `high`;
    `xhigh`/`max` are opus-only and used only on escalation). Get the user's confirmation (one
-   `AskUserQuestion`, preceded by prose).
+   `AskUserQuestion`, preceded by prose). **Presets are MECHANICAL** (kit `presets.yaml`): only the
+   installed preset's roles exist as agent files; a larger confirmed preset means running the platform's
+   `scaffold_team` script with that preset (additive) + a session restart before delegating to new roles.
 4. Write preset + `model_map` + `effort_map` into `project_config.yaml`; rewrite each specialist's `model:`
    AND `effort:` frontmatter to match; verify.
 

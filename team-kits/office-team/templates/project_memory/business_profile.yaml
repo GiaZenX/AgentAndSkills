@@ -1,0 +1,30 @@
+# business_profile.yaml — owned by: Manager
+# Filled ONCE in the onboarding interview; everything else (categories, PROCs, register scope,
+# report layout) derives from it. Update only with the user (it is their business).
+
+business:
+  name: ""                    # trading name
+  legal_form: ""              # e.g. Einzelunternehmen / GbR / UG / GmbH
+  country: "DE"
+  markets: []                 # where products/services are sold, e.g. [DE, AT, EU]
+  channels: []                # e.g. [own-shop, amazon, ebay, local]
+  products_services: ""       # one paragraph: what is sold
+  product_categories: []      # drives the compliance register scope, e.g. [electronics, textiles]
+
+tax:
+  kleinunternehmer: null      # true/false (§ 19 UStG) — changes the whole VAT column logic
+  vat_id: ""                  # USt-IdNr. if any (never a secret; still optional)
+  oss: null                   # true/false — EU One-Stop-Shop registered?
+  fiscal_year: "calendar"
+
+# Privacy honesty (constitution §2.7): processing a document sends its content to the Claude API
+# under the USER'S account terms. A consumer subscription (Abo) has NO DPA/AVV — the user decides
+# knowingly what the kit may process.
+privacy:
+  claude_account_type: ""     # abo | api  (asked in onboarding, never assumed)
+  sensitive_documents: ""     # process | redact | exclude  (the user's explicit choice)
+  notes: ""
+
+revenue_sources: []           # company-specific — WHERE income data comes from, e.g.
+#   - kind: shop_export       #   [shop_export, psp_export, bank_statement, manual]
+#     detail: "Shopify order export CSV, monthly"

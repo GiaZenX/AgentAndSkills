@@ -89,7 +89,8 @@
    | `gate_test_coverage` | merge/push while any source area has no tests / a component is untested (§12a) |
    | `gate_memory_complete` | merge/push while a required `project_memory/` YAML is empty/template (§6a), design.yaml lacks `ambition`, or masterplan.md is still the raw template |
    | `gate_packaging_decision` | merge/push while `architecture.yaml` `packaging.method` is TODO (§6) |
-   | `notify_agent_events` | (never blocks) logs `agent_completed`/`agent_needs_input` notifications to `project_memory/.audit/hook_events.jsonl` — background-spawn accounting is auditable, not trusted |
+   | `notify_agent_events` | (never blocks) logs `agent_completed`/`agent_needs_input` notifications AND `SubagentStop` completions to `project_memory/.audit/hook_events.jsonl`; `guard_agent_spawn` logs every allowed spawn — accounting is auditable end-to-end, not trusted (the Notification route alone delivered 0 of 15 completions in a real run) |
+   | `guard_scratchpad_ref` | a repo source file referencing a session-scratchpad path (scratchpads are ephemeral — a real fonts.css pointed at a vanished scratchpad tool and the pipeline stopped being reproducible) |
    | `format_on_write` / `session_status` / `auto_dashboard` | auto-format specialist code (best-effort) / session-start status + kit-update detection + pending-kit-update reminder + model/effort sync nag (§11 — flags agent frontmatter drifting from the user-confirmed maps) / dashboard regeneration on Stop |
 
    All hooks resolve the repo root themselves (`_root.py`) — a shifted cwd never disables a guard — and the
@@ -247,9 +248,14 @@ phase model applies.
 ## 11. Team presets & models (`project_config.yaml`)
 
 - **Preset chosen once per project** (not dynamic): `solo` | `duo` | `team`. You recommend one by
-  complexity; the **user MUST confirm**. Stored in `project_config.yaml`.
+  complexity; the **user MUST confirm**. Stored in `project_config.yaml`. **Presets are MECHANICAL:**
+  the scaffold installs ONLY the preset's roles (see the kit's `presets.yaml`) — spawning any other
+  role fails natively (missing agent file) and via `guard_agent_spawn`. A preset that is only a config
+  value enforces nothing (the shipped kits carried an inert preset for weeks).
 - **Team escalation:** if change-request frequency or complexity rises, you **MUST** propose expanding
-  the team. Preset changes happen **only after user confirmation**, NEVER automatically.
+  the team. Preset changes happen **only after user confirmation**, NEVER automatically — then run the
+  platform's `scaffold_team` script with the LARGER preset (additive; existing roles keep their synced
+  tiers) and ask for a session restart.
 - **The architect is the highest-leverage role:** an architecture error cascades into every SR, task and
   test — unlike a coder bug, it is rarely caught by one QA round. At the startup preset question you MUST
   therefore explicitly consider the `software-architect`'s tier and, for any non-trivial project,
@@ -335,6 +341,12 @@ Tests are **not** a fixed tool list; they are chosen for the stack **and the dom
 - The **Architect evaluates the flag and owns the proposal** — refactor only on real cause, **NEVER**
   routinely. QA verifies (tests/pipeline green, no behavior change). The PM obtains **user confirmation
   with justification** before it is applied.
+- **Structural flags MUST NOT verpuffen:** an architect/dev structure finding (e.g. "split App.tsx
+  into modules") MUST become a **TSK** or a **logged skip** (`progress.yaml log:`) within the same
+  cycle — a flag that only lives in a report is a defect (a real file grew +666 lines the very day
+  its split-flag was logged). The pipeline's **file budget** (`scripts/kit_checks.py`, threshold +
+  exemptions in `coding_guidelines.yaml` `file_budget:`) enforces the hard line; the dashboard's
+  repo-vitals line keeps the trend visible.
 
 ## 14. Behavior (all roles)
 

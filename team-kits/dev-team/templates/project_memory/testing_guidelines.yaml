@@ -75,6 +75,9 @@ parallel_execution:
      (derive port/BASE_URL + data dir from PYTEST_XDIST_WORKER) + pin GPU/real-model tests to a
      single worker via `xdist_group`."
   - "container smoke stays SERIAL — it starts/stops the compose stack itself."
+  - "any check that RECREATES the app container (compose up/recreate) MUST restore the previous
+     serving state (e.g. a dev overlay) afterwards — a real gate step silently swapped the served UI
+     back to an old image and the user tested a stale URL for hours."
 
 # Per-stack specifics — QA MUST fill this for EVERY language/stack actually in use (not "on demand":
 # leaving it empty for a used stack is the exact defect that shipped 0 frontend tests in a real run).

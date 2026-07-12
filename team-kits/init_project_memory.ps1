@@ -49,6 +49,8 @@ if ($keptTooling.Count -gt 0) {
     $lines = @("# project_memory TOOLING that DIFFERS from kit '$Team' (templates lag behind the kit) -- the PM reviews each against the kit template, merges the kit's fixes (or documents a conscious skip in progress.yaml log:), then DELETES this file. session_status reminds every session until it is gone. Filled YAML state is NOT listed here and is never overwritten.")
     $lines += ($keptTooling | ForEach-Object { "- $_" })
     Set-Content -Path $pendFile -Value $lines -Encoding utf8
+    $stateFile = Join-Path $repo ".claude\kit_update_pending.state"
+    if (Test-Path $stateFile) { Remove-Item $stateFile -Force }   # fresh update -> fresh nag counter
     Write-Host "  [!] $($keptTooling.Count) diverged tooling file(s) -> .claude/kit_update_pending.memory (merge or consciously skip, then delete it)" -ForegroundColor Yellow
 } elseif (Test-Path $pendFile) {
     Remove-Item $pendFile -Force

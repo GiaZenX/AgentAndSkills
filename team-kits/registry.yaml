@@ -5,8 +5,12 @@
 # no prose edits elsewhere.
 #
 # The scaffold scripts (team-kits/scaffold_team.{ps1,sh}) install a kit by its `key`:
-#   scaffold_team.ps1 -Team <key>   /   scaffold_team.sh <key>
+#   scaffold_team.ps1 -Team <key> [-Preset <name>]   /   scaffold_team.sh <key> [preset]
 # A kit is installable only if `status: available`.
+#
+# Presets are MECHANICAL: each kit ships a presets.yaml (preset -> installed specialist roles);
+# with a preset only those roles (+ the lead) are installed, so spawning any other role fails
+# natively. `presets:` below just NAMES them for the entry gate; the kit file is authoritative.
 #
 # `lead: project-manager` is the kit's SESSION agent: the kit's .claude/settings.json sets
 # `agent: project-manager`, so the repo's main session IS the PM (not a spawnable subagent).
@@ -37,6 +41,7 @@ teams:
       - feature
       - bugfix
       - refactoring
+    presets: [solo, duo, team]   # see team-kits/dev-team/presets.yaml (authoritative)
     roles:                     # specialist subagents (./.claude/agents/)
       - software-architect
       - product-designer
@@ -66,6 +71,7 @@ teams:
       - fzulg
       - r&d
       - rnd
+    presets: [solo, duo, team]   # see team-kits/research-team/presets.yaml (authoritative)
     roles:                     # specialist subagents (./.claude/agents/)
       - methodologist
       - researcher
@@ -73,6 +79,42 @@ teams:
       - reviewer
       - research-engineer
       - report-writer
+
+  - key: office-team
+    title: Office / Back-Office Team (Sachbearbeiter)
+    status: available
+    lead: office-manager      # kit settings.json sets agent:office-manager -> the session IS the manager
+    summary: >
+      Back-office automation for a small business: inbox-driven filing, bookkeeping preparation
+      (append-only ledger + deterministic quarterly income/expense report), product/content care,
+      compliance research register and marketing planning. Runs the PROC (approved process) model:
+      foreground manager + up to 6 specialist subagents. Drafts only — it never sends anything;
+      no tax or legal advice.
+    intents:
+      - office
+      - back-office
+      - business
+      - gewerbe
+      - invoices
+      - rechnungen
+      - bookkeeping
+      - buchhaltung
+      - accounting
+      - filing
+      - ablage
+      - shop
+      - e-commerce
+      - products
+      - compliance
+      - marketing
+    presets: [core, commerce, full]   # see team-kits/office-team/presets.yaml (authoritative)
+    roles:                     # specialist subagents (./.claude/agents/)
+      - records-clerk
+      - bookkeeper
+      - product-editor
+      - shop-curator
+      - compliance-researcher
+      - marketing-planner
 
 # Routing rule for the reader (the entry gate):
 #   1. Classify the user's wish against each team's `intents` (substring/keyword match).

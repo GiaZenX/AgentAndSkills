@@ -238,6 +238,42 @@ def build_milestones(items_by_id):
     return out
 
 
+def compute_repo_vitals():
+    """Structure vitals (largest source files, count > 2000 lines): a real App.tsx grew to 8,966
+    lines (+666 the very day its split-flag was logged) and nobody noticed — prompt findings
+    without an artifact verpuffen. Enforcement lives in scripts/kit_checks.py (file budget); this
+    is the always-visible signal on every regeneration (stdout + dashboard data)."""
+    root = os.path.dirname(BASE_DIR)
+    exts = {".py", ".js", ".mjs", ".ts", ".tsx", ".jsx", ".css", ".html", ".go", ".rs",
+            ".c", ".cpp", ".h", ".cs", ".java", ".svelte", ".vue"}
+    skip = ("node_modules", "dist", "build", "__pycache__", ".venv", "venv", "coverage",
+            "target", "vendor", "third_party")
+    sizes = []
+    for area in ("src", "frontend", "scripts", "tests"):
+        d = os.path.join(root, area)
+        if not os.path.isdir(d):
+            continue
+        for dp, dn, fn in os.walk(d):
+            dn[:] = [x for x in dn if x not in skip and not x.startswith(".")]
+            for f in fn:
+                if os.path.splitext(f)[1].lower() not in exts or f.lower().endswith((".min.js", ".min.css")):
+                    continue
+                p = os.path.join(dp, f)
+                try:
+                    with open(p, "rb") as fh:
+                        data = fh.read()
+                    n = data.count(b"\n") + (0 if data.endswith(b"\n") or not data else 1)
+                except OSError:
+                    continue
+                sizes.append((os.path.relpath(p, root).replace("\\", "/"), n))
+    sizes.sort(key=lambda t: -t[1])
+    return {
+        "largest": [{"path": p, "lines": n} for p, n in sizes[:5]],
+        "over_2000": sum(1 for _, n in sizes if n > 2000),
+        "source_files": len(sizes),
+    }
+
+
 def strip_internal(items):
     """Return items without the raw_status helper field (not needed in the UI)."""
     clean = []
@@ -342,6 +378,8 @@ def main():
     status_text = as_str(progress.get("status"))
     today = datetime.date.today().isoformat()
 
+    vitals = compute_repo_vitals()
+
     data = {
         "status": status_text,
         "last_update": today,
@@ -352,6 +390,7 @@ def main():
         "bugs": {"order": BUG_ORDER, "items": strip_internal(bugs)},
         "roadmap": roadmap,
         "changes": changes,
+        "repo_vitals": vitals,
     }
 
     html = render(data)
@@ -372,6 +411,14 @@ def main():
         % (OUTPUT, len(requirements), len(tasks), len(change_requests),
            len(feature_requests), len(bugs), len(roadmap), len(changes))
     )
+    if vitals["largest"]:
+        top = vitals["largest"][0]
+        sys.stdout.write(
+            "[vitals] largest source file: %s (%d lines); %d file(s) > 2000 lines of %d — structural "
+            "flags MUST become a TSK or a logged skip (constitution §13); the file budget in "
+            "scripts/kit_checks.py enforces the hard limit\n"
+            % (top["path"], top["lines"], vitals["over_2000"], vitals["source_files"])
+        )
 
 
 if __name__ == "__main__":

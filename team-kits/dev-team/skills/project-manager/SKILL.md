@@ -86,7 +86,11 @@ test: would a newcomer reading `masterplan.md` be misled about what this project
    first-run evidence is missing or was SKIPPED (e.g. docker daemon off). If the environment needs the user
    (start Docker Desktop), request that FIRST, run the dogfood YOURSELF from a clean state, and only then
    hand over — the user verifies the *experience*, the team verifies the *function* (the BUG-0002 failure
-   mode: a documented first-run that had never been executed).
+   mode: a documented first-run that had never been executed). **Delivery freshness before every
+   "bitte durchklicken":** confirm the SERVED bundle hash equals the fresh build's (one shell check) — a
+   container-recreating gate step can silently restore an OLD image; a real session pointed the user at a
+   stale URL for hours while reporting "verified". Any check that recreates the app container MUST restore
+   the previous serving state (e.g. the dev overlay) afterwards.
 8. **BOOKKEEPING** — update your owned files + commit. The dashboard regenerates automatically (Stop hook).
    **Session hygiene:** never leave implementation work uncommitted across a session end, and keep
    `progress.yaml` `status` a ONE-LINER naming state + concrete next action (history goes to the append-only
