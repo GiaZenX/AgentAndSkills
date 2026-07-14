@@ -146,11 +146,15 @@ def tier_of(model, aliases):
 
 
 def provider_model(model, provider, tiers, aliases):
-    canon = tier_of(model, aliases)             # opus | sonnet | haiku
-    rev = {"opus": "lead", "sonnet": "worker", "haiku": "light"}
+    canon = tier_of(model, aliases)             # opus | sonnet | haiku | fable
+    # fable (Mythos-class, above opus) is a legitimate Claude-side pin the PM may set per §11;
+    # for every OTHER provider it maps to that provider's LEAD tier (a real map broke here).
+    rev = {"opus": "lead", "sonnet": "worker", "haiku": "light", "fable": "lead"}
     tier = rev.get(canon)
     if not tier:
         return model  # unknown/explicit model id — pass through untouched
+    if provider == "claude":
+        return model  # claude keeps the literal value (incl. fable)
     return tiers.get(provider, {}).get(tier, model)
 
 
@@ -236,7 +240,7 @@ def providers_from_project_config(path):
         # This map is stamped into Claude frontmatter and Codex TOML, so accept only the shared
         # effort vocabulary documented by the kits rather than a provider-only value such as ultra.
         allowed_efforts = {"low", "medium", "high", "xhigh", "max"}
-        portable_models = {"lead", "worker", "light", "opus", "sonnet", "haiku"}
+        portable_models = {"lead", "worker", "light", "opus", "sonnet", "haiku", "fable"}
         if any(not isinstance(role, str) or not re.fullmatch(r"[A-Za-z0-9_-]+", role)
                or not isinstance(value, str)
                or (map_name == "model_map" and value not in portable_models)
@@ -985,7 +989,8 @@ def main():
                 if meta.get("name") != role_name:
                     raise SystemExit("Agent frontmatter name/source mismatch for %s; provider "
                                      "artifacts were left untouched" % role_name)
-                if meta.get("model") not in {"lead", "worker", "light", "opus", "sonnet", "haiku"}:
+                if meta.get("model") not in {"lead", "worker", "light", "opus", "sonnet", "haiku",
+                                             "fable"}:
                     raise SystemExit("Agent %s uses a non-portable model tier; provider artifacts "
                                      "were left untouched" % role_name)
                 if meta.get("effort") not in {"low", "medium", "high", "xhigh", "max"}:

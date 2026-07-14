@@ -5,7 +5,11 @@ repo's history for any agent CLI (Claude Code, Codex) and for humans. Full ratio
 in the referenced commit messages; project conventions live in the kits themselves. Newest first.
 Append an entry with every shipped round (same commit).
 
-## 2026-07-14 — Codex-authored parity deepening, reviewed + hardened; Copilot removed (kits 2026.07.14-7)
+## 2026-07-14 — Codex-authored parity deepening, reviewed + hardened; Copilot removed (kits 2026.07.14-8)
+(-7 was superseded minutes after push: the live synaipse restamp surfaced that the stricter map
+validation rejected `fable` — a legitimate §11 Claude-side pin on its frontend role — so `fable`
+is now an accepted lead-tier model value: Claude keeps it literally, every other provider maps it
+to its LEAD tier. Shipped as -8 with a regression test.)
 An OpenAI Codex (GPT-5.6 Sol) session reworked the provider layer for functional Claude/Codex
 parity (transactional scaffold with snapshot/rollback, ownership manifests + symlink/reparse
 guards, a runtime hook-bundle hash verifier inside every generated hook command, preset parsing

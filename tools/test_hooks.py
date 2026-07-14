@@ -1613,6 +1613,28 @@ def test_gen_provider_config_defaults_absent_providers_to_both(tmp_path):
     assert empty.returncode != 0 and "must not be empty" in empty.stderr
 
 
+def test_gen_accepts_fable_as_lead_tier_pin(tmp_path):
+    # `fable` is a legitimate Claude-side §11 pin (a real synaipse map carried it): Claude keeps
+    # the literal value, the Codex artifact maps it to the provider's LEAD tier.
+    repo = _provider_test_repo(tmp_path)
+    write(str(repo / ".claude" / "agents" / "backend-developer.md"),
+          "---\nname: backend-developer\ndescription: backend\nmodel: fable\neffort: high\n"
+          "---\nbackend body.\n")
+    result = subprocess.run([sys.executable, GEN, "--repo", str(repo), "--providers", "codex"],
+                            capture_output=True, text=True, timeout=60)
+    assert result.returncode == 0, result.stderr
+    toml = (repo / ".codex" / "agents" / "backend-developer.toml").read_text(encoding="utf-8")
+    assert 'model = "gpt-5.6-sol"' in toml
+
+    config = repo / "project_memory" / "project_config.yaml"
+    write(str(config), "project:\n  preset: mini\nproviders: [claude, codex]\n"
+                       "model_map:\n  backend-developer: fable\n")
+    checked = subprocess.run([sys.executable, GEN, "--repo", str(repo),
+                              "--project-config", str(config), "--check-config-only"],
+                             capture_output=True, text=True, timeout=60)
+    assert checked.returncode == 0, checked.stderr
+
+
 def test_gen_codex_frontmatter_overlay(tmp_path):
     # The divergence valve: a namespaced `codex:` frontmatter block (ignored by Claude) merges
     # Codex-only keys into the generated TOML; identity keys stay generator-owned.

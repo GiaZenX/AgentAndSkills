@@ -18,6 +18,8 @@ aliases:            # tier name -> canonical (claude) vocabulary used in model_m
   lead: opus
   worker: sonnet
   light: haiku
+# `fable` (Mythos-class, above opus) is also accepted as a Claude-side model_map pin (§11
+# escalation); Claude keeps it literally, every other provider maps it to its LEAD tier.
 
 tiers:
   claude:           # reference platform — model_map values pass through
