@@ -158,14 +158,15 @@ for kit in discover_kits(ROOT):
 MIRROR_DEV_RESEARCH = [
     "hooks/guard_yaml_valid.py", "hooks/guard_agent_spawn.py", "hooks/notify_agent_events.py",
     "hooks/guard_scratchpad_ref.py", "hooks/gate_subagent_output.py", "hooks/guard_harness_selfmod.py",
-    "hooks/_root.py", "hooks/_audit.py", "hooks/auto_dashboard.py",
+    "hooks/guard_pm_scope.py", "hooks/guard_no_adhoc.py",
+    "hooks/_root.py", "hooks/_audit.py", "hooks/_compat.py", "hooks/auto_dashboard.py",
     "templates/repo/scripts/quality.py", "templates/repo/scripts/kit_checks.py",
     "templates/repo/scripts/retro.py",
 ]
 MIRROR_DEV_OFFICE = [
     "hooks/guard_yaml_valid.py", "hooks/guard_agent_spawn.py", "hooks/notify_agent_events.py",
     "hooks/guard_scratchpad_ref.py", "hooks/gate_subagent_output.py", "hooks/guard_harness_selfmod.py",
-    "hooks/_root.py", "hooks/_audit.py",
+    "hooks/_root.py", "hooks/_audit.py", "hooks/_compat.py",
 ]
 for other, names in (("research-team", MIRROR_DEV_RESEARCH), ("office-team", MIRROR_DEV_OFFICE)):
     for name in names:

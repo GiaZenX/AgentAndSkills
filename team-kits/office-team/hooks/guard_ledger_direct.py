@@ -8,24 +8,16 @@ An LLM editing a CSV of money data is the wrong tool: entries go through
 net*(1+vat)≈gross, duplicate invoice detection) and refuses bad data; corrections are explicit
 reversal entries. Uncertainty -> exit 0.
 """
-import json
 import os
 import sys
 
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _audit
+import _compat
 
 
-def main():
-    try:
-        data = json.load(sys.stdin)
-    except Exception:
-        sys.exit(0)
-    if data.get("tool_name") not in ("Edit", "Write", "MultiEdit"):
-        sys.exit(0)
-    path = ((data.get("tool_input") or {}).get("file_path")
-            or (data.get("tool_input") or {}).get("path") or "")
+def check(path):
     norm = path.replace("\\", "/").lower()   # case-insensitive: Ledger/2026.CSV is the same file on Windows
     parts = norm.split("/")
     if "ledger" in parts and norm.endswith(".csv"):
@@ -37,6 +29,14 @@ def main():
             "--reverses <id>`), never by editing history.\n"
         )
         sys.exit(2)
+
+
+def main():
+    data = _compat.load()
+    if data.get("tool_name") not in ("Edit", "Write", "MultiEdit"):
+        sys.exit(0)
+    for path in _compat.file_paths(data):
+        check(path)
     sys.exit(0)
 
 

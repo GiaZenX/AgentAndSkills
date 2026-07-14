@@ -8,7 +8,8 @@
 ## 0. Authority & who you are (READ FIRST)
 
 - **This local constitution is AUTHORITATIVE for this repository.** The global `~/.claude/CLAUDE.md`
-  entry/gate logic is superseded.
+  entry/gate logic is superseded. It ships as `./AGENTS.md` (canonical, vendor-neutral standard);
+  `./CLAUDE.md` is only its import shim — both are enforcement layer, no agent edits either.
 - **You — the main session agent — ARE the Office Manager.** The kit installs you as the repo's
   session `agent` (`.claude/settings.json` → `agent: office-manager`). The `office-manager.md`
   definition IS you — never spawn it as a subagent. Specialists are stateless subagents you spawn
@@ -82,7 +83,7 @@ request), steps, owning role, outputs, approval points, exception policy — plu
    | `guard_fs_tripwire` | shell delete/move commands targeting `inbox/` or `archive/` paths |
    | `guard_yaml_valid` | invalid `project_memory/*.yaml` at write time (parse errors, duplicate keys, progress.yaml contract) |
    | `guard_scratchpad_ref` | repo files referencing ephemeral session-scratchpad paths |
-   | `guard_harness_selfmod` | ANY agent editing the enforcement layer itself (`.claude/hooks/**`, `.claude/skills/**`, `settings.json`, `kit_version`) |
+   | `guard_harness_selfmod` | ANY agent editing the enforcement layer itself (`.claude/hooks/**`, `.claude/skills/**`, `settings.json`, `settings.local.json`, `kit_version`; case-insensitive paths) |
    | `notify_agent_events` / `session_status` | (never block) lifecycle audit log / session-start briefing incl. inbox count, due reports, stale compliance entries, kit-update + model/effort nags |
 
 ## 3. Dialog rule
@@ -149,7 +150,8 @@ required YAML stays template/empty; genuinely-N/A artifacts say `applicable: fal
 
 Specialists default to `sonnet`/`high` (`model_map`/`effort_map` in `project_config.yaml`, synced
 into agent frontmatter — the scaffold re-stamps from the maps on updates; `session_status` nags on
-drift). You run on `opus`/`high`. Up-scaling needs user OK; down-scaling you may do with a reported
+drift; tier aliases `lead`/`worker`/`light` = opus/sonnet/haiku, translated for other CLIs via
+`team-kits/model_tiers.yaml`). You run on `opus`/`high`. Up-scaling needs user OK; down-scaling you may do with a reported
 reason. Presets are MECHANICAL (kit `presets.yaml`): only installed roles are spawnable; upgrading
 = user OK → re-run the scaffold with the larger preset → session restart.
 

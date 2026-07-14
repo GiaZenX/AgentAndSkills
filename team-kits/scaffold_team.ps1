@@ -98,6 +98,9 @@ if (Test-Path $cfg) {
             if ($ln -match '^\S') { $inMap = ""; continue }
             if ($ln -match '^\s+([A-Za-z0-9_-]+)\s*:\s*([A-Za-z0-9_-]+)') {
                 $role = $Matches[1]; $val = $Matches[2]
+                # tier aliases (team-kits/model_tiers.yaml): map may say lead/worker/light —
+                # Claude agent frontmatter gets the concrete reference-platform name.
+                switch ($val) { "lead" { $val = "opus" } "worker" { $val = "sonnet" } "light" { $val = "haiku" } }
                 $field = if ($inMap -eq "model_map") { "model" } else { "effort" }
                 $ap = Join-Path $agentsDst ($role + ".md")
                 if (Test-Path $ap) {
@@ -112,10 +115,16 @@ if (Test-Path $cfg) {
     if ($synced -gt 0) { Write-Host "  [ok] re-synced $synced model:/effort: line(s) from project_config.yaml (user-confirmed maps win over kit defaults)" -ForegroundColor Green }
 }
 
+# Constitution: AGENTS.md is the CANONICAL file (AAIF/Linux-Foundation standard, read natively by
+# Codex, Copilot, Cursor, ...); CLAUDE.md is a thin import shim because Claude Code reads CLAUDE.md
+# only -- @AGENTS.md is Anthropic's documented bridge (verified: main agent AND subagents inherit
+# the imported content; the kit marker stays on line 1 for the entry gate + session_status).
 $conSrc = Join-Path $kit "constitution\CLAUDE.md"
 if (Test-Path $conSrc) {
-    Copy-Item $conSrc (Join-Path $repo "CLAUDE.md") -Force
-    Write-Host "  [ok] CLAUDE.md (local constitution)" -ForegroundColor Green
+    Copy-Item $conSrc (Join-Path $repo "AGENTS.md") -Force
+    $marker = (Get-Content $conSrc -TotalCount 1)
+    [IO.File]::WriteAllText((Join-Path $repo "CLAUDE.md"), "$marker`r`n@AGENTS.md`r`n")
+    Write-Host "  [ok] AGENTS.md (constitution) + CLAUDE.md (import shim)" -ForegroundColor Green
 }
 
 # Enforcement layer: hooks + settings.json travel with the team.
@@ -151,6 +160,18 @@ $verSrc = Join-Path $kit "VERSION"
 if (Test-Path $verSrc) {
     Copy-Item $verSrc (Join-Path $repo ".claude\kit_version") -Force
     Write-Host "  [ok] .claude/kit_version ($((Get-Content $verSrc -TotalCount 1)))" -ForegroundColor Green
+}
+
+# Extra providers (project_config `providers: [claude, codex]`): generate .codex/.github artifacts
+# from the INSTALLED state (stamped agents + settings) -- single source, never hand-cloned.
+if (Test-Path $cfg) {
+    $provRaw = (Get-Content $cfg | Where-Object { $_ -match '^providers:\s*\[' } | Select-Object -First 1)
+    if ($provRaw -match '^providers:\s*\[([^\]]*)\]') {
+        $extra = ($Matches[1] -replace '\s', '') -split ',' | Where-Object { $_ -in @('codex', 'copilot') }
+        if ($extra) {
+            python "$PSScriptRoot\gen_provider_artifacts.py" --repo $repo --providers ($extra -join ',') --lead $lead
+        }
+    }
 }
 
 # Repo-level quality templates (scripts/quality.py, CI, pre-commit, requirements-dev) -- copy-if-absent
@@ -199,3 +220,4 @@ if ($keptList.Count -gt 0) {
 }
 
 Write-Host "Team '$Team' installed locally. RESTART the session (close/reopen, or start a new session in this folder) -- the new agents and the 'agent: $lead' setting only load at session start. After the restart, type anything (e.g. 'weiter') -- nothing is auto-sent, YOU stay in control of the first message; the '$lead' lead then greets you with a one-line status and picks up any draft plan in project_memory/." -ForegroundColor Cyan
+Write-Host "NOTE: if a session is ALREADY running in this folder (even suspended at a usage limit), its hooks are live on the new files from this moment -- a real restamp landed mid-session and entangled kit files with build changes. Finish or restart that session before continuing work there." -ForegroundColor Yellow

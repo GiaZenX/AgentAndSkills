@@ -9,7 +9,6 @@ on belongs in the repo (scripts/). Scope: source/tooling areas only (src, fronte
 static, public + repo-root files) so docs/notes can still legitimately mention the word. Exit 2
 feeds the writer the fix; uncertainty -> exit 0.
 """
-import json
 import os
 import sys
 
@@ -17,44 +16,35 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _root import find_repo_root
 import _audit
+import _compat
 
 
 MARKERS = ("scratchpad/", "scratchpad\\", "Temp/claude", "Temp\\claude")
 AREAS = ("src", "frontend", "scripts", "tests", "static", "public")
 
 
-def main():
-    try:
-        data = json.load(sys.stdin)
-    except Exception:
-        sys.exit(0)
-    if data.get("tool_name") not in ("Edit", "Write", "MultiEdit"):
-        sys.exit(0)
-    path = ((data.get("tool_input") or {}).get("file_path")
-            or (data.get("tool_input") or {}).get("path") or "")
+def check(path, root):
     if not path or not os.path.isfile(path):
-        sys.exit(0)
-
-    root = find_repo_root(data.get("cwd"))
+        return
     try:
         rel = os.path.relpath(path, root).replace("\\", "/")
     except ValueError:
-        sys.exit(0)  # different drive etc.
+        return  # different drive etc.
     if rel.startswith(".."):
-        sys.exit(0)  # outside the repo (e.g. the scratchpad itself)
+        return  # outside the repo (e.g. the scratchpad itself)
     parts = rel.split("/")
     in_scope = parts[0] in AREAS or (len(parts) == 1 and not parts[0].startswith("."))
     if not in_scope:
-        sys.exit(0)
+        return
 
     try:
         with open(path, encoding="utf-8", errors="ignore") as fh:
             text = fh.read()
     except Exception:
-        sys.exit(0)
+        return
     hits = [m for m in MARKERS if m in text]
     if not hits:
-        sys.exit(0)
+        return
 
     _audit.record("guard_scratchpad_ref", rel)
     sys.stderr.write(
@@ -65,6 +55,16 @@ def main():
         "mention.\n" % (rel, ", ".join(hits))
     )
     sys.exit(2)
+
+
+def main():
+    data = _compat.load()
+    if data.get("tool_name") not in ("Edit", "Write", "MultiEdit"):
+        sys.exit(0)
+    root = find_repo_root(data.get("cwd"))
+    for path in _compat.file_paths(data):
+        check(path, root)
+    sys.exit(0)
 
 
 if __name__ == "__main__":

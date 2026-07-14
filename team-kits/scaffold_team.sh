@@ -93,6 +93,9 @@ if [ -f "$CFG" ]; then
     mapname="${pair%%:*}"; field="${pair##*:}"
     while IFS= read -r entry; do
       role="${entry%%=*}"; val="${entry##*=}"
+      # tier aliases (team-kits/model_tiers.yaml): map may say lead/worker/light — Claude agent
+      # frontmatter gets the concrete reference-platform name.
+      case "$val" in lead) val="opus" ;; worker) val="sonnet" ;; light) val="haiku" ;; esac
       ap="$REPO/.claude/agents/$role.md"
       [ -f "$ap" ] || continue
       tmp="$ap.tmp"
@@ -116,9 +119,15 @@ if [ -f "$CFG" ]; then
   [ "$synced" -gt 0 ] && echo "  [ok] re-synced $synced model:/effort: line(s) from project_config.yaml (user-confirmed maps win over kit defaults)"
 fi
 
+# Constitution: AGENTS.md is the CANONICAL file (AAIF/Linux-Foundation standard, read natively by
+# Codex, Copilot, Cursor, ...); CLAUDE.md is a thin import shim because Claude Code reads CLAUDE.md
+# only -- @AGENTS.md is Anthropic's documented bridge (verified: main agent AND subagents inherit
+# the imported content; the kit marker stays on line 1 for the entry gate + session_status).
 if [ -f "$KIT/constitution/CLAUDE.md" ]; then
-  cp -f "$KIT/constitution/CLAUDE.md" "$REPO/CLAUDE.md"
-  echo "  [ok] CLAUDE.md (local constitution)"
+  cp -f "$KIT/constitution/CLAUDE.md" "$REPO/AGENTS.md"
+  marker="$(head -n 1 "$KIT/constitution/CLAUDE.md")"
+  printf '%s\n@AGENTS.md\n' "$marker" > "$REPO/CLAUDE.md"
+  echo "  [ok] AGENTS.md (constitution) + CLAUDE.md (import shim)"
 fi
 
 # Enforcement layer: hooks + settings.json travel with the team.
@@ -162,6 +171,18 @@ fi
 if [ -f "$KIT/VERSION" ]; then
   cp -f "$KIT/VERSION" "$REPO/.claude/kit_version"
   echo "  [ok] .claude/kit_version ($(head -n 1 "$KIT/VERSION"))"
+fi
+
+# Extra providers (project_config `providers: [claude, codex]`): generate .codex/.github artifacts
+# from the INSTALLED state (stamped agents + settings) -- single source, never hand-cloned.
+CFG="$REPO/project_memory/project_config.yaml"
+if [ -f "$CFG" ]; then
+  PROVIDERS="$(sed -n 's/^providers:[ \t]*\[\([^]]*\)\].*/\1/p' "$CFG" | head -n 1 | tr -d ' ')"
+  EXTRA="$(printf '%s' "$PROVIDERS" | tr ',' '\n' | grep -E '^(codex|copilot)$' | tr '\n' ',' | sed 's/,$//')"
+  if [ -n "$EXTRA" ]; then
+    PYBIN=python; command -v python >/dev/null 2>&1 || PYBIN=python3
+    "$PYBIN" "$(cd "$(dirname "$0")" && pwd)/gen_provider_artifacts.py" --repo "$REPO" --providers "$EXTRA" --lead "$LEAD"
+  fi
 fi
 
 # Repo-level quality templates (scripts/quality.py, CI, pre-commit, requirements-dev) -- copy-if-absent
@@ -210,3 +231,4 @@ else
 fi
 
 echo "Team '$TEAM' installed locally. RESTART the session (close/reopen, or start a new session in this folder) -- the new agents and the 'agent: $LEAD' setting only load at session start. After the restart, type anything (e.g. 'weiter') -- nothing is auto-sent, YOU stay in control of the first message; the '$LEAD' lead then greets you with a one-line status and picks up any draft plan in project_memory/."
+echo "NOTE: if a session is ALREADY running in this folder (even suspended at a usage limit), its hooks are live on the new files from this moment -- a real restamp landed mid-session and entangled kit files with build changes. Finish or restart that session before continuing work there."

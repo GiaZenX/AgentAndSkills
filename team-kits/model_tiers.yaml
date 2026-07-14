@@ -1,0 +1,37 @@
+# model_tiers.yaml — provider-neutral model tiers for ALL kits.
+#
+# The kits' model_map values use the CLAUDE names as the canonical tier vocabulary (Claude Code is
+# the reference platform); `lead`/`worker`/`light` are accepted ALIASES everywhere a model name is
+# read (scaffold stamping, session_status drift check, provider generators). Provider generators
+# translate a tier to that provider's concrete model id via this table.
+#
+# MAINTENANCE: the claude-watcher and codex-watcher keep this table current (new models, price
+# drops, deprecations). Changing a tier's model here re-tiers every project on the next restamp —
+# always a USER-approved proposal, never an automatic bump.
+#
+# Price anchors (verified 2026-07, per 1M in/out tokens):
+#   claude: Opus-class $15/$75 · Sonnet 5 $3/$15 (intro $2/$10 until 2026-08-31) · Haiku 4.5 $1/$5
+#   openai: GPT-5.6 Sol $5/$30 · Terra $2.50/$15 · Luna $1/$6 (family GA 2026-07-09)
+# Watch dates: 2026-08-05 Opus 4.1 shutdown · 2026-08-31 Sonnet 5 intro pricing ends.
+
+aliases:            # tier name -> canonical (claude) vocabulary used in model_map
+  lead: opus
+  worker: sonnet
+  light: haiku
+
+tiers:
+  claude:           # reference platform — model_map values pass through
+    lead: opus
+    worker: sonnet
+    light: haiku
+    effort_field: effort              # agent frontmatter key; values low|medium|high|xhigh|max
+  codex:
+    lead: gpt-5.6-sol
+    worker: gpt-5.6-terra
+    light: gpt-5.6-luna
+    effort_field: model_reasoning_effort   # .codex/agents/*.toml key; values low|medium|high|xhigh
+  copilot:
+    lead: claude-opus-4.8             # Copilot serves Claude models; per-agent `model:` pinning
+    worker: claude-sonnet-5           # in .github/agents/*.agent.md
+    light: claude-haiku-4.5
+    effort_field: ""                  # no per-agent effort knob documented — omitted

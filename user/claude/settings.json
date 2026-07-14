@@ -14,7 +14,7 @@
   },
   "terminalProgressBarEnabled": true,
   "spinnerTipsEnabled": true,
-  "cleanupPeriodDays": 180,
+  "cleanupPeriodDays": 14,
   "permissions": {
     "allow": [
       "Bash(git *)",

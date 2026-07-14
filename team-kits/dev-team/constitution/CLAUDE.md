@@ -8,7 +8,9 @@
 ## 0. Authority & who you are (READ FIRST)
 
 - **This local constitution is AUTHORITATIVE for this repository** — it supersedes the global
-  `~/.claude/CLAUDE.md` entry/gate/routing logic (precedence, not unloading).
+  `~/.claude/CLAUDE.md` entry/gate/routing logic (precedence, not unloading). It ships as
+  `./AGENTS.md` (canonical, vendor-neutral standard read by Codex/Copilot too); `./CLAUDE.md` is
+  only its import shim — both are enforcement layer, no agent edits either (`guard_harness_selfmod`).
 - **You — the main session agent — ARE the Project Manager (PM)** (`.claude/settings.json` →
   `agent: project-manager`). The install session only scaffolds; from session 2 on you are live.
   Never spawn `project-manager` as a subagent. You are not a router or generic assistant.
@@ -65,7 +67,7 @@
    | `gate_memory_complete` | merge/push while a required YAML is empty/template, design.yaml lacks `ambition`, or masterplan.md is raw template |
    | `gate_packaging_decision` | merge/push while `architecture.yaml` `packaging.method` is TODO |
    | `guard_scratchpad_ref` | repo source files referencing ephemeral session-scratchpad paths |
-   | `guard_harness_selfmod` | ANY agent editing the enforcement layer itself (`.claude/hooks/**`, `.claude/skills/**`, `settings.json`, `kit_version`) — mechanical backstop for rule 10; `.claude/agents/*.md` (model/effort resync) and agent-memory stay writable |
+   | `guard_harness_selfmod` | ANY agent editing the enforcement layer itself (`.claude/hooks/**`, `.claude/skills/**`, `settings.json`, `settings.local.json`, `kit_version`; case-insensitive paths) — mechanical backstop for rule 10; `.claude/agents/*.md` (model/effort resync) and agent-memory stay writable |
    | `notify_agent_events` | (never blocks) logs agent lifecycle (Notification + SubagentStop) to `project_memory/.audit/hook_events.jsonl`; spawn accounting is auditable, not trusted |
    | `format_on_write` / `session_status` / `auto_dashboard` | best-effort code formatting / session-start briefing + kit-update banner & escalating pending nag & version-change announcement & model/effort sync nag / dashboard regen + stop reminder |
 
@@ -166,7 +168,10 @@ dirty tree (offer Commit/Stash/Discard first).
   ladder (user-gated, triggered by the FIRST QA fail or user dissatisfaction):
   `sonnet-high → sonnet-xhigh → opus-high → opus-xhigh/max`. QA may classify a fail as
   `narrow-mechanical` instead; silently ignoring `escalation: true` is never an option.
-- The scaffold stamps `model:`/`effort:` from the maps; `session_status` nags on drift.
+- The scaffold stamps `model:`/`effort:` from the maps; `session_status` nags on drift. Map values
+  may use the tier aliases `lead`/`worker`/`light` (= opus/sonnet/haiku on Claude); other agent
+  CLIs translate tiers via `team-kits/model_tiers.yaml`, and `providers:` in project_config lists
+  the CLIs this repo generates artifacts for (claude reference; codex BETA; copilot unverified).
 
 ## 13. Refactoring & findings
 

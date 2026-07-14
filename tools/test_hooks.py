@@ -913,6 +913,238 @@ def test_fs_tripwire_allows_ledger_add_script(tmp_path):
     assert run_hook("guard_fs_tripwire.py", payload, tmp_path, hooks_dir=OFFICE_HOOKS) == 0
 
 
+# ---------------- provider compat: Codex apply_patch / Copilot camelCase payloads ----------------
+def _codex_patch(*files):
+    body = "".join("*** Update File: %s\n@@\n-x\n+y\n" % f for f in files)
+    return "*** Begin Patch\n" + body + "*** End Patch"
+
+
+def test_selfmod_blocks_codex_apply_patch(tmp_path):
+    payload = {"tool_name": "apply_patch",
+               "tool_input": {"command": _codex_patch(".claude/hooks/gate_git.py")},
+               "cwd": str(tmp_path)}
+    assert run_hook("guard_harness_selfmod.py", payload, tmp_path) == 2
+
+
+def test_pm_scope_blocks_codex_multifile_patch(tmp_path):
+    # first file allowed, SECOND file in the same patch is production code -> must still block
+    payload = {"tool_name": "apply_patch",
+               "tool_input": {"command": _codex_patch("docs/notes.md", "src/main.py")},
+               "cwd": str(tmp_path)}
+    assert run_hook("guard_pm_scope.py", payload, tmp_path) == 2
+
+
+def test_no_adhoc_blocks_codex_added_dump_file(tmp_path):
+    patch = "*** Begin Patch\n*** Add File: final_report.md\n+x\n*** End Patch"
+    payload = {"tool_name": "apply_patch", "tool_input": {"command": patch}, "cwd": str(tmp_path)}
+    assert run_hook("guard_no_adhoc.py", payload, tmp_path) == 2
+
+
+def test_pm_scope_blocks_copilot_camelcase(tmp_path):
+    payload = {"toolName": "edit", "toolArgs": {"file_path": str(tmp_path / "src" / "x.py")},
+               "cwd": str(tmp_path)}
+    assert run_hook("guard_pm_scope.py", payload, tmp_path) == 2
+
+
+def test_selfmod_blocks_constitution_and_shim(tmp_path):
+    for name in ("AGENTS.md", "CLAUDE.md"):
+        payload = {"tool_name": "Edit", "tool_input": {"file_path": str(tmp_path / name)},
+                   "cwd": str(tmp_path)}
+        assert run_hook("guard_harness_selfmod.py", payload, tmp_path) == 2, name
+
+
+def test_selfmod_blocks_settings_local_and_case_bypass(tmp_path):
+    for rel in (".claude/settings.local.json", ".CLAUDE/hooks/gate_git.py"):
+        payload = {"tool_name": "Write", "tool_input": {"file_path": str(tmp_path / rel)},
+                   "cwd": str(tmp_path)}
+        assert run_hook("guard_harness_selfmod.py", payload, tmp_path) == 2, rel
+
+
+# ---------------- kit_checks: secure-context false positives + honest truncation ----------------
+def _kit_checks_mod():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("kit_checks_under_test", KIT_CHECKS)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _collector():
+    calls = {"ok": [], "fail": [], "warn": []}
+    return (calls, lambda n, *a: calls["ok"].append(n),
+            lambda n, m: calls["fail"].append((n, m)),
+            lambda n, m: calls["warn"].append((n, m)))
+
+
+def test_secure_context_skips_test_files_and_comment_lines(tmp_path):
+    write(str(tmp_path / "frontend" / "src" / "App.test.tsx"),
+          "navigator.clipboard.writeText = vi.fn()\n")
+    write(str(tmp_path / "frontend" / "src" / "notes.ts"),
+          "// navigator.clipboard is wrapped by copyText()\nconst a = 1\n")
+    write(str(tmp_path / "frontend" / "src" / "bad.ts"),
+          "navigator.clipboard.writeText(text)\n")
+    calls, ok, fail, warn = _collector()
+    _kit_checks_mod().check_frontend_pitfalls(str(tmp_path), ok, fail, warn)
+    assert len(calls["fail"]) == 1
+    msg = calls["fail"][0][1]
+    assert "bad.ts" in msg and "App.test.tsx" not in msg and "notes.ts" not in msg
+
+
+def test_kit_checks_truncation_reports_hidden_count(tmp_path):
+    for i in range(8):
+        write(str(tmp_path / "frontend" / "src" / ("f%d.ts" % i)),
+              "navigator.clipboard.writeText(x)\n")
+    calls, ok, fail, warn = _collector()
+    _kit_checks_mod().check_frontend_pitfalls(str(tmp_path), ok, fail, warn)
+    assert "(+3 more)" in calls["fail"][0][1]  # 8 hits, 5 shown
+
+
+# ---------------- kit_checks: enforcement-diff second line of defense ----------------
+def _git(repo, *args):
+    subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, timeout=30)
+
+
+def _mk_diff_repo(tmp_path):
+    repo = tmp_path / "repo"
+    write(str(repo / ".claude" / "hooks" / "gate_git.py"), "# v1\n")
+    write(str(repo / ".claude" / "kit_version"), "version: 1\n")
+    write(str(repo / "src" / "app.py"), "x = 1\n")
+    _git(repo, "init", "-b", "main")
+    _git(repo, "-c", "user.email=t@t", "-c", "user.name=t", "add", "-A")
+    _git(repo, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-m", "base")
+    _git(repo, "checkout", "-b", "feat")
+    return repo
+
+
+def test_enforcement_diff_blocks_hook_change_without_kit_bump(tmp_path):
+    repo = _mk_diff_repo(tmp_path)
+    write(str(repo / ".claude" / "hooks" / "gate_git.py"), "# tampered\n")
+    _git(repo, "-c", "user.email=t@t", "-c", "user.name=t", "add", "-A")
+    _git(repo, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-m", "tamper")
+    calls, ok, fail, warn = _collector()
+    _kit_checks_mod().check_enforcement_diff(str(repo), ok, fail, warn)
+    assert calls["fail"] and "kit update" in calls["fail"][0][1]
+
+
+def test_enforcement_diff_allows_kit_update(tmp_path):
+    repo = _mk_diff_repo(tmp_path)
+    write(str(repo / ".claude" / "hooks" / "gate_git.py"), "# v2 via kit\n")
+    write(str(repo / ".claude" / "kit_version"), "version: 2\n")
+    _git(repo, "-c", "user.email=t@t", "-c", "user.name=t", "add", "-A")
+    _git(repo, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-m", "kit update")
+    calls, ok, fail, warn = _collector()
+    _kit_checks_mod().check_enforcement_diff(str(repo), ok, fail, warn)
+    assert not calls["fail"]
+
+
+def test_enforcement_diff_catches_tamper_on_main(tmp_path):
+    # audit M1: solo/trunk workflow — a tampered hook committed STRAIGHT to main (no remote,
+    # HEAD == base) must not pass as "no changes"
+    repo = tmp_path / "repo"
+    write(str(repo / ".claude" / "hooks" / "gate_git.py"), "# v1\n")
+    write(str(repo / ".claude" / "kit_version"), "version: 1\n")
+    _git(repo, "init", "-b", "main")
+    _git(repo, "-c", "user.email=t@t", "-c", "user.name=t", "add", "-A")
+    _git(repo, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-m", "base")
+    write(str(repo / ".claude" / "hooks" / "gate_git.py"), "# TAMPERED\n")
+    _git(repo, "-c", "user.email=t@t", "-c", "user.name=t", "add", "-A")
+    _git(repo, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-m", "tamper on main")
+    calls, ok, fail, warn = _collector()
+    _kit_checks_mod().check_enforcement_diff(str(repo), ok, fail, warn)
+    assert calls["fail"] and "kit update" in calls["fail"][0][1]
+
+
+def test_selfmod_blocks_codex_patch_from_subdir_cwd(tmp_path):
+    # audit M2: cwd drifted into a subdir — a repo-root-looking patch path must still block
+    # (dual-candidate resolution: cwd-join AND repo-root-join)
+    (tmp_path / "frontend").mkdir(parents=True)
+    payload = {"tool_name": "apply_patch",
+               "tool_input": {"command": _codex_patch(".claude/hooks/gate_git.py")},
+               "cwd": str(tmp_path / "frontend")}
+    assert run_hook("guard_harness_selfmod.py", payload, tmp_path) == 2
+
+
+def test_enforcement_diff_warns_on_deleted_tests(tmp_path):
+    repo = tmp_path / "repo"
+    write(str(repo / ".claude" / "kit_version"), "version: 1\n")
+    write(str(repo / "tests" / "test_a.py"), "def test_a(): pass\n")  # exists on main
+    _git(repo, "init", "-b", "main")
+    _git(repo, "-c", "user.email=t@t", "-c", "user.name=t", "add", "-A")
+    _git(repo, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-m", "base")
+    _git(repo, "checkout", "-b", "feat")
+    (repo / "tests" / "test_a.py").unlink()
+    _git(repo, "-c", "user.email=t@t", "-c", "user.name=t", "add", "-A")
+    _git(repo, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-m", "delete test")
+    calls, ok, fail, warn = _collector()
+    _kit_checks_mod().check_enforcement_diff(str(repo), ok, fail, warn)
+    assert calls["warn"] and "DELETED" in calls["warn"][0][1]
+
+
+# ---------------- session_status: version-banner bootstrap + resume-proof pending counter ----------------
+def test_session_status_announces_bootstrap_update_with_pending(tmp_path):
+    repo = tmp_path / "repo"
+    write(str(repo / ".claude" / "kit_version"), "version: 2026.07.14-3\ncontent: x\n")
+    write(str(repo / ".claude" / "kit_update_pending.repo"), "# diverged\n- scripts/quality.py\n")
+    env = dict(os.environ, CLAUDE_PROJECT_DIR=str(repo))
+    p = subprocess.run([sys.executable, os.path.join(HOOKS, "session_status.py")],
+                       input=json.dumps({"cwd": str(repo)}), capture_output=True, text=True,
+                       env=env, timeout=60)
+    assert "KIT UPDATED externally to 2026.07.14-3" in p.stdout
+
+
+def test_session_status_pending_counter_ignores_resume(tmp_path):
+    repo = tmp_path / "repo"
+    write(str(repo / ".claude" / "kit_update_pending.repo"), "# diverged\n- scripts/quality.py\n")
+    write(str(repo / ".claude" / "kit_update_pending.state"),
+          '{"sessions": 2, "first_seen": "2026-07-14"}')
+    env = dict(os.environ, CLAUDE_PROJECT_DIR=str(repo))
+    subprocess.run([sys.executable, os.path.join(HOOKS, "session_status.py")],
+                   input=json.dumps({"cwd": str(repo), "source": "resume"}),
+                   capture_output=True, text=True, env=env, timeout=60)
+    st = json.loads(open(str(repo / ".claude" / "kit_update_pending.state"), encoding="utf-8").read())
+    assert st["sessions"] == 2  # resume did NOT inflate the counter
+    subprocess.run([sys.executable, os.path.join(HOOKS, "session_status.py")],
+                   input=json.dumps({"cwd": str(repo), "source": "startup"}),
+                   capture_output=True, text=True, env=env, timeout=60)
+    st = json.loads(open(str(repo / ".claude" / "kit_update_pending.state"), encoding="utf-8").read())
+    assert st["sessions"] == 3  # a real session start still increments
+
+
+# ---------------- provider generator: single-source .codex/.github artifacts ----------------
+GEN = os.path.join(ROOT, "team-kits", "gen_provider_artifacts.py")
+
+
+def test_gen_provider_artifacts(tmp_path):
+    import shutil
+    repo = tmp_path / "repo"
+    os.makedirs(str(repo / ".claude"), exist_ok=True)
+    shutil.copy(os.path.join(ROOT, "team-kits", "dev-team", "settings", "settings.json"),
+                str(repo / ".claude" / "settings.json"))
+    write(str(repo / ".claude" / "agents" / "backend-developer.md"),
+          "---\nname: backend-developer\ndescription: >\n  Backend specialist: builds\n"
+          "  the server side.\nmodel: sonnet\neffort: high\n---\nBody of the backend role.\n")
+    write(str(repo / ".claude" / "agents" / "project-manager.md"),
+          "---\nname: project-manager\ndescription: Lead\nmodel: opus\neffort: high\n---\nLead body.\n")
+    p = subprocess.run([sys.executable, GEN, "--repo", str(repo), "--providers", "codex,copilot"],
+                       capture_output=True, text=True, timeout=60)
+    assert p.returncode == 0, p.stderr
+    hooks = json.loads(open(str(repo / ".codex" / "hooks.json"), encoding="utf-8").read())
+    txt = json.dumps(hooks)
+    assert "apply_patch" in txt                      # Edit|Write matchers translated
+    assert "Agent|Task" not in txt                   # spawn guard deliberately not registered
+    assert "CLAUDE_PROJECT_DIR" not in txt           # repo-relative commands
+    toml = open(str(repo / ".codex" / "agents" / "backend-developer.toml"), encoding="utf-8").read()
+    assert 'model = "gpt-5.6-terra"' in toml and "AGENTS.md" in toml
+    # audit M3: folded (>) frontmatter descriptions must be joined, not collapsed to '>'
+    assert "Backend specialist: builds the server side." in toml
+    assert not os.path.isfile(str(repo / ".codex" / "agents" / "project-manager.toml"))
+    gh = json.loads(open(str(repo / ".github" / "hooks" / "team-kit-hooks.json"), encoding="utf-8").read())
+    assert gh.get("version") == 1 and "PreToolUse" in gh["hooks"]
+    agent_md = open(str(repo / ".github" / "agents" / "backend-developer.agent.md"), encoding="utf-8").read()
+    assert "model: claude-sonnet-5" in agent_md
+    assert 'description: "Backend specialist: builds the server side."' in agent_md
+
+
 # ---------------- constitutions: every hook has a documented rule-home (diet safety) ----------------
 def test_every_hook_documented_in_its_constitution():
     for kit in ("dev-team", "research-team", "office-team"):
@@ -1179,10 +1411,14 @@ def test_scaffold_preset_and_map_sync(tmp_path):
     write(str(kit / "settings" / "settings.json"), '{"agent": "project-manager"}')
     write(str(kit / "presets.yaml"), "mini: alpha\nfull: all\n")
     write(str(kit / "VERSION"), "version: 2026.07.13-1\ncontent: x\n")
+    write(str(kit / "constitution" / "CLAUDE.md"),
+          "<!-- agents-and-skills:team-kit demo-team -->\n# Demo constitution\nRule body.\n")
     repo = tmp_path / "repo"
     write(str(repo / "project_memory" / "project_config.yaml"),
           "project:\n  name: x\n  preset: mini\n"
-          "model_map:\n  alpha: opus   # user-approved\neffort_map:\n  alpha: high\n")
+          "providers: [claude, codex]\n"
+          "model_map:\n  alpha: lead   # tier alias — must stamp as opus\n"
+          "effort_map:\n  alpha: high\n")
     script = os.path.join(ROOT, "team-kits", "scaffold_team.ps1")
 
     def scaffold(*extra):
@@ -1198,8 +1434,18 @@ def test_scaffold_preset_and_map_sync(tmp_path):
     assert not (agents / "beta.md").exists() and not (agents / "gamma.md").exists()
     skills = repo / ".claude" / "skills"
     assert (skills / "alpha" / "SKILL.md").is_file() and not (skills / "beta").exists()
-    # V4: the user-approved map value overrides the kit default frontmatter
+    # V4 + tier alias: the user-approved map value `lead` stamps the concrete claude name
     assert "model: opus" in (agents / "alpha.md").read_text(encoding="utf-8-sig")
+    # constitution ships as AGENTS.md + a 2-line CLAUDE.md import shim (marker on line 1)
+    assert "Demo constitution" in (repo / "AGENTS.md").read_text(encoding="utf-8-sig")
+    shim = (repo / "CLAUDE.md").read_text(encoding="utf-8-sig").splitlines()
+    assert shim[0].startswith("<!-- agents-and-skills:team-kit demo-team")
+    assert shim[1].strip() == "@AGENTS.md" and len([ln for ln in shim if ln.strip()]) == 2
+    # providers: [claude, codex] -> the generator produced .codex artifacts (alpha on lead -> sol)
+    assert (repo / ".codex" / "hooks.json").is_file()
+    alpha_toml = (repo / ".codex" / "agents" / "alpha.toml").read_text(encoding="utf-8-sig")
+    assert 'model = "gpt-5.6-sol"' in alpha_toml
+    assert not (repo / ".codex" / "agents" / "project-manager.toml").exists()
 
     # a kit UPDATE without a preset argument must keep the RECORDED preset (project_config.yaml) —
     # not silently install the full roster (the inert-preset failure mode)

@@ -63,30 +63,36 @@ On Linux/Mac use `--target` and `--force` accordingly.
 
 ---
 
-## Parity: Claude Code ↔ Copilot
+## Multi-provider support: Claude Code · Codex CLI · Copilot
 
-The **shared layer** is installed once and read by **both** tools: the user-scope entry gate, the team
-kits, the per-repo `./.claude/…` files, and the constitution. What **differs is enforcement** — the
-blocking hooks and the `agent: project-manager` session setting are **Claude Code mechanisms** (the Claude
-Code VS Code extension honors them too). Native GitHub Copilot Chat reads the same agent/skill/constitution
-**prose** and follows it, but does **not execute** the hooks — so under Copilot the guarantees are
-**advisory (prose), not tool-enforced**. For the fully enforced experience (merges actually blocked on a red
-pipeline / missing tests / out-of-scope writes), drive the team with **Claude Code**.
+One kit source, generated provider artifacts — never hand-cloned. The constitution ships as
+**`./AGENTS.md`** (the vendor-neutral Linux-Foundation/AAIF standard that Codex, Copilot, Cursor
+and ~20 other tools read natively) plus a thin **`./CLAUDE.md` import shim** (`@AGENTS.md` —
+Anthropic's documented bridge; verified: subagents inherit the imported content). Adding
+`codex`/`copilot` to `providers:` in `project_config.yaml` makes the next scaffold run generate
+`.codex/hooks.json` + `.codex/agents/*.toml` resp. `.github/hooks/` + `.github/agents/*.agent.md`
+from the installed state (`team-kits/gen_provider_artifacts.py`). All providers run the SAME
+`.claude/hooks/*.py` scripts — `hooks/_compat.py` absorbs payload differences (Codex `apply_patch`
+multi-file patches, Copilot camelCase). Models are tier-mapped per provider
+(`team-kits/model_tiers.yaml`: `lead`/`worker`/`light` → Opus/Sol, Sonnet/Terra, …).
 
-| Component | Claude Code | Copilot |
-|---|---|---|
-| User entry gate | `~/.claude/CLAUDE.md` | `prompts/COPILOT.instructions.md` (`applyTo: **`) |
-| Team kit staging | `~/.claude/team-kits/<team>/` | `~/.claude/team-kits/<team>/` (shared) |
-| Project team (per repo) | `./.claude/agents/*.md` + `./CLAUDE.md` + `./.claude/settings.json` | same files |
-| Role skills (per repo) | `./.claude/skills/<role>/` | same |
-| Tool syntax | `AskUserQuestion` | `#tool:vscode_askQuestions` |
-| Subagent call | Task tool | `runSubagent` |
-| Templates | `~/.claude/team-kits/<team>/templates/project_memory/` | same (shared staging) |
-| **Enforcement** (blocking hooks + `agent` setting) | ✅ **deterministic** — hooks fire, bad merges blocked | ⚠️ **prose-only** — no hook execution |
+Honest parity matrix (verified 2026-07 against official docs; the codex-watcher tracks changes):
 
-The project team is installed in **Claude format** (`./.claude/…` + root `./CLAUDE.md`), which **both** VS
-Code Copilot and Claude Code read — one copy serves both ecosystems; the **hooks only execute under Claude
-Code**.
+| Guarantee | Claude Code | Codex CLI (BETA) | Copilot (unverified) |
+|---|---|---|---|
+| Constitution + skills + project_memory | ✅ native | ✅ AGENTS.md (32 KiB cap) | ✅ AGENTS.md |
+| File-edit guards (scope/selfmod/ad-hoc/YAML) | ✅ blocking | ✅ blocking via `apply_patch` hook (exit-2 GA) — needs a ONE-TIME interactive `/hooks` trust in the repo | ⚠️ generated; exit-2 = deny per docs, not yet live-verified |
+| Shell gates (git/pipeline/coverage/…) | ✅ blocking | ✅ blocking (same exit-2 contract) | ⚠️ generated; **fail-open on hook timeout** → long gates (`gate_pipeline`) MUST also run as a required CI check |
+| Spawn guard (work orders, no 2nd PM) | ✅ blocking | ➖ not registered (spawn-tool hookability unverified); Codex itself only spawns defined `.codex/agents/*.toml` roles | ⚠️ registered, unverified |
+| Subagent output contract (SubagentStop) | ✅ blocking | ✅ same event, `decision:block` documented | ⚠️ generated, unverified |
+| Lead = session agent | ✅ `agent:` setting | ➖ carried by AGENTS.md §0 prose only | ➖ prose only |
+| Second line of defense (git-level) | ✅ `kit_checks` enforcement-diff + CI (branch diff; on the base branch itself: last commit + working tree) | ✅ same (provider-neutral) | ✅ same + branch protection/required checks |
+
+Bottom line: Claude Code is the **reference platform** (every guarantee live-verified). Codex
+support is **BETA** — the mechanics are GA on OpenAI's side but their hook coverage is still
+maturing (open "Claude Code hook parity" tracker). Copilot artifacts are generated and
+schema-correct per the official reference, but **live-unverified** — there, branch protection +
+required CI checks are the enforcement you rely on.
 
 ---
 

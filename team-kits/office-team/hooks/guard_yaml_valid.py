@@ -18,7 +18,6 @@ Also the format backstop for progress.yaml: a real PM regrew `status` into a 307
 dropped `log:` although the template says "ONE line" — prompt-level rules the PM applies to itself
 get ignored, so the artifact's own contract is enforced here mechanically.
 """
-import json
 import os
 import sys
 
@@ -94,34 +93,24 @@ def progress_format_problems(data):
     return problems
 
 
-def main():
-    try:
-        data = json.load(sys.stdin)
-    except Exception:
-        sys.exit(0)
-    if data.get("tool_name") not in ("Edit", "Write", "MultiEdit"):
-        sys.exit(0)
-    path = ((data.get("tool_input") or {}).get("file_path")
-            or (data.get("tool_input") or {}).get("path") or "")
-    if not path:
-        sys.exit(0)
+def check(path):
     norm = path.replace("\\", "/")
     base = os.path.basename(norm)
     if "project_memory" not in norm.split("/") or not base.endswith((".yaml", ".yml")):
-        sys.exit(0)
+        return
     if not os.path.isfile(path):
-        sys.exit(0)
+        return
 
     try:
         import yaml  # type: ignore[import-untyped]
     except ImportError:
-        sys.exit(0)  # no parser available here; the pipeline yaml-lint still catches it in CI
+        return  # no parser available here; the pipeline yaml-lint still catches it in CI
 
     try:
         with open(path, encoding="utf-8", errors="ignore") as fh:
             text = fh.read()
     except Exception:
-        sys.exit(0)
+        return
 
     data_y = None
     try:
@@ -129,7 +118,7 @@ def main():
     except yaml.YAMLError as e:
         block(base, str(e))
     except Exception:
-        sys.exit(0)  # internal edge case — never block on our own bug
+        return  # internal edge case — never block on our own bug
 
     dupes = find_duplicate_keys(yaml, text)
     if dupes:
@@ -140,6 +129,16 @@ def main():
         if problems:
             block(base, "\n".join(problems), why="violates its format contract after your edit",
                   tips="See the header comments in the shipped progress.yaml template.")
+
+
+def main():
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import _compat
+    data = _compat.load()
+    if data.get("tool_name") not in ("Edit", "Write", "MultiEdit"):
+        sys.exit(0)
+    for path in _compat.file_paths(data):
+        check(path)
     sys.exit(0)
 
 

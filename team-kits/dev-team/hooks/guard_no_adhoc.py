@@ -10,7 +10,6 @@ and tells the model why. Any uncertainty -> exit 0 (never block legitimate work)
 import sys
 import os
 import re
-import json
 import fnmatch
 
 # Filename patterns that are always ad-hoc dumps (seen in real runs).
@@ -30,6 +29,7 @@ ALLOWED_ROOT_DOCS = {
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _root import find_repo_root
 import _audit
+import _compat
 
 
 def block(rel, why):
@@ -44,18 +44,7 @@ def block(rel, why):
     sys.exit(2)
 
 
-def main():
-    try:
-        data = json.load(sys.stdin)
-    except Exception:
-        sys.exit(0)
-    if data.get("tool_name") != "Write":
-        sys.exit(0)
-    inp = data.get("tool_input") or {}
-    path = inp.get("file_path") or inp.get("path") or ""
-    if not path:
-        sys.exit(0)
-    cwd = find_repo_root(data.get("cwd"))
+def check(path, cwd):
     try:
         rel = os.path.relpath(path, cwd)
     except Exception:
@@ -77,6 +66,17 @@ def main():
     if is_root and name.endswith(".md") and name not in ALLOWED_ROOT_DOCS:
         block(rel, "no loose docs at the repo root; put status/notes into project_memory/*.yaml or docs/")
 
+
+def main():
+    data = _compat.load()
+    # Claude: only Write (new files) is gated. A normalized Codex apply_patch (`_file_paths` set)
+    # can CREATE files inside an "Edit" call, so it is gated too — plain Claude Edits stay free.
+    gated = ("Write", "Edit") if data.get("_file_paths") else ("Write",)
+    if data.get("tool_name") not in gated:
+        sys.exit(0)
+    cwd = find_repo_root(data.get("cwd"))
+    for path in _compat.file_paths(data):
+        check(path, cwd)
     sys.exit(0)
 
 

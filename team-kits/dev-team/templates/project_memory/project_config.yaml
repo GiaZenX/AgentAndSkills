@@ -15,8 +15,17 @@ project:
                             # no checks defined FAILs. Leaving it [TODO]/empty while code exists ALSO FAILs
                             # (no silent auto-detect) — so a critical tool can never be "forgotten".
 
+# Agent CLIs this repo is generated for: claude | codex | copilot. Adding codex/copilot makes the
+# next scaffold run generate that provider's artifacts (.codex/hooks.json + agents, .github/…)
+# from the installed kit state — single source, never hand-cloned. Claude is the reference
+# platform; Codex support is BETA, Copilot artifacts are generated but live-unverified (CI gates
+# stay the mandatory backstop there).
+providers: [claude]
+
 # Model ladder: haiku < sonnet < opus. Specialists DEFAULT to sonnet (haiku failed the QA gate on
 # complex code in a real run). Use haiku only for genuinely simple roles; escalate to opus for the hardest.
+# Tier aliases: `lead`/`worker`/`light` are accepted as values (= opus/sonnet/haiku on Claude);
+# provider generators translate tiers to the concrete model via team-kits/model_tiers.yaml.
 # Up-scaling needs user confirmation; down-scaling the PM MAY do itself but MUST report it with a reason
 # (constitution §11). NEVER silent up-scaling, NEVER automatic.
 #

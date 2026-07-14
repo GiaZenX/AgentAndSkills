@@ -13,3 +13,7 @@ venv/
 
 # append-only hook/agent event log (diagnostic — never project state)
 project_memory/.audit/
+
+# session-local kit bookkeeping (session_status owns these; per-machine state, never project state)
+.claude/kit_last_seen_version
+.claude/kit_update_pending.state

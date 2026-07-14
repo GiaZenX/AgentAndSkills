@@ -20,9 +20,14 @@ import re
 # Browser APIs that need a SECURE CONTEXT (https / localhost) — raw use is silently dead on a
 # plain-http LAN origin, and jsdom/unit tests stay green (a real run shipped a browser-dead send
 # button exactly this way). Route them through ONE helper with a fallback; mark the reviewed helper
-# line with a `secure-context` comment to satisfy this check.
+# line with a `secure-context` comment to satisfy this check. Test files (mocks/spies name these
+# APIs legitimately) and comment-only lines are exempt — a real project's App.test.tsx clipboard
+# MOCKS turned the gate red and forced a spy workaround (confirmed kit false positive).
 SECURE_CONTEXT_APIS = ("crypto.randomUUID", "navigator.clipboard")
 _LOCAL_HOSTS = ("localhost", "127.0.0.1", "0.0.0.0", "[::1]")
+_TEST_FILE_RX = re.compile(r"(\.test\.|\.spec\.|(^|/)(tests?|__tests__)/)", re.I)
+# comment-ONLY lines (heuristic; inline code+comment lines are still scanned)
+_COMMENT_LINE_RX = re.compile(r"^\s*(//|\*|/\*|#|<!--)")
 
 # vendored/generated code is not ours to fix — a `.next/` chunk or a vendored lib containing
 # crypto.randomUUID must not turn the gate red (dot-dirs, vendor dirs, *.min.* are skipped).
@@ -42,6 +47,12 @@ FILE_BUDGET_DEFAULT = 800
 _BUDGET_EXTS = {".py", ".js", ".mjs", ".ts", ".tsx", ".jsx", ".css", ".html", ".go", ".rs",
                 ".c", ".cpp", ".h", ".cs", ".java", ".svelte", ".vue"}
 _BUDGET_AREAS = ("src", "frontend", "scripts", "tests", "static", "public")
+
+
+def _more(items, shown):
+    """Honest truncation: a display cut to the first N hits once made a PM report 'almost green'
+    to the user while 13 findings were hidden — every truncated list says exactly how many more."""
+    return " (+%d more)" % (len(items) - shown) if len(items) > shown else ""
 
 
 def _local_first_declared(root):
@@ -90,6 +101,7 @@ def check_frontend_pitfalls(root, ok, fail, warn):
         scanned = True
         rel = os.path.relpath(path, root)
         minified = os.path.basename(path).lower().endswith((".min.js", ".min.css"))
+        is_test = bool(_TEST_FILE_RX.search(rel.replace("\\", "/")))
         try:
             lines = open(path, encoding="utf-8", errors="ignore").read().splitlines()
         except Exception:
@@ -98,8 +110,9 @@ def check_frontend_pitfalls(root, ok, fail, warn):
         for i, line in enumerate(lines, 1):
             # minified bundles keep API names but are vendored — only OUR code gets the API grep;
             # the local-first RESOURCE grep still applies (an external font in a .min.css is a violation)
-            if not minified and any(api in line for api in SECURE_CONTEXT_APIS):
-                if "secure-context" not in line and "secure-context" not in prev:
+            if not minified and not is_test and any(api in line for api in SECURE_CONTEXT_APIS):
+                if ("secure-context" not in line and "secure-context" not in prev
+                        and not _COMMENT_LINE_RX.match(line)):
                     api_hits.append("%s:%d" % (rel, i))
             if local_first and os.path.splitext(path)[1].lower() in (".html", ".css"):
                 for rx in (res_html, res_css):
@@ -110,11 +123,11 @@ def check_frontend_pitfalls(root, ok, fail, warn):
     if api_hits:
         fail("secure-context APIs", "raw %s used (%s%s) — silently dead on a non-secure origin "
              "(http:// over LAN); use ONE helper with a fallback and mark it `secure-context`"
-             % ("/".join(SECURE_CONTEXT_APIS), "; ".join(api_hits[:5]), " …" if len(api_hits) > 5 else ""))
+             % ("/".join(SECURE_CONTEXT_APIS), "; ".join(api_hits[:5]), _more(api_hits, 5)))
     if cdn_hits:
         fail("local-first assets", "external asset load(s) in a local_first project: %s%s — bundle "
              "them locally (fonts/scripts/styles must not leave the machine)"
-             % ("; ".join(cdn_hits[:5]), " …" if len(cdn_hits) > 5 else ""))
+             % ("; ".join(cdn_hits[:5]), _more(cdn_hits, 5)))
     if scanned and not api_hits and not cdn_hits:
         ok("frontend pitfalls (secure-context%s)" % (", local-first assets" if local_first else ""))
 
@@ -189,7 +202,8 @@ def check_project_memory_yaml(root, ok, fail, warn):
             if "log" not in data:
                 bad.append("progress.yaml: the append-only log: list is missing (keep `log: []` even "
                            "when empty; history goes there, never into status)")
-    ok("yaml-lint (project_memory)") if not bad else fail("yaml-lint (project_memory)", "; ".join(bad[:6]))
+    ok("yaml-lint (project_memory)") if not bad else fail(
+        "yaml-lint (project_memory)", "; ".join(bad[:6]) + _more(bad, 6))
 
 
 def _count_lines(path):
@@ -259,10 +273,101 @@ def check_file_budget(root, ok, fail, warn):
              "%d file(s) over budget: %s%s — SPLIT them into modules (a real App.tsx reached 8,966 "
              "lines while its ui/ library sat unused), or add an architect-owned exemption WITH a "
              "reason under coding_guidelines.yaml `file_budget: exempt:`"
-             % (len(offenders), "; ".join("%s (%d)" % o for o in offenders[:5]),
-                " …" if len(offenders) > 5 else ""))
+             % (len(offenders), "; ".join("%s (%d)" % o for o in offenders[:5]), _more(offenders, 5)))
     elif scanned:
         ok("file budget (<=%d lines%s)" % (max_lines, ", %d exemption(s)" % len(exempt) if exempt else ""))
+
+
+# Enforcement files no agent may change inside a project (provider-NEUTRAL second line of
+# defense: session hooks only exist on the CLI that ran them — a git-level check catches shell
+# bypasses and other CLIs; documented real-world compromise pattern is rewriting instruction
+# files outside any reviewed diff). A kit update legitimately changes them — and always changes
+# .claude/kit_version in the same diff, which lifts the gate.
+_ENFORCEMENT_HARD = ("AGENTS.md", "CLAUDE.md", ".claude/hooks/", ".claude/settings.json",
+                     ".claude/settings.local.json", ".codex/", ".github/hooks/")
+_ENFORCEMENT_SOFT = (".github/workflows/", "scripts/quality.py", "scripts/kit_checks.py")
+
+
+def check_enforcement_diff(root, ok, fail, warn):
+    """Diff the current branch against the main branch: hard-fail on enforcement-layer changes
+    without a kit-version change; warn on CI/gate-file changes and deleted test files ("any
+    change that weakens CI is a blocker" — the reviewer must SEE it)."""
+    import subprocess
+    base = ""
+    for cand in ("origin/main", "main", "master"):
+        try:
+            r = subprocess.run(["git", "-C", root, "rev-parse", "--verify", "--quiet", cand],
+                               capture_output=True, text=True, timeout=10)
+            if r.returncode == 0:
+                base = cand
+                break
+        except Exception:
+            return
+    if not base:
+        return  # no base branch (fresh repo) — nothing to diff against
+
+    def _rev(name):
+        try:
+            r = subprocess.run(["git", "-C", root, "rev-parse", name],
+                               capture_output=True, text=True, timeout=10)
+            return r.stdout.strip() if r.returncode == 0 else ""
+        except Exception:
+            return ""
+
+    def _diff(*args):
+        try:
+            r = subprocess.run(["git", "-C", root, "diff", "--name-status", *args],
+                               capture_output=True, text=True, timeout=30)
+            return r.stdout.splitlines() if r.returncode == 0 else []
+        except Exception:
+            return []
+
+    if _rev("HEAD") and _rev("HEAD") == _rev(base):
+        # HEAD *is* the base branch (solo/trunk workflow): base...HEAD is empty, so a tampered
+        # commit straight to main would pass silently (audit finding) — check the last commit
+        # plus the working tree instead of a false green.
+        lines = _diff("HEAD~1...HEAD")  # may be empty on the root commit
+        scope = "last commit + working tree (HEAD is the base)"
+    else:
+        lines = _diff(base + "...HEAD")
+        scope = "vs %s" % base
+    lines += _diff("HEAD")  # uncommitted working-tree/index changes count in every mode
+    changed, deleted = [], []
+    for line in lines:
+        parts = line.split("\t")
+        if len(parts) < 2:
+            continue
+        status, path = parts[0], parts[-1].replace("\\", "/")
+        changed.append(path)
+        if status.startswith("D"):
+            deleted.append(path)
+    if not changed:
+        ok("enforcement diff (no changes, %s)" % scope)
+        return
+    kit_updated = any(p == ".claude/kit_version" for p in changed)
+    hard = [p for p in changed
+            if any(p == e or p.startswith(e) for e in _ENFORCEMENT_HARD)]
+    if hard and not kit_updated:
+        fail("enforcement diff", "enforcement-layer file(s) changed in this branch WITHOUT a kit "
+             "update: %s%s — no agent (or shell command) edits hooks/settings/the constitution in "
+             "a project; harness changes arrive via a kit update (which stamps .claude/kit_version "
+             "in the same diff). Revert these, or run the real kit update."
+             % ("; ".join(hard[:5]), _more(hard, 5)))
+        return
+    soft = [p for p in changed
+            if any(p == e or p.startswith(e) for e in _ENFORCEMENT_SOFT)]
+    dead_tests = [p for p in deleted
+                  if p.startswith("tests/") or "/tests/" in p or ".test." in p or ".spec." in p]
+    notes = []
+    if soft and not kit_updated:
+        notes.append("gate/CI file(s) changed: %s%s" % ("; ".join(soft[:4]), _more(soft, 4)))
+    if dead_tests:
+        notes.append("test file(s) DELETED: %s%s" % ("; ".join(dead_tests[:4]), _more(dead_tests, 4)))
+    if notes:
+        warn("enforcement diff", "review deliberately: %s — any change that weakens CI/tests is a "
+             "blocker unless explicitly approved (log it in progress.yaml log:)" % " | ".join(notes))
+    else:
+        ok("enforcement diff (%s)" % scope)
 
 
 def run_kit_checks(root, ok, fail, warn):
@@ -270,3 +375,4 @@ def run_kit_checks(root, ok, fail, warn):
     check_project_memory_yaml(root, ok, fail, warn)
     check_frontend_pitfalls(root, ok, fail, warn)
     check_file_budget(root, ok, fail, warn)
+    check_enforcement_diff(root, ok, fail, warn)

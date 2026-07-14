@@ -73,7 +73,10 @@ def model_effort_mismatches(cwd):
             fm = raw.split("---", 2)[1] if raw.startswith("---") and raw.count("---") >= 2 else ""
             got = re.search(r"(?m)^%s:[ \t]*([A-Za-z0-9_-]+)" % field, fm)
             have = got.group(1) if got else "MISSING"
-            if have != want:
+            # provider-neutral tier aliases (team-kits/model_tiers.yaml): `lead` IS opus etc. —
+            # a map saying `lead` with frontmatter `opus` is in sync, not drift.
+            canon = {"lead": "opus", "worker": "sonnet", "light": "haiku"}
+            if canon.get(have, have) != canon.get(want, want):
                 mism.append("%s %s=%s (map says %s)" % (role, field, have, want))
     return mism
 
@@ -154,11 +157,22 @@ def main():
             seen = ""
             if os.path.isfile(seen_p):
                 seen = open(seen_p, encoding="utf-8").read().strip()
+            pending_exists = any(
+                os.path.isfile(os.path.join(cwd, ".claude", "kit_update_pending." + s))
+                for s in ("repo", "memory"))
             if seen and seen != local_v:
                 parts.append(
                     "KIT UPDATED since this repo's last session: %s -> %s (applied externally). Tell "
                     "the user in your FIRST paragraph what changed for the team, and work through any "
                     "kit_update_pending entries before routine work." % (seen, local_v))
+            elif not seen and pending_exists:
+                # bootstrap gap (forensics): the marker file is introduced by the very update it
+                # should announce — with pending files present, an external update DID just land,
+                # so announce it even though the previous version is unknown.
+                parts.append(
+                    "KIT UPDATED externally to %s (first session with version tracking — the exact "
+                    "previous version is unknown). Tell the user in your FIRST paragraph and work "
+                    "through the kit_update_pending entries before routine work." % local_v)
             if seen != local_v:
                 with open(seen_p, "w", encoding="utf-8") as fh:
                     fh.write(local_v)
@@ -249,11 +263,16 @@ def main():
                     pend_lines += [ln.strip()[2:] for ln in fh if ln.strip().startswith("- ")]
         state_p = os.path.join(cwd, ".claude", "kit_update_pending.state")
         if pend_lines:
+            # resumes/compactions are NOT new sessions: post-limit resumes inflated the counter to
+            # "3rd session" before the PM ever saw the notice once (forensics) — the scolding text
+            # then misattributes blame. Only a real session start increments.
+            is_resume = str(data.get("source") or "") in ("resume", "compact")
             sessions, first = 1, time.strftime("%Y-%m-%d")
             try:
                 with open(state_p, encoding="utf-8") as fh:
                     st = json.load(fh)
-                sessions = int(st.get("sessions", 0)) + 1
+                prev = int(st.get("sessions", 0))
+                sessions = prev if (is_resume and prev >= 1) else prev + 1
                 first = st.get("first_seen", first)
             except Exception:
                 pass

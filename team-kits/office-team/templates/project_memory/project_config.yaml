@@ -8,8 +8,15 @@ project:
   name: ""                  # set at init
   preset: core              # core | commerce | full — user-confirmed
 
+# Agent CLIs this repo is generated for: claude | codex | copilot. Adding codex/copilot makes the
+# next scaffold run generate that provider's artifacts from the installed kit state — single
+# source, never hand-cloned. Claude is the reference platform; Codex is BETA, Copilot unverified.
+providers: [claude]
+
 # Model ladder: haiku < sonnet < opus. Specialists DEFAULT to sonnet. Up-scaling needs user
 # confirmation; down-scaling the manager MAY do itself but MUST report it with a reason.
+# Tier aliases: `lead`/`worker`/`light` are accepted as values (= opus/sonnet/haiku on Claude);
+# provider generators translate tiers to the concrete model via team-kits/model_tiers.yaml.
 # The manager is the FOREGROUND agent on opus (kit settings + frontmatter) — NOT listed here.
 # The scaffold re-stamps each installed agent's model:/effort: from these maps on every update;
 # session_status nags on drift. Keys cover the FULL roster — entries for roles the preset did not

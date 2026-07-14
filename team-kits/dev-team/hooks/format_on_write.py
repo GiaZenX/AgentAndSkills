@@ -16,7 +16,6 @@ frontmatter placement is for per-role scoping, NOT because settings hooks would 
 """
 import sys
 import os
-import json
 import shutil
 import subprocess
 
@@ -40,31 +39,22 @@ SKIP_DIRS = ("project_memory", ".claude", "plans", "node_modules", ".git", "dist
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _root import find_repo_root
+import _compat
 
 
-def main():
-    try:
-        data = json.load(sys.stdin)
-    except Exception:
-        sys.exit(0)
-    if data.get("tool_name") not in ("Edit", "Write"):
-        sys.exit(0)
-    inp = data.get("tool_input") or {}
-    path = inp.get("file_path") or inp.get("path") or ""
+def fmt(path, cwd):
     if not path or not os.path.isfile(path):
-        sys.exit(0)
-
-    cwd = find_repo_root(data.get("cwd"))
+        return
     try:
         rel = os.path.relpath(path, cwd).replace("\\", "/")
     except Exception:
         rel = path
     if any(part in SKIP_DIRS for part in rel.split("/")):
-        sys.exit(0)
+        return
 
     cands = FORMATTERS.get(os.path.splitext(path)[1].lower())
     if not cands:
-        sys.exit(0)
+        return
 
     for cmd in cands:
         exe = cmd[0]
@@ -80,6 +70,14 @@ def main():
                 pass
             break  # a formatter for this extension was found; stop
 
+
+def main():
+    data = _compat.load()
+    if data.get("tool_name") not in ("Edit", "Write"):
+        sys.exit(0)
+    cwd = find_repo_root(data.get("cwd"))
+    for path in _compat.file_paths(data):
+        fmt(path, cwd)
     sys.exit(0)
 
 
