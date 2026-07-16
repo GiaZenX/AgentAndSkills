@@ -1166,6 +1166,53 @@ def test_fs_tripwire_allows_ledger_add_script(tmp_path):
     assert run_hook("guard_fs_tripwire.py", payload, tmp_path, hooks_dir=OFFICE_HOOKS) == 0
 
 
+# ---------------- _root: Windows drive-letter case normalization ----------------
+def test_root_normalizes_windows_drive_case(tmp_path, monkeypatch):
+    if os.name != "nt":
+        pytest.skip("drive-letter casing is a Windows concept")
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "root_under_test", os.path.join(HOOKS, "_root.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    (tmp_path / ".claude").mkdir()
+    lower = str(tmp_path)[0].lower() + str(tmp_path)[1:]
+    # env path (CLAUDE_PROJECT_DIR) and walk-up path both normalize the drive letter:
+    # a lowercase c:\ cwd broke vite/rollup ONLY inside the hook subprocess chain (real
+    # overnight incident); direct comparison runs were silently msys-normalized.
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", lower)
+    assert mod.find_repo_root()[0] == str(tmp_path)[0].upper()
+    monkeypatch.delenv("CLAUDE_PROJECT_DIR")
+    result = mod.find_repo_root(os.path.join(lower, "sub"))
+    assert result[0] == str(tmp_path)[0].upper()
+
+
+# ---------------- gate detection: prose mentions of push/merge must not trigger ----------------
+def test_gate_pipeline_ignores_prose_push_mentions(tmp_path):
+    write(str(tmp_path / "project_memory" / "product_requirements.yaml"),
+          "requirements:\n  PRD-0001:\n    title: x\n")
+    # a commit message DESCRIBING a push must not run the pipeline (real incident:
+    # the diagnosis commit about a blocked push triggered the full RED pipeline again)
+    prose = {"tool_name": "Bash", "cwd": str(tmp_path),
+             "tool_input": {"command": 'git commit -m "docs: git push blocked by gate defect"'}}
+    assert run_hook("gate_pipeline.py", prose, tmp_path) == 0
+    # a REAL push still gates (no scripts/quality.py here -> hard block)
+    push = {"tool_name": "Bash", "cwd": str(tmp_path),
+            "tool_input": {"command": "git push origin main"}}
+    r = run_hook_process("gate_pipeline.py", push, tmp_path)
+    assert r.returncode == 2 and "no quality pipeline" in r.stderr
+
+
+def test_gate_git_force_check_survives_quote_stripping(tmp_path):
+    blocked = {"tool_name": "Bash", "cwd": str(tmp_path),
+               "tool_input": {"command": "git push origin main --force"}}
+    r = run_hook_process("gate_git.py", blocked, tmp_path)
+    assert r.returncode == 2 and "force-push" in r.stderr
+    prose = {"tool_name": "Bash", "cwd": str(tmp_path),
+             "tool_input": {"command": 'git commit -m "never use git push --force"'}}
+    assert run_hook("gate_git.py", prose, tmp_path) == 0
+
+
 # ---------------- provider compat: Codex apply_patch payloads ----------------
 def _codex_patch(*files):
     body = "".join("*** Update File: %s\n@@\n-x\n+y\n" % f for f in files)

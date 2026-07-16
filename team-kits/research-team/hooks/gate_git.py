@@ -44,12 +44,15 @@ def main():
     if data.get("tool_name") not in ("Bash", "PowerShell"):
         sys.exit(0)
     cmd = ((data.get("tool_input") or {}).get("command") or "")
-    low = cmd.lower()
-    if "git push" not in low and "git merge" not in low:
+    # Strip quoted spans BEFORE matching: a commit MESSAGE that merely DESCRIBES a push
+    # (`git commit -m "docs: push blocked ..."`) false-triggered this gate in a real run.
+    # Unquoted prose can still over-trigger — the safe direction for a gate.
+    low = re.sub(r'"[^"]*"|\'[^\']*\'', " ", cmd.lower())
+    if not re.search(r"\bgit\b[^&|;\n]*\b(push|merge)\b", low):
         sys.exit(0)
 
     # force-push: always forbidden (flags AND the `+refspec` form, e.g. `git push origin +main`)
-    if "git push" in low and re.search(r"--force(-with-lease)?|(^|\s)-f(\s|$)|\s\+[\w./-]+(:|\s|$)", low):
+    if re.search(r"\bgit\b[^&|;\n]*\bpush\b", low) and re.search(r"--force(-with-lease)?|(^|\s)-f(\s|$)|\s\+[\w./-]+(:|\s|$)", low):
         block("force-push is forbidden by the team constitution.")
 
     cwd = find_repo_root(data.get("cwd"))

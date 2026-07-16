@@ -47,8 +47,12 @@ def main():
         sys.exit(0)
     if data.get("tool_name") not in ("Bash", "PowerShell"):
         sys.exit(0)
-    low = ((data.get("tool_input") or {}).get("command") or "").lower()
-    if "git push" not in low and "git merge" not in low:
+    # Strip quoted spans BEFORE matching: a commit MESSAGE that merely DESCRIBES a push
+    # (`git commit -m "docs: push blocked ..."`) false-triggered a FULL pipeline run in a
+    # real session. Unquoted prose can still over-trigger — the safe direction for a gate.
+    low = re.sub(r'"[^"]*"|\'[^\']*\'', " ",
+                 ((data.get("tool_input") or {}).get("command") or "").lower())
+    if not re.search(r"\bgit\b[^&|;\n]*\b(push|merge)\b", low):
         sys.exit(0)
 
     root = find_repo_root(data.get("cwd"))
@@ -66,7 +70,11 @@ def main():
     try:
         # subprocess limit is BELOW the hook's settings.json timeout, so we time out first and can BLOCK
         # rather than letting Claude Code kill a slow hook (a killed hook would NOT block — a silent pass).
+        # stdin=DEVNULL: the child must not inherit the hook's consumed payload pipe (node
+        # tooling probes stdin). cwd comes from find_repo_root, which normalizes the Windows
+        # drive-letter case — a lowercase c:\ cwd broke vite/rollup ONLY in this hook chain.
         p = subprocess.run([sys.executable, runner], cwd=root,
+                           stdin=subprocess.DEVNULL,
                            capture_output=True, text=True, timeout=1500)
     except subprocess.TimeoutExpired:
         block("the quality pipeline did not finish within the time limit — speed up the test suite or "

@@ -1,5 +1,23 @@
 # Harness log
 
+## 2026-07-16 — Drive-letter-casing gate bug solved + prose-push false trigger (kits 2026.07.16-1)
+A synaipse push was blocked all night: vite/rollup failed 100% deterministically ONLY inside
+gate_pipeline's subprocess chain, 0% in the team's own comparison shells. Their DevOps had
+methodically refuted memory/env/cache/spawn-shape hypotheses (including reproduce-first refutation
+of ELECTRON_RUN_AS_NODE) but could not see the real delta: the hook chain passes the session's
+LOWERCASE drive-letter cwd (`c:\...`) verbatim to node children, while every "direct" comparison
+ran through Git-Bash, which silently msys-normalizes to `C:\...`. Controlled A/B here confirmed it:
+same build, cwd `c:\...` red, `C:\...` green, and a third run (`C:` + lowercase components) proved
+ONLY the drive letter matters. Fix: `_root.find_repo_root` now uppercases a lowercase Windows
+drive letter (lexical only — deliberately NOT realpath(), which would resolve junctions and change
+path identity for prefix-comparing guards); mirrored ×3 kits, so EVERY hook benefits.
+gate_pipeline additionally spawns the pipeline with stdin=DEVNULL. Second field defect fixed in the
+same round: gate_git/gate_pipeline matched `git push`/`git merge` as naive substrings, so a commit
+MESSAGE describing the bug re-triggered the full RED pipeline; both gates (dev + research) now
+strip quoted spans and match a real git invocation (`\bgit\b[^&|;\n]*\b(push|merge)\b`) — unquoted
+prose may still over-trigger, the safe direction for a gate. 3 new tests (casing, prose commit
+passes + real push still gates, force-check survives quote-stripping).
+
 One dated entry per hardening round: WHAT changed and WHY — the tool-neutral entry point into this
 repo's history for any agent CLI (Claude Code, Codex) and for humans. Full rationale lives
 in the referenced commit messages; project conventions live in the kits themselves. Newest first.
