@@ -47,11 +47,15 @@ def main():
         sys.exit(0)
     if data.get("tool_name") not in ("Bash", "PowerShell"):
         sys.exit(0)
-    # Strip quoted spans BEFORE matching: a commit MESSAGE that merely DESCRIBES a push
-    # (`git commit -m "docs: push blocked ..."`) false-triggered a FULL pipeline run in a
-    # real session. Unquoted prose can still over-trigger — the safe direction for a gate.
-    low = re.sub(r'"[^"]*"|\'[^\']*\'', " ",
-                 ((data.get("tool_input") or {}).get("command") or "").lower())
+    # Shell-WRAPPER payloads are CODE (`bash -c "git push"` — audit finding: plain quote-stripping
+    # let it pass), remaining quoted spans are PROSE (a commit MESSAGE describing a push
+    # false-triggered a FULL pipeline run in a real session). Unwrap, then strip, then match.
+    cmd = ((data.get("tool_input") or {}).get("command") or "")
+    unwrapped = re.sub(
+        r'((?:bash|sh|zsh|dash|pwsh|powershell|cmd)(?:\.exe)?\s+(?:[-/]{1,2}[\w-]+\s+)*'
+        r'[-/]c(?:ommand)?\s+)(["\'])(.*?)\2',
+        lambda m: m.group(1) + " " + m.group(3) + " ", cmd, flags=re.IGNORECASE | re.DOTALL)
+    low = re.sub(r'"[^"]*"|\'[^\']*\'', " ", unwrapped.lower())
     if not re.search(r"\bgit\b[^&|;\n]*\b(push|merge)\b", low):
         sys.exit(0)
 

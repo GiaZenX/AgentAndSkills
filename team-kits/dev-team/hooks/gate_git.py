@@ -36,6 +36,21 @@ def read_text(path):
         return ""
 
 
+# Shell-WRAPPER payloads are CODE, not prose: plain quote-stripping regressed
+# `bash -c "git push ..."` past this gate (audit finding). Unwrap them BEFORE stripping the
+# remaining quoted spans (those are prose — a commit MESSAGE describing a push must not gate).
+_WRAPPER_RX = re.compile(
+    r'((?:bash|sh|zsh|dash|pwsh|powershell|cmd)(?:\.exe)?\s+(?:[-/]{1,2}[\w-]+\s+)*'
+    r'[-/]c(?:ommand)?\s+)(["\'])(.*?)\2',
+    re.IGNORECASE | re.DOTALL)
+_QUOTED_RX = re.compile(r'"[^"]*"|\'[^\']*\'')
+
+
+def executable_text(command):
+    unwrapped = _WRAPPER_RX.sub(lambda m: m.group(1) + " " + m.group(3) + " ", command)
+    return _QUOTED_RX.sub(" ", unwrapped.lower())
+
+
 def main():
     try:
         data = json.load(sys.stdin)
@@ -44,15 +59,18 @@ def main():
     if data.get("tool_name") not in ("Bash", "PowerShell"):
         sys.exit(0)
     cmd = ((data.get("tool_input") or {}).get("command") or "")
-    # Strip quoted spans BEFORE matching: a commit MESSAGE that merely DESCRIBES a push
-    # (`git commit -m "docs: push blocked ..."`) false-triggered this gate in a real run.
-    # Unquoted prose can still over-trigger — the safe direction for a gate.
-    low = re.sub(r'"[^"]*"|\'[^\']*\'', " ", cmd.lower())
+    low = executable_text(cmd)
     if not re.search(r"\bgit\b[^&|;\n]*\b(push|merge)\b", low):
         sys.exit(0)
 
-    # force-push: always forbidden (flags AND the `+refspec` form, e.g. `git push origin +main`)
-    if re.search(r"\bgit\b[^&|;\n]*\bpush\b", low) and re.search(r"--force(-with-lease)?|(^|\s)-f(\s|$)|\s\+[\w./-]+(:|\s|$)", low):
+    # force-push: always forbidden (flags AND the `+refspec` form, e.g. `git push origin +main`).
+    # Checked on the RAW text: quoted flags (`git push "--force"`, `"+main"`) reach git after the
+    # shell strips the quotes, so hiding them in quotes must not disarm the ban (audit finding);
+    # over-triggering is acceptable for an always-forbidden action.
+    raw_low = cmd.lower()
+    if re.search(r"\bgit\b[^&|;\n]*\bpush\b", low) and re.search(
+            r"--force(-with-lease)?|(^|[\s\"'])-f([\s\"']|$)|[\s\"']\+[\w./-]+(:|[\s\"']|$)",
+            raw_low):
         block("force-push is forbidden by the team constitution.")
 
     cwd = find_repo_root(data.get("cwd"))

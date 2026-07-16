@@ -44,15 +44,25 @@ def main():
     if data.get("tool_name") not in ("Bash", "PowerShell"):
         sys.exit(0)
     cmd = ((data.get("tool_input") or {}).get("command") or "")
-    # Strip quoted spans BEFORE matching: a commit MESSAGE that merely DESCRIBES a push
-    # (`git commit -m "docs: push blocked ..."`) false-triggered this gate in a real run.
-    # Unquoted prose can still over-trigger — the safe direction for a gate.
-    low = re.sub(r'"[^"]*"|\'[^\']*\'', " ", cmd.lower())
+    # Shell-WRAPPER payloads are CODE (`bash -c "git push"` — audit finding: plain quote-stripping
+    # let it pass), remaining quoted spans are PROSE (a commit MESSAGE describing a push
+    # false-triggered this gate in a real run). Unwrap, then strip, then match.
+    unwrapped = re.sub(
+        r'((?:bash|sh|zsh|dash|pwsh|powershell|cmd)(?:\.exe)?\s+(?:[-/]{1,2}[\w-]+\s+)*'
+        r'[-/]c(?:ommand)?\s+)(["\'])(.*?)\2',
+        lambda m: m.group(1) + " " + m.group(3) + " ", cmd, flags=re.IGNORECASE | re.DOTALL)
+    low = re.sub(r'"[^"]*"|\'[^\']*\'', " ", unwrapped.lower())
     if not re.search(r"\bgit\b[^&|;\n]*\b(push|merge)\b", low):
         sys.exit(0)
 
-    # force-push: always forbidden (flags AND the `+refspec` form, e.g. `git push origin +main`)
-    if re.search(r"\bgit\b[^&|;\n]*\bpush\b", low) and re.search(r"--force(-with-lease)?|(^|\s)-f(\s|$)|\s\+[\w./-]+(:|\s|$)", low):
+    # force-push: always forbidden (flags AND the `+refspec` form, e.g. `git push origin +main`).
+    # Checked on the RAW text: quoted flags (`git push "--force"`, `"+main"`) reach git after the
+    # shell strips the quotes, so hiding them in quotes must not disarm the ban (audit finding);
+    # over-triggering is acceptable for an always-forbidden action.
+    raw_low = cmd.lower()
+    if re.search(r"\bgit\b[^&|;\n]*\bpush\b", low) and re.search(
+            r"--force(-with-lease)?|(^|[\s\"'])-f([\s\"']|$)|[\s\"']\+[\w./-]+(:|[\s\"']|$)",
+            raw_low):
         block("force-push is forbidden by the team constitution.")
 
     cwd = find_repo_root(data.get("cwd"))

@@ -1211,6 +1211,32 @@ def test_gate_git_force_check_survives_quote_stripping(tmp_path):
     prose = {"tool_name": "Bash", "cwd": str(tmp_path),
              "tool_input": {"command": 'git commit -m "never use git push --force"'}}
     assert run_hook("gate_git.py", prose, tmp_path) == 0
+    # audit findings: QUOTED force flags reach git after the shell strips the quotes —
+    # hiding them in quotes must not disarm the always-forbidden ban
+    for command in ('git push "--force" origin main', 'git push origin "+main"'):
+        payload = {"tool_name": "Bash", "cwd": str(tmp_path),
+                   "tool_input": {"command": command}}
+        r = run_hook_process("gate_git.py", payload, tmp_path)
+        assert r.returncode == 2 and "force-push" in r.stderr, command
+
+
+def test_gates_catch_shell_wrapped_push(tmp_path):
+    # audit finding (regression vs the old substring check): a push inside a shell WRAPPER
+    # payload is CODE and must gate — plain quote-stripping had let it pass both gates
+    write(str(tmp_path / "project_memory" / "product_requirements.yaml"),
+          "requirements:\n  PRD-0001:\n    title: x\n")
+    for command in ('bash -c "git push origin main"',
+                    "powershell -Command 'git push origin main'",
+                    'powershell -NoProfile -Command "git push origin main"',
+                    'cmd /c "git merge feature"'):
+        payload = {"tool_name": "Bash", "cwd": str(tmp_path),
+                   "tool_input": {"command": command}}
+        r = run_hook_process("gate_pipeline.py", payload, tmp_path)
+        assert r.returncode == 2 and "no quality pipeline" in r.stderr, command
+    # the fixed prose incident stays fixed
+    prose = {"tool_name": "Bash", "cwd": str(tmp_path),
+             "tool_input": {"command": 'git commit -m "docs: git push blocked by gate defect"'}}
+    assert run_hook("gate_pipeline.py", prose, tmp_path) == 0
 
 
 # ---------------- provider compat: Codex apply_patch payloads ----------------

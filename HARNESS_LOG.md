@@ -1,5 +1,17 @@
 # Harness log
 
+## 2026-07-16 — Fable cross-check of the gate fix: wrapper-push regression closed (dev/research 2026.07.16-2)
+A user-requested independent Fable audit CONFIRMED the -1 round (root cause reproduced A/B/A;
+no fail-open in any guard — ntpath.relpath compares drive case-insensitively; delivery verified in
+both projects) and caught what the round itself introduced: plain quote-stripping regressed
+`bash -c "git push ..."` / `powershell -Command "git push ..."` PAST both gates (the old substring
+check had caught them), and QUOTED force flags (`git push "--force"`, `"+main"`) escaped the
+always-forbidden ban. Fix: shell-WRAPPER payloads (bash/sh/zsh/dash/pwsh/powershell/cmd with
+-c/-Command//c) are unwrapped as CODE before the remaining quoted spans are stripped as PROSE —
+the fixed prose-commit incident stays fixed; the force check now runs on the RAW text (quotes are
+shell syntax, git still receives the flag) with the +refspec pattern extended to quoted forms.
+4 gate files (dev+research), 2 new regression tests (204 total).
+
 ## 2026-07-16 — Drive-letter-casing gate bug solved + prose-push false trigger (kits 2026.07.16-1)
 A synaipse push was blocked all night: vite/rollup failed 100% deterministically ONLY inside
 gate_pipeline's subprocess chain, 0% in the team's own comparison shells. Their DevOps had
