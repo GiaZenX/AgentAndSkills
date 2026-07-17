@@ -3509,3 +3509,24 @@ def test_question_context_catches_audit_reported_misses(tmp_path):
     header_ref = _question_payload(tmp_path, "Freigeben?")
     header_ref["tool_input"]["questions"][0]["header"] = "s.o."
     assert run_hook("guard_question_context.py", header_ref, tmp_path) == 2
+
+
+def test_quality_regex_fallbacks_without_pyyaml(tmp_path, monkeypatch):
+    # CI always installs pyyaml, so the demoted regex fallbacks were DEAD paths in CI (audit) —
+    # poison the yaml import to prove the pyyaml-less machine still reads every knob
+    os.makedirs(str(tmp_path / "scripts"))
+    shutil.copy(QUALITY, str(tmp_path / "scripts" / "quality.py"))
+    shutil.copy(KIT_CHECKS, str(tmp_path / "scripts" / "kit_checks.py"))
+    write(str(tmp_path / "project_memory" / "project_config.yaml"),
+          "project:\n  stacks:\n    - python\n")
+    write(str(tmp_path / "project_memory" / "coding_guidelines.yaml"),
+          "source_areas:\n  - compounder\n  - '..'\n")
+    write(str(tmp_path / "project_memory" / "testing_guidelines.yaml"),
+          "coverage_gate:\n  threshold: 85\n")
+    os.makedirs(str(tmp_path / "compounder"))
+    mod = _quality_mod(str(tmp_path / "scripts" / "quality.py"))
+    monkeypatch.setitem(sys.modules, "yaml", None)  # import yaml -> ImportError
+    assert mod.declared_stacks() == ["python"]
+    targets = mod._python_targets()
+    assert "compounder" in targets and ".." not in targets
+    assert mod.coverage_threshold() == 85

@@ -32,7 +32,9 @@ INDENTED_RE = re.compile(r"^\s+\S")
 
 def read(path):
     try:
-        with open(path, encoding="utf-8", errors="ignore") as fh:
+        # utf-8-sig: a PS 5.1 rewrite prepends a BOM and the ^-anchored key regexes
+        # then never match — a correctly filled config caused a PERMANENT push block (audit)
+        with open(path, encoding="utf-8-sig", errors="ignore") as fh:
             return fh.read()
     except Exception:
         return ""

@@ -83,6 +83,8 @@ def load_project_yaml(root, name):
     if not os.path.isfile(p):
         return {}
     try:
+        if os.path.getsize(p) > 2_000_000:
+            return {}  # a multi-MB config would stall the BLOCKING hook path (audit: 15s/9MB)
         import yaml  # type: ignore[import-untyped]
         data = yaml.safe_load(open(p, encoding="utf-8-sig", errors="ignore").read())
         return data if isinstance(data, dict) else {}
@@ -416,7 +418,9 @@ def _budget_config(root):
         data = load_project_yaml(root, name)
         if not data:
             continue
-        for extra in (data.get("source_areas") or []):
+        declared = data.get("source_areas")
+        # list-guard: a scalar `source_areas: src` would iterate CHARACTERS (audit repro)
+        for extra in (declared if isinstance(declared, list) else []):
             name_clean = str(extra).strip().strip("/").replace("\\", "/")
             # the char class blocks separators, but NOT dot-only names: '..' walked the
             # PARENT directory in an audit repro — a scan area must be a real child name

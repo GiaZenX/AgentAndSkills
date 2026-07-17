@@ -24,6 +24,10 @@ try:
 except Exception:
     def find_repo_root(start=None):
         return os.environ.get("CLAUDE_PROJECT_DIR") or start or os.getcwd()
+try:
+    import _compat  # noqa: F401 — UTF-8 stream pinning (import side effect)
+except Exception:
+    pass
 
 
 def main():

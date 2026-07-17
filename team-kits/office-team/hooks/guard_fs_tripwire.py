@@ -16,6 +16,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import _audit
+import _compat  # noqa: F401 — UTF-8 stream pinning (import side effect)
 
 
 DELETE_RX = re.compile(

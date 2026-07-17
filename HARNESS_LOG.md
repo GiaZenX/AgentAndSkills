@@ -1,5 +1,25 @@
 # Harness log
 
+## 2026-07-17 — Double-Fable audit of the consolidation: outbound encoding + crash guards (dev 2026.07.17-9, research -10, office -8)
+Auditor A issued the week's first unconditional Freigabe (behavior preservation verified
+line-by-line at every migrated call site; quotepath=off proven strictly better; the E2E cache
+proof confirmed hard). Auditor B's live simulation found what A's diff view couldn't: (1) the
+encoding family was only HALF dead — hooks WRITE their block messages through cp1252 stderr, so
+"Käufer" reached a UTF-8 provider as mojibake, and the new E2E test's ASCII assert had sealed
+the gap; _compat now pins stdout/stderr to UTF-8 as an IMPORT side effect (every hook imports
+it — the six that didn't now do), and the E2E assert demands the umlaut itself survive. (2) The
+new structured-first branches CRASHED on scalar-typed knobs (`coverage_gate: streng`,
+`project: string` — AttributeError killed the whole pipeline where the old regex fell back);
+type guards added, incl. the bool-is-int trap (`threshold: true`) and the scalar source_areas
+char-iteration (quality + kit_checks). (3) The two deliberately-stdlib gates were BOM-blind:
+a PS-5.1 BOM rewrite of a correctly filled project_config caused a PERMANENT push block with
+escalation (live-reproduced); utf-8-sig, one line each (gate_memory_complete ×2,
+gate_packaging_decision). Plus: load_project_yaml got the 2 MB cap (9.6 MB YAML cost 15 s per
+parse in the BLOCKING hook path), E2E gets a git skipif, CI pins PYTHONUTF8=0 (Python 3.15
+flips Windows to UTF-8 — the runner would go green-without-meaning while cp1252 field machines
+stay exposed), and the demoted regex fallbacks got their first test (they were dead paths in
+CI, which always installs pyyaml). 3 new tests (240 total).
+
 ## 2026-07-17 — Consolidation round: kill the bug FAMILIES, not the bugs (dev 2026.07.17-8, research -9, office -7)
 User decision after the week's audit pattern (every round introduced ≥1 MAJOR, and the MAJORs
 clustered in the same three families): consolidate instead of the next feature. (1) ENCODING:

@@ -10,10 +10,14 @@ stdin, real subprocess chains, umlauts in paths/messages/output.
 """
 import json
 import os
+import shutil
 import subprocess
 import sys
 
 import pytest
+
+pytestmark = pytest.mark.skipif(shutil.which("git") is None,
+                                reason="e2e scenarios need git on PATH")
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 HOOKS = os.path.join(ROOT, "team-kits", "dev-team", "hooks")
@@ -61,8 +65,9 @@ def test_e2e_gate_pipeline_red_run_shows_utf8_fail_lines(tmp_path):
                "tool_input": {"command": "git push origin main"}}
     r = raw_hook("gate_pipeline.py", payload, tmp_path)
     assert r.returncode == 2
-    err = r.stderr.decode("utf-8", "replace")
-    assert "FAIL" in err and "frontend tests" in err  # the red line SURVIVES into the block
+    err = r.stderr.decode("utf-8")  # strict: the OUTBOUND side must be real UTF-8 (audit:
+    assert "FAIL" in err            # cp1252 stderr turned Käufer into mojibake for providers)
+    assert "Käufer-Flow" in err     # the umlaut SURVIVES the whole chain, not just the line
 
 
 def test_e2e_gate_pipeline_green_cache_with_umlaut_filename(tmp_path):
@@ -146,3 +151,37 @@ def test_e2e_session_status_survives_umlaut_git_state(tmp_path):
     out = json.loads(r.stdout.decode("utf-8", "replace"))
     ctx = out["hookSpecificOutput"]["additionalContext"]
     assert "büro" in ctx  # branch survived the decode intact, no mojibake
+
+
+# ---------------- scenario: BOM-written config must not permanently block pushes ----------------
+def test_e2e_memory_complete_accepts_bom_config(tmp_path):
+    """A PS-5.1-style BOM rewrite of project_config.yaml (name on line 1) once made
+    config_unfilled() blind — the gate blocked every push of a correctly filled project and
+    escalated. The stdlib gates read utf-8-sig now."""
+    write(str(tmp_path / "project_memory" / "product_requirements.yaml"),
+          "requirements:\n  PRD-0001:\n    title: x\n")
+    cfg = tmp_path / "project_memory" / "project_config.yaml"
+    cfg.write_bytes("﻿name: Bürosoftware Müller GmbH\npreset: solo\n".encode("utf-8"))
+    payload = {"tool_name": "Bash", "cwd": str(tmp_path),
+               "tool_input": {"command": "git push origin main"}}
+    r = raw_hook("gate_memory_complete.py", payload, tmp_path)
+    err = r.stderr.decode("utf-8", "replace")
+    assert "project_config.yaml" not in err  # filled config never appears in the block list
+
+
+def test_e2e_quality_scalar_configs_never_crash(tmp_path):
+    """Scalar-typed knobs (coverage_gate: streng / project: string) crashed the structured
+    branches with AttributeError — the whole pipeline died with a traceback (audit repro).
+    Type guards must fall back gracefully."""
+    scripts = tmp_path / "scripts"
+    os.makedirs(str(scripts))
+    for f in ("quality.py", "kit_checks.py", "kit_browser_checks.py"):
+        import shutil as _sh
+        _sh.copy(os.path.join(SCRIPTS, f), str(scripts / f))
+    write(str(tmp_path / "project_memory" / "testing_guidelines.yaml"), "coverage_gate: streng\n")
+    write(str(tmp_path / "project_memory" / "project_config.yaml"), "project: nur-ein-string\n")
+    r = subprocess.run([sys.executable, str(scripts / "quality.py")],
+                       capture_output=True, text=True, encoding="utf-8", errors="replace",
+                       cwd=str(tmp_path), timeout=120)
+    assert "Traceback" not in (r.stdout + r.stderr)
+    assert r.returncode in (0, 1)  # honest verdict, never a crash

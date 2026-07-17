@@ -31,6 +31,16 @@ except Exception:  # standalone import (tests) — same fallback _audit uses
     def find_repo_root(start=None):
         return os.environ.get("CLAUDE_PROJECT_DIR") or start or os.getcwd()
 
+# OUTBOUND half of the encoding family (audit): hooks write block messages to stderr, which
+# Windows opens cp1252 — "Käufer" reached a UTF-8-reading provider as mojibake while the
+# INBOUND side was already pinned. Import-time side effect on purpose: every hook that imports
+# _compat (all of them) gets UTF-8 streams without a per-hook call to forget.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass  # non-reconfigurable stream (test harness capture) — best effort
+
 
 _PATCH_FILE_RX = re.compile(r"(?m)^\*{3} (Add|Update|Delete) File: (.+?)\s*$")
 _PATCH_MOVE_RX = re.compile(r"(?m)^\*{3} Move to: (.+?)\s*$")

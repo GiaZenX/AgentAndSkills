@@ -11,6 +11,11 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      # keep the cp1252 failure class testable: Python 3.15 flips Windows to UTF-8 by default
+      # (PEP 686), which would silently turn the windows-latest runner green-without-meaning
+      # while cp1252 field machines stay exposed — pin the legacy mode for the tests.
+      PYTHONUTF8: "0"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

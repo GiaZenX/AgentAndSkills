@@ -133,8 +133,11 @@ def _project_yaml(name):
 
 
 def coverage_threshold():
-    thr = (_project_yaml("testing_guidelines.yaml").get("coverage_gate") or {}).get("threshold")
-    if isinstance(thr, int) and 0 < thr <= 100:
+    # type-guarded: `coverage_gate: streng` (scalar) crashed .get(); bool is an int subtype
+    # (`threshold: true` would have become --cov-fail-under=True) — both audit repros
+    gate = _project_yaml("testing_guidelines.yaml").get("coverage_gate")
+    thr = gate.get("threshold") if isinstance(gate, dict) else None
+    if isinstance(thr, int) and not isinstance(thr, bool) and 0 < thr <= 100:
         return thr
     p = os.path.join(ROOT, "project_memory", "testing_guidelines.yaml")
     try:  # regex fallback (pyyaml-less machine)
@@ -148,7 +151,8 @@ def declared_stacks():
     """Parse `stacks:` from project_config.yaml — supports inline `[a, b]` AND block (`- a`) form.
     Structured read first (the one kit_checks parser); regex only as pyyaml-less fallback."""
     cfg = _project_yaml("project_config.yaml")
-    declared = cfg.get("stacks") or (cfg.get("project") or {}).get("stacks")
+    proj = cfg.get("project")
+    declared = cfg.get("stacks") or (proj.get("stacks") if isinstance(proj, dict) else None)
     if isinstance(declared, list):
         out = [str(s).strip().strip("'\"").lower() for s in declared if str(s).strip()]
         return [s for s in out if s != "todo"]
@@ -221,7 +225,9 @@ def _declared_source_areas():
     for name in ("coding_guidelines.yaml", "research_guidelines.yaml"):
         data = _project_yaml(name)
         if data:
-            raw += [str(x) for x in (data.get("source_areas") or [])]
+            declared = data.get("source_areas")
+            # list-guard: a scalar `source_areas: src` would iterate CHARACTERS (audit repro)
+            raw += [str(x) for x in declared] if isinstance(declared, list) else []
             continue
         p = os.path.join(ROOT, "project_memory", name)
         try:

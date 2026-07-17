@@ -21,6 +21,7 @@ import glob
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _root import find_repo_root
+import _compat  # noqa: F401 — UTF-8 stream pinning (import side effect)
 import _audit
 
 
