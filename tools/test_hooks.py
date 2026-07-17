@@ -263,14 +263,22 @@ def test_memory_complete_allows_na_marked(prd_repo):
 
 
 # ---------------- quality.py ----------------
-def run_quality(repo):
+BROWSER_CHECKS = os.path.join(ROOT, "team-kits", "dev-team", "templates", "repo", "scripts",
+                              "kit_browser_checks.py")
+
+
+def run_quality_proc(repo, *args):
     os.makedirs(os.path.join(repo, "scripts"), exist_ok=True)
     import shutil
     shutil.copy(QUALITY, os.path.join(repo, "scripts", "quality.py"))
     shutil.copy(KIT_CHECKS, os.path.join(repo, "scripts", "kit_checks.py"))  # kit-owned check lib
-    p = subprocess.run([sys.executable, os.path.join(repo, "scripts", "quality.py")],
-                       capture_output=True, text=True, cwd=repo, timeout=120)
-    return p.returncode
+    shutil.copy(BROWSER_CHECKS, os.path.join(repo, "scripts", "kit_browser_checks.py"))
+    return subprocess.run([sys.executable, os.path.join(repo, "scripts", "quality.py"), *args],
+                          capture_output=True, text=True, cwd=repo, timeout=120)
+
+
+def run_quality(repo):
+    return run_quality_proc(repo).returncode
 
 
 def test_quality_empty_green(tmp_path):
@@ -297,6 +305,56 @@ def test_quality_undeclared_stacks_with_code_red(tmp_path):
 def test_quality_declared_embedded_no_platformio_red(tmp_path):
     write(str(tmp_path / "project_memory" / "project_config.yaml"), "project:\n  stacks: [embedded]\n")
     assert run_quality(str(tmp_path)) == 1
+
+
+def test_quality_only_flag_partial_run(tmp_path):
+    # fast-iteration flag (upstreamed): loud partial notice, never merge evidence
+    r = run_quality_proc(str(tmp_path), "--only", "cobol")
+    assert r.returncode == 2 and "unknown stack" in r.stdout
+    r = run_quality_proc(str(tmp_path), "--only")
+    assert r.returncode == 2
+    r = run_quality_proc(str(tmp_path), "--only", "node")  # no frontend -> clean FAIL, loudly partial
+    assert r.returncode == 1 and "PARTIAL RUN" in r.stdout
+
+
+def _quality_mod(path=None):
+    import importlib.util
+    p = path or QUALITY
+    spec = importlib.util.spec_from_file_location("quality_under_test_%d" % abs(hash(p)), p)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_quality_tool_cmd_module_fallback(monkeypatch):
+    # pip on Windows drops console-script shims outside PATH while the module imports fine —
+    # "not installed" would be a lie (upstreamed from a live project)
+    mod = _quality_mod()
+    monkeypatch.setattr(mod, "have", lambda t: False)
+    assert mod.tool_cmd("ruff") == [sys.executable, "-m", "ruff"]
+    assert mod.tool_cmd("gitleaks") is None  # not a Python console-script — honest absence
+
+
+def test_quality_python_targets_from_source_areas(tmp_path):
+    os.makedirs(str(tmp_path / "scripts"))
+    shutil.copy(QUALITY, str(tmp_path / "scripts" / "quality.py"))
+    os.makedirs(str(tmp_path / "src"))
+    os.makedirs(str(tmp_path / "compounder"))
+    write(str(tmp_path / "project_memory" / "coding_guidelines.yaml"),
+          "source_areas:\n  - compounder\n  - '..'\n")
+    mod = _quality_mod(str(tmp_path / "scripts" / "quality.py"))
+    targets = mod._python_targets()
+    assert "compounder" in targets and "src" in targets
+    assert ".." not in targets  # dot-only names never become lint targets (audit class)
+
+
+def test_quality_electron_env_stripped():
+    mod = _quality_mod()
+    os.environ["ELECTRON_RUN_AS_NODE"] = "1"
+    try:
+        assert "ELECTRON_RUN_AS_NODE" not in mod._clean_node_env()
+    finally:
+        os.environ.pop("ELECTRON_RUN_AS_NODE", None)
 
 
 # ---------------- guard_yaml_valid (write-time YAML validity, the synaipse decisions.yaml saga) ----------------
@@ -3260,3 +3318,78 @@ def test_install_ps1_codex_only_creates_fresh_codex_home(tmp_path):
     assert "created Codex home" in result.stdout
     assert (home / ".claude" / "team-kits" / "gen_provider_artifacts.py").is_file()
     assert (home / ".claude" / "team-kits" / "preset_config.py").is_file()
+
+
+# ---------------- upstream round: kit_checks additions (chunk guard, invariants, repo-wide yaml) ----------------
+def test_kit_checks_chunk_warnlimit_guard(tmp_path):
+    mod = _kit_checks_mod()
+    # a protective COMMENT mentioning the key must never trip the guard
+    write(str(tmp_path / "frontend" / "vite.config.ts"),
+          "// chunkSizeWarningLimit stays at Vite's DEFAULT and MUST NEVER be raised\n"
+          "export default {}\n")
+    calls, ok, fail, warn = _collector()
+    mod.check_frontend_build_config(str(tmp_path), ok, fail, warn)
+    assert not calls["fail"] and any("chunkSizeWarningLimit" in n for n in calls["ok"])
+    write(str(tmp_path / "frontend" / "vite.config.ts"),
+          "export default { build: { chunkSizeWarningLimit: 1000 } }\n")
+    calls, ok, fail, warn = _collector()
+    mod.check_frontend_build_config(str(tmp_path), ok, fail, warn)
+    assert any("ASSIGNED" in m for _n, m in calls["fail"])
+
+
+def test_kit_checks_module_invariants(tmp_path):
+    mod = _kit_checks_mod()
+    write(str(tmp_path / "project_memory" / "coding_guidelines.yaml"),
+          "module_invariants:\n"
+          "  - path: src/pure.py\n"
+          "    forbidden_tokens: [\"open(\"]\n"
+          "    reason: \"pure module - no I/O\"\n")
+    write(str(tmp_path / "src" / "pure.py"),
+          "# never call open( in this module\ndef f():\n    return 1\n")
+    calls, ok, fail, warn = _collector()
+    mod.check_module_invariants(str(tmp_path), ok, fail, warn)
+    assert not calls["fail"]  # comment-only mention never trips
+    write(str(tmp_path / "src" / "pure.py"), "def f():\n    return open('x').read()\n")
+    calls, ok, fail, warn = _collector()
+    mod.check_module_invariants(str(tmp_path), ok, fail, warn)
+    assert any("pure module - no I/O" in m for _n, m in calls["fail"])
+    os.remove(str(tmp_path / "src" / "pure.py"))
+    calls, ok, fail, warn = _collector()
+    mod.check_module_invariants(str(tmp_path), ok, fail, warn)
+    assert any("missing" in m for _n, m in calls["warn"])  # stale rule guards nothing
+
+
+def test_kit_checks_repo_wide_yaml_parse(tmp_path):
+    pytest.importorskip("yaml")
+    mod = _kit_checks_mod()
+    subprocess.run(["git", "init", "-q"], cwd=str(tmp_path), capture_output=True)
+    write(str(tmp_path / "project_memory" / "progress.yaml"), "status: x\nlog: []\n")
+    write(str(tmp_path / "config" / "bad.yaml"), "a: [unclosed\n")
+    subprocess.run(["git", "add", "-A"], cwd=str(tmp_path), capture_output=True)
+    calls, ok, fail, warn = _collector()
+    mod.check_project_memory_yaml(str(tmp_path), ok, fail, warn)
+    assert any(n == "yaml-lint (repo-wide)" for n, _m in calls["fail"])
+    write(str(tmp_path / "project_memory" / "coding_guidelines.yaml"),
+          "yaml_lint_exclude:\n  - \"config/*\"\n")
+    calls, ok, fail, warn = _collector()
+    mod.check_project_memory_yaml(str(tmp_path), ok, fail, warn)
+    assert not any(n == "yaml-lint (repo-wide)" for n, _m in calls["fail"])
+
+
+def _browser_checks_mod():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("browser_checks_under_test", BROWSER_CHECKS)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_browser_smoke_config_and_missing_dist(tmp_path):
+    mod = _browser_checks_mod()
+    write(str(tmp_path / "project_memory" / "testing_guidelines.yaml"),
+          "coverage_gate:\n  threshold: 80\nbrowser_smoke:\n  entry: /app/\n"
+          "  mount_selector: \"#app\"\n")
+    assert mod._config(str(tmp_path)) == ("/app/", "#app")
+    calls, ok, fail, warn = _collector()
+    mod.browser_smoke(str(tmp_path), ok, fail, warn)  # no frontend/dist
+    assert not calls["fail"] and any("dist missing" in m for _n, m in calls["warn"])

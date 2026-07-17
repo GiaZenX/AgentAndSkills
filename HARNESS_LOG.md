@@ -1,5 +1,33 @@
 # Harness log
 
+## 2026-07-17 — quality.py upstream round: synaipse fork distilled into the kits (dev/office 2026.07.17-3, research -4)
+The deferred backlog item 7: a forensic inventory of synaipse's 2,348-line quality.py fork (26
+commits) + portfolio's 382-line variant classified 21 features into generalizable / parameterizable
+/ product-specific; the first two tiers are now kit defaults. HEADLINE KIT BUG: the baseline
+check_node was de facto DEAD ON WINDOWS — npm/npx are .cmd shims subprocess cannot exec without
+shell=True (WinError 2), so every node check failed as "npm not installed"; run_npm() (shell on
+nt, UTF-8 decode, Electron-var-stripped env) fixes it. Also into the template runner: stdout/
+stderr UTF-8 reconfigure + run() UTF-8 decode (two projects independently fixed the same cp1252
+gate crash — a UnicodeEncodeError used to hide the FAIL it was printing); `vite build` step with
+dist/index.html proof + 2 same-criterion retries clearing node_modules/.vite (the documented
+stale-cache bug that reproduced ONLY under the hook chain) + a 2000-char fail tail; tool_cmd()
+`python -m` fallback (pip drops shims outside PATH); ruff/mypy targets from source_areas instead
+of repo root; pip-audit scoped to declared deps; typescript_react/react stack aliases; `--only
+<stack>` fast-iteration flag (loudly partial, never merge evidence — pairs with the test-scoping
+ladder). NEW kit-owned scripts/kit_browser_checks.py (always overwritten like kit_checks; scaffold
+×2 updated): generic Tier-2 browser smoke — vite preview on a FREE port + Playwright chromium,
+mount element non-empty + zero console errors, process-TREE kill on Windows (orphaned preview
+servers were a real chronic memory leak), degrades to warn without playwright/npx; config knob
+`browser_smoke:` in testing_guidelines. kit_checks grew: chunkSizeWarningLimit-assignment guard
+(raising the threshold instead of code-splitting is a defect), repo-wide git-tracked YAML parse
+(~50 unparsable decisions.yaml items shipped while the dashboard swallowed the error; excludable
+via yaml_lint_exclude:), module_invariants (forbidden-token rules as data — synaipse hand-rolled
+the same guard three times). requirements-dev += playwright; devops SKILL carries the
+container-parity + CSP-smoke recipes as patterns (deliberately NOT kit code: compose/product
+bound). NOT upstreamed: container self-delegation, contrast/structure orchestration, product e2e
+flows (locator churn: 4 rename commits), axe sweep helpers (valuable but axe-version-calibrated —
+own follow-up round). 11 new tests (223 total).
+
 ## 2026-07-17 — Double-Fable audit of the adoption round: 3 MAJORs fixed (kits 2026.07.17-2)
 Two independent Fable cross-checkers on 4e7db52 (both confirmed the chain, the detection
 consolidation incl. every prior adversarial case, proc_hash and the PII mechanics) converged on

@@ -9,11 +9,20 @@ specific checks belong in scripts/quality.py (the runner, copy-if-absent, yours 
 imports this module and calls run_kit_checks().
 
 Shipped checks:
-  * project_memory yaml-lint (parse + duplicate keys + the progress.yaml contract)
-  * frontend pitfalls (raw secure-context APIs; local-first external asset loads)
+  * project_memory yaml-lint (parse + duplicate keys + the progress.yaml contract) + repo-wide
+    yaml parse of every git-tracked *.yaml (a real decisions.yaml shipped ~50 unparsable items
+    and the dashboard swallowed the ParserError silently); template YAMLs excludable via
+    `yaml_lint_exclude:` (glob list) in coding/research_guidelines
+  * frontend pitfalls (raw secure-context APIs; local-first external asset loads;
+    chunkSizeWarningLimit must never be ASSIGNED — raising the threshold instead of
+    code-splitting is a defect, not a fix)
+  * module invariants (architecture rules as data: coding_guidelines `module_invariants:`
+    lists files that must never contain given tokens — the pattern hand-rolled itself three
+    times in one real project before becoming this config)
   * file budget (no source file beyond max_lines — the anti-monolith gate; configurable +
     exemptable with a reason in coding_guidelines.yaml `file_budget:`)
 """
+import fnmatch
 import os
 import re
 
@@ -136,6 +145,38 @@ def check_frontend_pitfalls(root, ok, fail, warn):
         ok("frontend pitfalls (secure-context%s)" % (", local-first assets" if local_first else ""))
 
 
+_WARNLIMIT_RX = re.compile(r"chunkSizeWarningLimit\s*[:=]")
+_VITE_CONFIGS = ("vite.config.ts", "vite.config.js", "vite.config.mts", "vite.config.mjs")
+
+
+def check_frontend_build_config(root, ok, fail, warn):
+    """`chunkSizeWarningLimit` must never be ASSIGNED in a vite config: raising Vite's 500 kB
+    chunk-warning threshold to silence the warning (instead of code-splitting) is a defect
+    masquerading as a fix — a real project ratified exactly this rule after catching the bump in
+    review. Matches the key followed by :/= only, so a protective COMMENT that merely mentions
+    the key never trips the guard."""
+    fe = os.path.join(root, "frontend")
+    checked, hits = 0, []
+    for fn in _VITE_CONFIGS:
+        for base in (fe, root):
+            p = os.path.join(base, fn)
+            if not os.path.isfile(p):
+                continue
+            checked += 1
+            try:
+                for i, line in enumerate(open(p, encoding="utf-8", errors="ignore"), 1):
+                    if _WARNLIMIT_RX.search(line):
+                        hits.append("%s:%d" % (os.path.relpath(p, root).replace("\\", "/"), i))
+            except Exception:
+                continue
+    if hits:
+        fail("frontend build config", "chunkSizeWarningLimit is ASSIGNED (%s%s) — raising the "
+             "warning threshold hides an unsplit bundle; fix by code-splitting, never by raising "
+             "the limit" % ("; ".join(hits[:3]), _more(hits, 3)))
+    elif checked:
+        ok("frontend build config (chunkSizeWarningLimit never assigned)")
+
+
 def check_project_memory_yaml(root, ok, fail, warn):
     """Every project_memory/*.yaml must parse and carry no duplicate keys (safe_load keeps only the
     last duplicate silently); progress.yaml must additionally honor its contract. The write-time
@@ -208,6 +249,116 @@ def check_project_memory_yaml(root, ok, fail, warn):
                            "when empty; history goes there, never into status)")
     ok("yaml-lint (project_memory)") if not bad else fail(
         "yaml-lint (project_memory)", "; ".join(bad[:6]) + _more(bad, 6))
+    _repo_wide_yaml_parse(root, yaml, ok, fail)
+
+
+def _yaml_lint_excludes(root):
+    """Glob patterns from coding/research_guidelines `yaml_lint_exclude:` — Helm/Jinja-templated
+    YAMLs are legitimately unparsable and must not turn the repo-wide parse red."""
+    out = []
+    for name in ("coding_guidelines.yaml", "research_guidelines.yaml"):
+        p = os.path.join(root, "project_memory", name)
+        try:
+            import yaml  # type: ignore[import-untyped]
+            data = yaml.safe_load(open(p, encoding="utf-8", errors="ignore").read()) or {}
+            out += [str(g).replace("\\", "/") for g in (data.get("yaml_lint_exclude") or [])]
+        except Exception:
+            continue
+    return out
+
+
+def _repo_wide_yaml_parse(root, yaml, ok, fail):
+    """Parse EVERY git-tracked *.yaml/*.yml, not only project_memory/ — a real decisions.yaml
+    shipped ~50 unparsable items while the dashboard generator swallowed the ParserError silently
+    (upstreamed from a live project's fork). Parse-only outside project_memory (which already got
+    the stricter duplicate-key + contract pass above)."""
+    import subprocess
+    try:
+        r = subprocess.run(["git", "-C", root, "ls-files", "*.yaml", "*.yml"],
+                           capture_output=True, text=True, timeout=30)
+        files = [ln.strip() for ln in r.stdout.splitlines() if ln.strip()] if r.returncode == 0 else []
+    except Exception:
+        files = []
+    if not files:
+        return  # no git / nothing tracked — project_memory pass above already ran
+    excludes = _yaml_lint_excludes(root)
+    bad, count = [], 0
+    for rel in files:
+        rel_norm = rel.replace("\\", "/")
+        if rel_norm.startswith("project_memory/"):
+            continue  # covered by the stricter pass above
+        if any(fnmatch.fnmatch(rel_norm, pat) for pat in excludes):
+            continue
+        path = os.path.join(root, rel)
+        if not os.path.isfile(path):
+            continue  # tracked but deleted in the working tree
+        count += 1
+        try:
+            yaml.safe_load(open(path, encoding="utf-8", errors="ignore").read())
+        except yaml.YAMLError as e:
+            first = str(e).splitlines()[0]
+            mark = getattr(e, "problem_mark", None)
+            where = ":%d" % (mark.line + 1) if mark else ""
+            bad.append("%s%s: %s" % (rel_norm, where, first))
+        except Exception:
+            continue
+    if bad:
+        fail("yaml-lint (repo-wide)", "; ".join(bad[:6]) + _more(bad, 6)
+             + " — genuinely templated YAML (Helm/Jinja) can be excluded via "
+               "`yaml_lint_exclude:` in coding_guidelines.yaml")
+    elif count:
+        ok("yaml-lint (repo-wide, %d tracked file(s))" % count)
+
+
+def check_module_invariants(root, ok, fail, warn):
+    """Architecture invariants as DATA: coding/research_guidelines `module_invariants:` lists
+    files that must never contain given tokens (e.g. a pure classifier module that must stay
+    I/O-free). A real project hand-rolled this guard three separate times (provenance, hardware
+    scoring, single-DB-connection) — the duplication is the proof the config knob belongs here.
+      module_invariants:
+        - path: src/scoring/percent_match.py
+          forbidden_tokens: ["import aiosqlite", "open("]
+          reason: "pure scoring module — all I/O lives in the store layer (ADR-0034)"
+    """
+    rules = []
+    for name in ("coding_guidelines.yaml", "research_guidelines.yaml"):
+        p = os.path.join(root, "project_memory", name)
+        try:
+            import yaml  # type: ignore[import-untyped]
+            data = yaml.safe_load(open(p, encoding="utf-8", errors="ignore").read()) or {}
+            for entry in (data.get("module_invariants") or []):
+                if (isinstance(entry, dict) and entry.get("path")
+                        and entry.get("forbidden_tokens")):
+                    rules.append(entry)
+        except Exception:
+            continue
+    if not rules:
+        return
+    hits, stale = [], []
+    for rule in rules:
+        rel = str(rule["path"]).replace("\\", "/")
+        path = os.path.join(root, rel)
+        if not os.path.isfile(path):
+            stale.append(rel)
+            continue
+        try:
+            lines = open(path, encoding="utf-8", errors="ignore").read().splitlines()
+        except Exception:
+            continue
+        for i, line in enumerate(lines, 1):
+            if _COMMENT_LINE_RX.match(line):
+                continue  # prose may legitimately NAME the forbidden token
+            for tok in rule["forbidden_tokens"]:
+                if str(tok) in line:
+                    hits.append("%s:%d contains %r — %s"
+                                % (rel, i, str(tok), str(rule.get("reason") or "invariant")))
+    if hits:
+        fail("module invariants", "; ".join(hits[:5]) + _more(hits, 5))
+    else:
+        if stale:
+            warn("module invariants", "declared file(s) missing: %s — update module_invariants "
+                 "in the guidelines (a stale rule guards nothing)" % "; ".join(stale[:4]))
+        ok("module invariants (%d rule(s))" % len(rules))
 
 
 def _count_lines(path):
@@ -418,6 +569,8 @@ def run_kit_checks(root, ok, fail, warn):
     """Entry point for scripts/quality.py — runs every kit-owned check."""
     check_project_memory_yaml(root, ok, fail, warn)
     check_frontend_pitfalls(root, ok, fail, warn)
+    check_frontend_build_config(root, ok, fail, warn)
+    check_module_invariants(root, ok, fail, warn)
     check_file_budget(root, ok, fail, warn)
     check_ops_pitfalls(root, ok, fail, warn)
     check_enforcement_diff(root, ok, fail, warn)

@@ -16,7 +16,8 @@ global:
     a container needs a real `docker build` + health start; data/training needs a real end-to-end run."
   - Every component in architecture.yaml MUST be covered by the test type its `test_strategy` prescribes.
   - "Test-scoping ladder (the merge gate is the guarantee; intermediate runs are feedback): per edit/step
-    run ONLY the affected tests + lint/types; per slice END run the full suite ONCE (QA's verdict run);
+    run ONLY the affected tests + lint/types (tool: `python scripts/quality.py --only <stack>` — loud
+    partial run, never merge evidence); per slice END run the full suite ONCE (QA's verdict run);
     merge/push always runs the FULL gate. Escalate to full immediately for cross-cutting changes (shared
     components, config, dependency bumps); a pre-push full run may be repeated once against flakiness.
     Running the full suite after every micro-step is redundant with the gate and forbidden."
@@ -33,6 +34,15 @@ coverage_gate:
 # project kept its whole codebase under compounder/ and the gate never looked (false-green).
 coverage_areas: []
 #  - compounder
+
+# Browser smoke (Tier 2, runs in the pipeline via scripts/kit_browser_checks.py): the PRODUCTION
+# build (`vite preview` on frontend/dist) opened in a real Chromium — the mount element must
+# render non-empty with ZERO console errors. jsdom-green tests shipped two real browser bugs in a
+# live project (crypto.randomUUID exists in jsdom but throws on a plain-http LAN origin).
+# Needs `playwright` (requirements-dev) + `playwright install chromium`; degrades to warn locally.
+browser_smoke:
+  entry: /
+  mount_selector: "#root"
 
 # Default tooling matrix. The Architect/QA pick the concrete tools per project and
 # may add/override per language under `languages`. These are recommendations, not law.

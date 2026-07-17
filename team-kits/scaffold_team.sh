@@ -503,9 +503,9 @@ if [ -d "$KIT/templates/repo" ]; then
   while IFS= read -r rel; do
     rel="${rel#./}"
     dst="$REPO/$rel"
-    # scripts/kit_checks.py is KIT-OWNED: always overwritten (like the hooks), never pending —
-    # so kit-level check fixes reach even projects whose quality.py runner is a heavy fork.
-    if [ "$rel" = "scripts/kit_checks.py" ]; then
+    # scripts/kit_checks.py + kit_browser_checks.py are KIT-OWNED: always overwritten (like the
+    # hooks), never pending — kit-level fixes reach even heavy quality.py forks.
+    if [ "$rel" = "scripts/kit_checks.py" ] || [ "$rel" = "scripts/kit_browser_checks.py" ]; then
       mkdir -p "$(dirname "$dst")"
       cp -f "$KIT/templates/repo/$rel" "$dst"
       echo "  [ok] repo (kit-owned, always updated): $rel"

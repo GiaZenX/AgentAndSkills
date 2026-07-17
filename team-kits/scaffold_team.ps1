@@ -484,9 +484,9 @@ if (Test-Path $repoTplSrc) {
     Get-ChildItem -Path $repoTplSrc -Recurse -File -Force | Where-Object { $_.FullName -notmatch '__pycache__|\.ruff_cache|\.mypy_cache|\.pytest_cache' } | ForEach-Object {
         $rel = $_.FullName.Substring($repoTplSrc.Length).TrimStart('\', '/')
         $dst = Join-Path $repo $rel
-        # scripts/kit_checks.py is KIT-OWNED: always overwritten (like the hooks), never pending —
-        # so kit-level check fixes reach even projects whose quality.py runner is a heavy fork.
-        if (($rel -replace '\\', '/') -eq 'scripts/kit_checks.py') {
+        # scripts/kit_checks.py + kit_browser_checks.py are KIT-OWNED: always overwritten (like
+        # the hooks), never pending — kit-level fixes reach even heavy quality.py forks.
+        if (($rel -replace '\\', '/') -in @('scripts/kit_checks.py', 'scripts/kit_browser_checks.py')) {
             $dstDir = Split-Path $dst
             if ($dstDir -and -not (Test-Path $dstDir)) { New-Item -ItemType Directory -Force -Path $dstDir | Out-Null }
             Copy-Item $_.FullName $dst -Force

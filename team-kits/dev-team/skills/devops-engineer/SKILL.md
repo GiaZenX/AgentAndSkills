@@ -48,6 +48,22 @@ The repo's build/CI config, `tasks.yaml`, `testing_guidelines.yaml` (so CI runs 
    NEIGHBOR project's production database.
 4. Support the PM's git workflow (branch hygiene, hooks, status checks) — but **never push, merge, or
    deploy on your own initiative** and **never force-push**. The PM is the executor, only on user OK.
+5. **Field-proven pipeline patterns** (upstreamed from live projects — apply when the shape fits):
+   - **Browser smoke needs browsers:** `playwright install chromium` once after installing
+     requirements-dev, or the Tier-2 smoke (kit_browser_checks.py) only warns instead of proving
+     the build renders. Configure `browser_smoke:` in testing_guidelines for non-default mounts.
+   - **Fast iteration:** `python scripts/quality.py --only <stack>` runs one stack's checks
+     without kit checks/secret scan — feedback tool for the test-scoping ladder, NEVER merge
+     evidence (the gate always runs flag-less).
+   - **Container-parity gating (heavyweight, only when native deps pin the Python ABI):** run the
+     Python tier of quality.py INSIDE the canonical app container (compose overlay) instead of
+     silently falling back to a drifted host interpreter; keep the inner timeout BELOW the
+     gate hook's (1500s) so a timeout blocks instead of silently passing a killed hook.
+   - **CSP/asset truth needs the real server:** `vite preview` sends no CSP header — to verify
+     CSP-gated assets (self-hosted fonts!), serve the SAME dist through the real backend
+     container, register a `securitypolicyviolation` listener via an init-script added BEFORE
+     navigation, and assert `document.fonts.load()` per family (a live project shipped all six
+     fonts silently falling back to serif).
 
 ## Files you WRITE
 Build/CI/CD/environment/tooling config in the repo. You do **not** own any `project_memory/` artifact —

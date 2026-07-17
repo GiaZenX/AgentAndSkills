@@ -18,6 +18,9 @@ missing are a WARN locally but are installed + enforced in CI (requirements-dev.
 from any tool are a hard FAIL (with a tail of the tool's own output for debugging). No source for a stack
 -> that stack is skipped (auto-detect) or fails cleanly (explicitly declared but its files are absent).
 
+`--only <stack>` runs a single stack's checks for FAST ITERATION (no kit checks, no secret scan)
+and says so loudly — it is never merge evidence; the gate_pipeline hook always runs flag-less.
+
 Exit 0 = all green. Exit 1 = at least one hard failure. Cross-platform (uses shutil.which).
 """
 import importlib.util
@@ -26,6 +29,17 @@ import re
 import shutil
 import subprocess
 import sys
+import time
+
+# On Windows, stdout/stderr default to the OS codepage (cp1252): a UTF-8 char (✓, box-drawing)
+# inside a FAIL detail then raises UnicodeEncodeError and crashes the script BEFORE the actual
+# failure reason prints — the single worst failure mode for a gate. Two live projects fixed this
+# independently; force UTF-8 with a lossy fallback, never a crash.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass  # non-reconfigurable stream (e.g. a test harness capture) — best effort
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FAILS, WARNS, OKS = [], [], []
@@ -37,10 +51,56 @@ def have(tool):
 
 def run(cmd, cwd=None):
     try:
-        p = subprocess.run(cmd, cwd=cwd or ROOT, capture_output=True, text=True, timeout=1800)
+        p = subprocess.run(cmd, cwd=cwd or ROOT, capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=1800)
         return p.returncode, (p.stdout or "") + (p.stderr or "")
     except Exception as e:
         return 1, str(e)
+
+
+# Electron-host env vars leak into hook subprocesses (gate_pipeline runs as a child of the
+# VS Code/Claude host) and from there into every npm/vite child. Real node.exe ignores them,
+# but a PATH resolving to an Electron-bundled node would not — zero-cost strip, applied to
+# every Node child this script spawns.
+_ELECTRON_VARS = ("ELECTRON_RUN_AS_NODE", "ELECTRON_NO_ATTACH_CONSOLE")
+
+
+def _clean_node_env():
+    env = os.environ.copy()
+    for var in _ELECTRON_VARS:
+        env.pop(var, None)
+    return env
+
+
+def run_npm(cmd, cwd=None):
+    """Node-toolchain invocations ONLY (npm/npx/vite). On Windows they are `.cmd` shims that
+    `subprocess.run([...], shell=False)` cannot exec (WinError 2) even though shutil.which finds
+    them — a reproduced Windows-only gap that made the previous check_node effectively dead on
+    Windows hosts. shell=True with a STATIC argument list is the portable fix; POSIX unchanged.
+    Python console-scripts (ruff/pytest/...) keep using plain run()."""
+    try:
+        p = subprocess.run(cmd, cwd=cwd or ROOT, capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=1800,
+                           shell=(os.name == "nt"), env=_clean_node_env())
+        return p.returncode, (p.stdout or "") + (p.stderr or "")
+    except Exception as e:
+        return 1, str(e)
+
+
+# pip on Windows regularly drops console-script shims OUTSIDE PATH (AppData\...\Scripts) while
+# the module itself imports fine — "not installed" would be a lie. Fall back to `python -m`.
+_TOOL_MODULES = {"ruff": "ruff", "mypy": "mypy", "pytest": "pytest", "bandit": "bandit",
+                 "pip-audit": "pip_audit"}
+
+
+def tool_cmd(tool):
+    """Invocation prefix for a Python console-script, or None when truly absent."""
+    if have(tool):
+        return [tool]
+    mod = _TOOL_MODULES.get(tool)
+    if mod and importlib.util.find_spec(mod) is not None:
+        return [sys.executable, "-m", mod]
+    return None
 
 
 def has_files(rel_dir, exts, skip=("node_modules", "dist", "build", "__pycache__", ".venv", "venv", "target")):
@@ -109,26 +169,64 @@ def _tail(out):
 
 
 def _core(name, tool, cmd, detail):
-    if not have(tool):
+    prefix = tool_cmd(tool) if tool in _TOOL_MODULES else ([tool] if have(tool) else None)
+    if prefix is None:
         fail(name, "%s not installed — set up the dev requirements" % tool)
         return
-    rc, out = run(cmd)
+    rc, out = run(prefix + cmd[1:])
     ok(name) if rc == 0 else fail(name, detail + _tail(out))
 
 
 def _sec(name, tool, cmd, detail):
-    if not have(tool):
+    prefix = tool_cmd(tool) if tool in _TOOL_MODULES else ([tool] if have(tool) else None)
+    if prefix is None:
         warn(name, "%s not installed; runs + hard-fails in CI" % tool)
         return
-    rc, out = run(cmd)
+    rc, out = run(prefix + cmd[1:])
     ok(name) if rc == 0 else fail(name, detail + _tail(out))
+
+
+def _declared_source_areas():
+    """Top-level source dirs from coding/research_guidelines `source_areas:` (block list) —
+    the same key kit_checks' file budget reads. Dot-only names are rejected (audit: '..'
+    walked the parent dir)."""
+    out = []
+    for name in ("coding_guidelines.yaml", "research_guidelines.yaml"):
+        p = os.path.join(ROOT, "project_memory", name)
+        try:
+            txt = open(p, encoding="utf-8", errors="ignore").read()
+        except Exception:
+            continue
+        m = re.search(r"(?m)^source_areas:[ \t]*$", txt)
+        if not m:
+            continue
+        for line in txt[m.end():].splitlines():
+            mm = re.match(r"[ \t]+-[ \t]*['\"]?([A-Za-z0-9_.-]+)['\"]?[ \t]*$", line)
+            if mm and set(mm.group(1)) != {"."}:
+                out.append(mm.group(1))
+            elif line.strip():
+                break
+    return out
+
+
+def _python_targets():
+    """Explicit ruff/mypy targets instead of the repo root: linting `.` drags .claude/ and venvs
+    into the verdict (a live project's PM had to forbid exactly that), and explicit paths keep CI
+    runners without a ruff.toml consistent with local runs."""
+    targets = []
+    for d in ["src", "tests", "scripts"] + _declared_source_areas():
+        if d not in targets and os.path.isdir(os.path.join(ROOT, d)):
+            targets.append(d)
+    return targets or ["."]
 
 
 # ---------------- per-stack check definitions ----------------
 def check_python():
-    tgt = "src" if os.path.isdir(os.path.join(ROOT, "src")) else "."
+    targets = _python_targets()
+    tgt = "src" if os.path.isdir(os.path.join(ROOT, "src")) else \
+        next((t for t in targets if t not in ("tests", "scripts")), ".")
     thr = coverage_threshold()
-    _core("ruff (lint)", "ruff", ["ruff", "check", "."], "lint errors")
+    _core("ruff (lint)", "ruff", ["ruff", "check"] + targets, "lint errors")
     _core("mypy (types)", "mypy", ["mypy", tgt], "type errors")
     if os.path.isdir(os.path.join(ROOT, "tests")) and has_files("tests", {".py"}):
         # pytest-xdist (requirements-dev) parallelizes across cores when installed — a serial suite is
@@ -145,7 +243,36 @@ def check_python():
                 rc, out = run(["pytest", "-q", "--cov=" + tgt, "--cov-fail-under=" + str(thr)])
             ok(name) if rc == 0 else fail(name, "tests failed or coverage below %d%%" % thr + _tail(out))
     _sec("bandit (SAST)", "bandit", ["bandit", "-r", tgt, "-ll", "-q"], "high-severity finding")
-    _sec("pip-audit (SCA)", "pip-audit", ["pip-audit"], "vulnerable dependency")
+    # audit only the project's own DECLARED dependencies, never the whole host interpreter —
+    # unrelated user-site packages (e.g. a globally installed torch) caused false-red audits
+    if rootfile("pyproject.toml"):
+        _sec("pip-audit (SCA)", "pip-audit", ["pip-audit", ROOT], "vulnerable dependency")
+    elif rootfile("requirements.txt"):
+        _sec("pip-audit (SCA)", "pip-audit",
+             ["pip-audit", "-r", os.path.join(ROOT, "requirements.txt")], "vulnerable dependency")
+    else:
+        _sec("pip-audit (SCA)", "pip-audit", ["pip-audit", "--local"], "vulnerable dependency")
+
+
+def _frontend_build_with_retry(fe):
+    """`npm run build` with up to 2 retries WITHOUT weakening the check (same success criterion
+    every attempt: rc==0 AND dist/index.html exists). Before each retry, Vite's own cache dir
+    (node_modules/.vite) is cleared — the documented fix for the "No matching HTML proxy module
+    found" stale-cache failure a live project reproduced ONLY under the hook chain — plus a short
+    settle. Returns (rc, output, attempts) so the report can say a retry was needed."""
+    dist_index = os.path.join(fe, "dist", "index.html")
+    rc, out = run_npm(["npm", "run", "-s", "build"], cwd=fe)
+    if rc == 0 and os.path.isfile(dist_index):
+        return rc, out, 1
+    combined = out
+    for attempt, settle in enumerate((3, 8), start=2):
+        shutil.rmtree(os.path.join(fe, "node_modules", ".vite"), ignore_errors=True)
+        time.sleep(settle)
+        rc, out = run_npm(["npm", "run", "-s", "build"], cwd=fe)
+        combined += "\n--- retry %d (cleared node_modules/.vite, %ds settle) ---\n" % (attempt, settle) + out
+        if rc == 0 and os.path.isfile(dist_index):
+            return rc, combined, attempt
+    return rc, combined, 3
 
 
 def check_node():
@@ -159,22 +286,46 @@ def check_node():
         return
     pkg = open(pkgf, encoding="utf-8", errors="ignore").read()
     if '"lint"' in pkg:
-        rc, out = run(["npm", "run", "-s", "lint"], cwd=fe)
-        ok("eslint (lint)") if rc == 0 else fail("eslint (lint)", "lint errors" + _tail(out))
+        rc, out = run_npm(["npm", "run", "-s", "lint"], cwd=fe)
+        ok("frontend lint") if rc == 0 else fail("frontend lint", "lint errors" + _tail(out))
     # type-check only when the project is actually TypeScript-configured
     if os.path.isfile(os.path.join(fe, "tsconfig.json")):
-        rc, out = run(["npx", "--no-install", "tsc", "--noEmit"], cwd=fe)
+        rc, out = run_npm(["npx", "--no-install", "tsc", "--noEmit"], cwd=fe)
         ok("tsc (types)") if rc == 0 else fail("tsc (types)", "type errors" + _tail(out))
+    # buildable-skeleton proof: the app must BUILD, not just lint/test (a lint-green frontend
+    # with a red `vite build` shipped in a live project before this step existed)
+    if '"build"' in pkg:
+        rc, out, attempts = _frontend_build_with_retry(fe)
+        note = " [needed retry %d/3]" % attempts if attempts > 1 else ""
+        if rc == 0 and os.path.isfile(os.path.join(fe, "dist", "index.html")):
+            ok("frontend build (vite -> dist/)" + note)
+        else:
+            # a WIDE tail: the real error (heap exhaustion, proxy-module line) sits further back
+            # than 300 chars — a narrow tail cost a live project a full night of misdiagnosis
+            wide = (out or "").strip()
+            fail("frontend build (vite -> dist/)",
+                 "build failed or dist/index.html missing (after %d attempts)" % attempts
+                 + ((" :: " + wide[-2000:]) if wide else ""))
     if '"test"' in pkg:
-        rc, out = run(["npm", "run", "-s", "test", "--", "--run", "--coverage"], cwd=fe)
+        rc, out = run_npm(["npm", "run", "-s", "test", "--", "--run", "--coverage"], cwd=fe)
         if rc != 0:
-            rc, out = run(["npm", "run", "-s", "test"], cwd=fe)
+            rc, out = run_npm(["npm", "run", "-s", "test"], cwd=fe)
         ok("frontend tests") if rc == 0 else fail("frontend tests", "tests failed" + _tail(out))
     else:
         fail("frontend tests", "no test script — frontend must be tested")
-    rc, out = run(["npm", "audit", "--audit-level=high"], cwd=fe)
+    rc, out = run_npm(["npm", "audit", "--audit-level=high"], cwd=fe)
     if rc != 0 and "vulnerab" in out.lower():
         fail("npm audit (SCA)", "high/critical vulnerability")
+    # Tier 2: browser smoke against the PRODUCTION build (kit-owned module — jsdom-green tests
+    # shipped two real browser bugs: crypto.randomUUID exists in jsdom/Node but throws on a
+    # plain-http LAN origin). Degrades to warn when playwright/npx are absent.
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import kit_browser_checks
+        kit_browser_checks.browser_smoke(ROOT, ok, fail, warn)
+    except ImportError:
+        warn("frontend browser smoke", "scripts/kit_browser_checks.py missing — re-run the kit "
+             "scaffold to restore it (kit-owned, auto-updated)")
 
 
 def check_go():
@@ -205,10 +356,18 @@ def check_embedded():
         ok("cppcheck (SAST)") if rc == 0 else fail("cppcheck (SAST)", "static analysis findings" + _tail(out))
 
 
+def _has_frontend():
+    return os.path.isfile(os.path.join(ROOT, "frontend", "package.json"))
+
+
 STACKS = {
     "python": {"detect": lambda: has_files("src", {".py"}) or rootfile("app.py", "main.py"), "run": check_python},
-    "node": {"detect": lambda: os.path.isfile(os.path.join(ROOT, "frontend", "package.json")), "run": check_node},
-    "typescript": {"detect": lambda: os.path.isfile(os.path.join(ROOT, "frontend", "package.json")), "run": check_node},
+    "node": {"detect": _has_frontend, "run": check_node},
+    "typescript": {"detect": _has_frontend, "run": check_node},
+    # architects write stack names like `typescript_react` in the guidelines — the vocabulary
+    # mismatch made a live project's declared stack look "undefined" to this runner
+    "typescript_react": {"detect": _has_frontend, "run": check_node},
+    "react": {"detect": _has_frontend, "run": check_node},
     "go": {"detect": lambda: rootfile("go.mod"), "run": check_go},
     "rust": {"detect": lambda: rootfile("Cargo.toml"), "run": check_rust},
     "dotnet": {"detect": lambda: has_files(".", {".csproj", ".sln"}), "run": check_dotnet},
@@ -253,6 +412,30 @@ def sbom():
 
 
 def main():
+    # --only <stack>: FAST-ITERATION partial run (one stack, no kit checks/secret scan/SBOM).
+    # Loudly not merge evidence — gate_pipeline always invokes this script flag-less, so the
+    # full pipeline still guards every push/merge. Pairs with the PM's test-scoping ladder.
+    only = None
+    argv = sys.argv[1:]
+    if "--only" in argv:
+        idx = argv.index("--only")
+        if idx + 1 >= len(argv):
+            print("[quality] --only requires a stack name (e.g. --only node)")
+            sys.exit(2)
+        only = argv[idx + 1].lower()
+        if only not in STACKS:
+            print("[quality] unknown stack %r — known: %s" % (only, ", ".join(sorted(STACKS))))
+            sys.exit(2)
+    if only:
+        print("[quality] PARTIAL RUN (--only %s) — fast iteration only, NOT merge evidence; "
+              "the gate always runs the full pipeline." % only)
+        try:
+            STACKS[only]["run"]()
+        except Exception as e:
+            fail("stack '%s'" % only, "runner errored: %s" % e)
+        _report(partial=only)
+        return
+
     active = declared_stacks()
     ran = set()
     if active:
@@ -290,7 +473,10 @@ def main():
     kit_checks_stage()
     secret_scan()
     sbom()
+    _report()
 
+
+def _report(partial=None):
     print("[quality] pipeline report")
     for o in OKS:
         print("  PASS  " + o)
@@ -303,7 +489,10 @@ def main():
     if FAILS:
         print("[quality] %d hard failure(s) — pipeline is RED." % len(FAILS))
         sys.exit(1)
-    print("[quality] pipeline GREEN.")
+    if partial:
+        print("[quality] partial run (--only %s) GREEN — run flag-less for merge evidence." % partial)
+    else:
+        print("[quality] pipeline GREEN.")
     sys.exit(0)
 
 
