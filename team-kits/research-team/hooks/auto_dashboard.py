@@ -10,11 +10,11 @@ import sys
 import os
 import glob
 import json
-import subprocess
 
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _root import find_repo_root
+from _compat import run_captured
 
 
 def main():
@@ -71,7 +71,7 @@ def main():
         sys.exit(exit_code)  # already up to date
 
     try:
-        p = subprocess.run([sys.executable, gen], cwd=pm, capture_output=True, text=True, timeout=60)
+        p = run_captured([sys.executable, gen], cwd=pm, timeout=60)
         if p.returncode != 0:
             # surface a generator FATAL (e.g. invalid project_memory YAML) instead of swallowing it —
             # exit 1 is a NON-blocking hook error (stop proceeds; the message becomes visible).

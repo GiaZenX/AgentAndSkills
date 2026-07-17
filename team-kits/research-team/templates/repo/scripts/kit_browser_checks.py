@@ -29,9 +29,20 @@ import time
 
 
 def _config(root):
-    """entry + mount_selector from testing_guidelines.yaml `browser_smoke:` (regex block parse —
-    this module must not require pyyaml)."""
+    """entry + mount_selector from testing_guidelines.yaml `browser_smoke:` — structured read
+    via kit_checks.load_project_yaml (the ONE parser); regex block parse only without pyyaml."""
     entry, mount = "/", "#root"
+    try:
+        import sys
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import kit_checks
+        cfg = kit_checks.load_project_yaml(root, "testing_guidelines.yaml").get("browser_smoke")
+        if isinstance(cfg, dict):
+            entry = str(cfg.get("entry") or entry).strip() or entry
+            mount = str(cfg.get("mount_selector") or mount).strip() or mount
+            return entry, mount
+    except Exception:
+        pass
     p = os.path.join(root, "project_memory", "testing_guidelines.yaml")
     try:
         txt = open(p, encoding="utf-8", errors="ignore").read()

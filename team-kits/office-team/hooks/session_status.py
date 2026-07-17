@@ -12,19 +12,18 @@ import datetime
 import json
 import os
 import re
-import subprocess
 import sys
 import time
 
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _root import find_repo_root
+from _compat import run_captured
 
 
 def git(cwd, *args):
     try:
-        r = subprocess.run(["git", "-C", cwd, *args],
-                           capture_output=True, text=True, timeout=5)
+        r = run_captured(["git", "-C", cwd, *args], timeout=5)
         return r.stdout.strip() if r.returncode == 0 else ""
     except Exception:
         return ""

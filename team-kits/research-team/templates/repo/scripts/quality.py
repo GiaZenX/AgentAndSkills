@@ -119,9 +119,25 @@ def rootfile(*names):
     return any(os.path.isfile(os.path.join(ROOT, n)) for n in names)
 
 
-def coverage_threshold():
-    p = os.path.join(ROOT, "project_memory", "testing_guidelines.yaml")
+def _project_yaml(name):
+    """Structured project_memory read via the kit-owned reader (kit_checks.load_project_yaml —
+    the ONE parser, so quality.py and the checks can never disagree about a knob again; an
+    audit caught exactly that divergence). {} when kit_checks or pyyaml is unavailable —
+    callers then use their regex fallback."""
     try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import kit_checks
+        return kit_checks.load_project_yaml(ROOT, name)
+    except Exception:
+        return {}
+
+
+def coverage_threshold():
+    thr = (_project_yaml("testing_guidelines.yaml").get("coverage_gate") or {}).get("threshold")
+    if isinstance(thr, int) and 0 < thr <= 100:
+        return thr
+    p = os.path.join(ROOT, "project_memory", "testing_guidelines.yaml")
+    try:  # regex fallback (pyyaml-less machine)
         m = re.search(r"(?m)^\s*threshold:\s*(\d+)", open(p, encoding="utf-8", errors="ignore").read())
         return int(m.group(1)) if m else 80
     except Exception:
@@ -129,7 +145,13 @@ def coverage_threshold():
 
 
 def declared_stacks():
-    """Parse `stacks:` from project_config.yaml — supports inline `[a, b]` AND block (`- a`) form."""
+    """Parse `stacks:` from project_config.yaml — supports inline `[a, b]` AND block (`- a`) form.
+    Structured read first (the one kit_checks parser); regex only as pyyaml-less fallback."""
+    cfg = _project_yaml("project_config.yaml")
+    declared = cfg.get("stacks") or (cfg.get("project") or {}).get("stacks")
+    if isinstance(declared, list):
+        out = [str(s).strip().strip("'\"").lower() for s in declared if str(s).strip()]
+        return [s for s in out if s != "todo"]
     p = os.path.join(ROOT, "project_memory", "project_config.yaml")
     try:
         txt = open(p, encoding="utf-8", errors="ignore").read()
@@ -191,13 +213,16 @@ def _sec(name, tool, cmd, detail):
 
 
 def _declared_source_areas():
-    """Top-level source dirs from coding/research_guidelines `source_areas:` — the same key
-    kit_checks' file budget reads, and the SAME accepted forms (inline `[a, b]` AND block
-    `- a`, quoted or not; an audit caught the block-only version silently skipping an
-    inline-declared area that the budget check DID scan). Dot-only names are rejected
-    (audit: '..' walked the parent dir)."""
-    out = []
+    """Top-level source dirs from coding/research_guidelines `source_areas:` — the same key AND
+    the same parser as kit_checks' file budget (an audit caught a block-only regex here silently
+    skipping an inline-declared area the budget check DID scan). Regex fallback only without
+    pyyaml. Dot-only names are rejected everywhere (audit: '..' walked the parent dir)."""
+    raw = []
     for name in ("coding_guidelines.yaml", "research_guidelines.yaml"):
+        data = _project_yaml(name)
+        if data:
+            raw += [str(x) for x in (data.get("source_areas") or [])]
+            continue
         p = os.path.join(ROOT, "project_memory", name)
         try:
             txt = open(p, encoding="utf-8", errors="ignore").read()
@@ -205,22 +230,24 @@ def _declared_source_areas():
             continue
         mi = re.search(r"(?m)^source_areas:[ \t]*\[([^\]]*)\]", txt)
         if mi:
-            for item in mi.group(1).split(","):
-                item = item.strip().strip("'\"")
-                if re.fullmatch(r"[A-Za-z0-9_.-]+", item) and set(item) != {"."}:
-                    out.append(item)
+            raw += [s.strip().strip("'\"") for s in mi.group(1).split(",")]
             continue
         m = re.search(r"(?m)^source_areas:[ \t]*(?:#.*)?$", txt)
         if not m:
             continue
         for line in txt[m.end():].splitlines():
             mm = re.match(r"[ \t]*-[ \t]*['\"]?([A-Za-z0-9_.-]+)['\"]?[ \t]*(?:#.*)?$", line)
-            if mm and set(mm.group(1)) != {"."}:
-                out.append(mm.group(1))
+            if mm:
+                raw.append(mm.group(1))
             elif re.match(r"[ \t]*#", line):
                 continue  # a comment line inside the list must not end it
             elif line.strip():
                 break
+    out = []
+    for item in raw:
+        item = item.strip().strip("/").replace("\\", "/")
+        if re.fullmatch(r"[A-Za-z0-9_.-]+", item) and set(item) != {"."} and item not in out:
+            out.append(item)
     return out
 
 

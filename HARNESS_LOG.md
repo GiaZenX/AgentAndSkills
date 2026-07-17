@@ -1,5 +1,27 @@
 # Harness log
 
+## 2026-07-17 — Consolidation round: kill the bug FAMILIES, not the bugs (dev 2026.07.17-8, research -9, office -7)
+User decision after the week's audit pattern (every round introduced ≥1 MAJOR, and the MAJORs
+clustered in the same three families): consolidate instead of the next feature. (1) ENCODING:
+new _compat.run_captured() — THE hook-side subprocess call with pinned UTF-8/replace decode;
+migrated gate_pipeline (git + runner call), gate_git (branch read), session_status ×3 (git),
+auto_dashboard ×2; kit_checks got _run_git() with UTF-8 AND core.quotepath=off (git otherwise
+octal-escapes umlaut paths and downstream isfile() silently skipped real files — latent bug
+found while consolidating); retro.py pinned. Per-call-site encoding choices caused three
+separate MAJORs in one week; now there is one choice. (2) PARSERS: new
+kit_checks.load_project_yaml() (utf-8-sig, dict-or-{}) is THE structured reader for every
+config knob — _yaml_lint_excludes/_budget_config/check_module_invariants refactored onto it;
+quality.py's coverage_threshold/declared_stacks/_declared_source_areas and kit_browser_checks'
+_config now read structured-FIRST with their regex forms demoted to pyyaml-less fallback (the
+audit-found divergence class: same knob, two parsers, different behavior). (3) E2E: new
+tools/test_e2e.py — six scenarios emulating the REAL provider path (raw UTF-8 bytes on stdin,
+real subprocess chains, umlauts in paths/branches/messages/runner output): red pipeline keeps
+its UTF-8 FAIL line in the block, green-tree cache round-trips with umlaut filenames, office
+fs-tripwire blocks umlaut-path deletes, umlaut commit prose passes while force blocks,
+repo-wide YAML finds a broken Geschäftskonten.yaml by name, session_status briefs an umlaut
+branch without mojibake. The unit suite was STRUCTURALLY blind to this class (ASCII-escaped
+payloads); these run in CI on both OSes. 6 new tests (237 total).
+
 ## 2026-07-17 — Fable audit of the blind-decision guard: Windows stdin encoding MAJOR fixed (dev 2026.07.17-7, research -8, office -6)
 The cross-checker confirmed the guard's core (incident case blocks, "wie besprochen" legal,
 wiring/mirrors/budget correct, chain honest) and found a MAJOR the test suite was STRUCTURALLY

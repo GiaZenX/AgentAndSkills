@@ -62,6 +62,34 @@ _BUDGET_EXTS = {".py", ".js", ".mjs", ".ts", ".tsx", ".jsx", ".css", ".html", ".
 _BUDGET_AREAS = ("src", "frontend", "scripts", "tests", "static", "public")
 
 
+def _run_git(root, *args, timeout=30):
+    """THE one git call site in this module: pinned UTF-8 decode (Windows' cp1252 mojibaked
+    umlaut paths/messages — a recurring audit class) and core.quotepath=off (git otherwise
+    octal-escapes non-ASCII paths, "M\\303\\274ller.yaml", and downstream isfile() checks
+    silently skip real files)."""
+    import subprocess
+    return subprocess.run(["git", "-C", root, "-c", "core.quotepath=off", *args],
+                          capture_output=True, text=True, encoding="utf-8",
+                          errors="replace", timeout=timeout)
+
+
+def load_project_yaml(root, name):
+    """Parse ONE project_memory YAML into a dict; {} when the file or pyyaml is missing or the
+    text does not parse. THE structured reader for every config knob — an audit caught the same
+    knob (source_areas) read by two diverging hand-rolled parsers (block-only regex vs yaml),
+    silently scanning different areas. quality.py and kit_browser_checks call this too; their
+    regex readers remain only as a pyyaml-less fallback. utf-8-sig: PS 5.1 writes a BOM."""
+    p = os.path.join(root, "project_memory", name)
+    if not os.path.isfile(p):
+        return {}
+    try:
+        import yaml  # type: ignore[import-untyped]
+        data = yaml.safe_load(open(p, encoding="utf-8-sig", errors="ignore").read())
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
 def _more(items, shown):
     """Honest truncation: a display cut to the first N hits once made a PM report 'almost green'
     to the user while 13 findings were hidden — every truncated list says exactly how many more."""
@@ -257,13 +285,8 @@ def _yaml_lint_excludes(root):
     YAMLs are legitimately unparsable and must not turn the repo-wide parse red."""
     out = []
     for name in ("coding_guidelines.yaml", "research_guidelines.yaml"):
-        p = os.path.join(root, "project_memory", name)
-        try:
-            import yaml  # type: ignore[import-untyped]
-            data = yaml.safe_load(open(p, encoding="utf-8", errors="ignore").read()) or {}
-            out += [str(g).replace("\\", "/") for g in (data.get("yaml_lint_exclude") or [])]
-        except Exception:
-            continue
+        data = load_project_yaml(root, name)
+        out += [str(g).replace("\\", "/") for g in (data.get("yaml_lint_exclude") or [])]
     return out
 
 
@@ -274,10 +297,8 @@ def _repo_wide_yaml_parse(root, yaml, ok, fail, warn):
     the stricter duplicate-key + contract pass above). Requires git (no tracked files -> skip
     silently); files beyond the size cap are skipped WITH a warn (a multi-MB pnpm-lock.yaml must
     not cost the gate minutes — audit finding); the C loader is used when available."""
-    import subprocess
     try:
-        r = subprocess.run(["git", "-C", root, "ls-files", "*.yaml", "*.yml"],
-                           capture_output=True, text=True, timeout=30)
+        r = _run_git(root, "ls-files", "*.yaml", "*.yml")
         files = [ln.strip() for ln in r.stdout.splitlines() if ln.strip()] if r.returncode == 0 else []
     except Exception:
         files = []
@@ -335,16 +356,11 @@ def check_module_invariants(root, ok, fail, warn):
     """
     rules = []
     for name in ("coding_guidelines.yaml", "research_guidelines.yaml"):
-        p = os.path.join(root, "project_memory", name)
-        try:
-            import yaml  # type: ignore[import-untyped]
-            data = yaml.safe_load(open(p, encoding="utf-8", errors="ignore").read()) or {}
-            for entry in (data.get("module_invariants") or []):
-                if (isinstance(entry, dict) and entry.get("path")
-                        and entry.get("forbidden_tokens")):
-                    rules.append(entry)
-        except Exception:
-            continue
+        data = load_project_yaml(root, name)
+        for entry in (data.get("module_invariants") or []):
+            if (isinstance(entry, dict) and entry.get("path")
+                    and entry.get("forbidden_tokens")):
+                rules.append(entry)
     if not rules:
         return
     hits, stale, effective = [], [], 0
@@ -397,29 +413,24 @@ def _budget_config(root):
     (removing would silently un-gate src/ — the false-green class this key exists to kill)."""
     max_lines, exempt, areas = FILE_BUDGET_DEFAULT, {}, list(_BUDGET_AREAS)
     for name in ("coding_guidelines.yaml", "research_guidelines.yaml"):
-        p = os.path.join(root, "project_memory", name)
-        if not os.path.isfile(p):
+        data = load_project_yaml(root, name)
+        if not data:
             continue
-        try:
-            import yaml  # type: ignore[import-untyped]
-            data = yaml.safe_load(open(p, encoding="utf-8", errors="ignore").read()) or {}
-            for extra in (data.get("source_areas") or []):
-                name_clean = str(extra).strip().strip("/").replace("\\", "/")
-                # the char class blocks separators, but NOT dot-only names: '..' walked the
-                # PARENT directory in an audit repro — a scan area must be a real child name
-                if (re.fullmatch(r"[A-Za-z0-9_.-]+", name_clean)
-                        and set(name_clean) != {"."} and name_clean not in areas):
-                    areas.append(name_clean)
-            cfg = data.get("file_budget") or {}
-            if isinstance(cfg, dict) and cfg:
-                if isinstance(cfg.get("max_lines"), int) and cfg["max_lines"] > 0:
-                    max_lines = cfg["max_lines"]
-                for entry in (cfg.get("exempt") or []):
-                    if isinstance(entry, dict) and entry.get("path") and str(entry.get("reason") or "").strip():
-                        exempt[str(entry["path"]).replace("\\", "/")] = str(entry["reason"])
-                break
-        except Exception:
-            pass
+        for extra in (data.get("source_areas") or []):
+            name_clean = str(extra).strip().strip("/").replace("\\", "/")
+            # the char class blocks separators, but NOT dot-only names: '..' walked the
+            # PARENT directory in an audit repro — a scan area must be a real child name
+            if (re.fullmatch(r"[A-Za-z0-9_.-]+", name_clean)
+                    and set(name_clean) != {"."} and name_clean not in areas):
+                areas.append(name_clean)
+        cfg = data.get("file_budget") or {}
+        if isinstance(cfg, dict) and cfg:
+            if isinstance(cfg.get("max_lines"), int) and cfg["max_lines"] > 0:
+                max_lines = cfg["max_lines"]
+            for entry in (cfg.get("exempt") or []):
+                if isinstance(entry, dict) and entry.get("path") and str(entry.get("reason") or "").strip():
+                    exempt[str(entry["path"]).replace("\\", "/")] = str(entry["reason"])
+            break
     return max_lines, exempt, areas
 
 
@@ -484,12 +495,10 @@ def check_enforcement_diff(root, ok, fail, warn):
     """Diff the current branch against the main branch: hard-fail on enforcement-layer changes
     without a kit-version change; warn on CI/gate-file changes and deleted test files ("any
     change that weakens CI is a blocker" — the reviewer must SEE it)."""
-    import subprocess
     base = ""
     for cand in ("origin/main", "main", "master"):
         try:
-            r = subprocess.run(["git", "-C", root, "rev-parse", "--verify", "--quiet", cand],
-                               capture_output=True, text=True, timeout=10)
+            r = _run_git(root, "rev-parse", "--verify", "--quiet", cand, timeout=10)
             if r.returncode == 0:
                 base = cand
                 break
@@ -500,16 +509,14 @@ def check_enforcement_diff(root, ok, fail, warn):
 
     def _rev(name):
         try:
-            r = subprocess.run(["git", "-C", root, "rev-parse", name],
-                               capture_output=True, text=True, timeout=10)
+            r = _run_git(root, "rev-parse", name, timeout=10)
             return r.stdout.strip() if r.returncode == 0 else ""
         except Exception:
             return ""
 
     def _diff(*args):
         try:
-            r = subprocess.run(["git", "-C", root, "diff", "--name-status", *args],
-                               capture_output=True, text=True, timeout=30)
+            r = _run_git(root, "diff", "--name-status", *args)
             return r.stdout.splitlines() if r.returncode == 0 else []
         except Exception:
             return []

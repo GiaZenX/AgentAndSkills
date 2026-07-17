@@ -14,12 +14,11 @@ import os
 import re
 import json
 import glob
-import subprocess
 
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _root import find_repo_root
-from _compat import git_invocation_text
+from _compat import git_invocation_text, run_captured
 import _audit
 
 
@@ -73,8 +72,8 @@ def main():
     m = re.search(r"(PRD-\d+)", cmd, re.IGNORECASE)
     if not m:
         try:
-            br = subprocess.run(["git", "-C", cwd, "rev-parse", "--abbrev-ref", "HEAD"],
-                                capture_output=True, text=True, timeout=5).stdout
+            br = run_captured(["git", "-C", cwd, "rev-parse", "--abbrev-ref", "HEAD"],
+                              timeout=5).stdout
             m = re.search(r"(PRD-\d+)", br, re.IGNORECASE)
         except Exception:
             m = None

@@ -24,7 +24,8 @@ PM = os.path.join(ROOT, "project_memory")
 
 def git(*args):
     try:
-        r = subprocess.run(["git", "-C", ROOT, *args], capture_output=True, text=True, timeout=20)
+        r = subprocess.run(["git", "-C", ROOT, *args], capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=20)
         return r.stdout if r.returncode == 0 else ""
     except Exception:
         return ""

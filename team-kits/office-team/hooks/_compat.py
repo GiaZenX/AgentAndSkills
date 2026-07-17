@@ -22,6 +22,7 @@ same philosophy as every other hook.
 import json
 import os
 import re
+import subprocess
 import sys
 
 try:
@@ -140,6 +141,18 @@ def git_invocation_text(command):
 def wants_push_or_merge(command):
     """True when the command really invokes `git push`/`git merge` (not merely mentions it)."""
     return re.search(r"\bgit\b[^&|;\n]*\b(push|merge)\b", git_invocation_text(command)) is not None
+
+
+def run_captured(cmd, cwd=None, timeout=60, **kw):
+    """subprocess.run with captured TEXT output decoded UTF-8 (lossy, never a crash).
+
+    THE one place hooks run tools and read their output: git and every provider tool emit
+    UTF-8, while Windows' locale codec (cp1252) mojibakes umlauts in filenames, branch names,
+    commit messages and tool output — three separate audit findings in one week came from
+    per-call-site encoding choices. Raises nothing beyond subprocess's own errors
+    (TimeoutExpired etc.) — callers keep their existing try/except semantics."""
+    return subprocess.run(cmd, cwd=cwd, capture_output=True, text=True,
+                          encoding="utf-8", errors="replace", timeout=timeout, **kw)
 
 
 def stop(message, event):

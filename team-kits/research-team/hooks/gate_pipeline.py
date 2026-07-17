@@ -25,7 +25,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from _root import find_repo_root
-from _compat import wants_push_or_merge
+from _compat import run_captured, wants_push_or_merge
 import _audit
 
 
@@ -70,12 +70,10 @@ def main():
     def clean_tree_hash():
         """Git tree hash IF the working tree is clean, else None (dirty trees always run)."""
         try:
-            status = subprocess.run(["git", "-C", root, "status", "--porcelain"],
-                                    capture_output=True, text=True, timeout=30)
+            status = run_captured(["git", "-C", root, "status", "--porcelain"], timeout=30)
             if status.returncode != 0 or status.stdout.strip():
                 return None
-            tree = subprocess.run(["git", "-C", root, "rev-parse", "HEAD^{tree}"],
-                                  capture_output=True, text=True, timeout=30)
+            tree = run_captured(["git", "-C", root, "rev-parse", "HEAD^{tree}"], timeout=30)
             return tree.stdout.strip() if tree.returncode == 0 else None
         except Exception:
             return None
@@ -97,12 +95,11 @@ def main():
         # stdin=DEVNULL: the child must not inherit the hook's consumed payload pipe (node
         # tooling probes stdin). cwd comes from find_repo_root, which normalizes the Windows
         # drive-letter case — a lowercase c:\ cwd broke vite/rollup ONLY in this hook chain.
-        # encoding pinned: the runner writes UTF-8 (it reconfigures its own streams) — reading
-        # it with the locale codec (cp1252) killed the reader thread on the first ✓/❯ and the
+        # run_captured pins UTF-8: the runner writes UTF-8 (it reconfigures its own streams) —
+        # the locale codec (cp1252) once killed the reader thread on the first ✓/❯ and the
         # block message lost the ENTIRE pipeline output (audit-proven: p.stdout came back None)
-        p = subprocess.run([sys.executable, runner], cwd=root,
-                           stdin=subprocess.DEVNULL, capture_output=True, text=True,
-                           encoding="utf-8", errors="replace", timeout=1500)
+        p = run_captured([sys.executable, runner], cwd=root, timeout=1500,
+                         stdin=subprocess.DEVNULL)
     except subprocess.TimeoutExpired:
         block("the quality pipeline did not finish within the time limit — speed up the test suite or "
               "merge a smaller change. A non-completing pipeline cannot be certified green.")
