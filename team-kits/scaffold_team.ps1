@@ -473,8 +473,11 @@ if (Test-Path $verSrc) {
     $newV = (Get-Content $verSrc -TotalCount 1)
     if (Test-Path $kvDst) {
         $oldV = (Get-Content $kvDst -TotalCount 1)
-        if ($oldV -and $oldV -ne $newV) {
-            Set-Content -Path (Join-Path $repo ".claude\kit_updated_from") -Value $oldV -Encoding utf8
+        $markerDst = Join-Path $repo ".claude\kit_updated_from"
+        # never overwrite an unconsumed marker: two scaffolds without a SessionStart in between
+        # must announce the EARLIEST from-version, not lose the first transition (audit)
+        if ($oldV -and $oldV -ne $newV -and -not (Test-Path $markerDst)) {
+            Set-Content -Path $markerDst -Value $oldV -Encoding utf8
         }
     }
     Copy-Item $verSrc $kvDst -Force

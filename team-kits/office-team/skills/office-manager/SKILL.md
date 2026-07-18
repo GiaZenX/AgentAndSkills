@@ -59,8 +59,8 @@ never edit `ledger/*.csv` (script-only, guarded), never edit generated reports.
 ## Kit updates
 Same contract as every kit: pending files (`.claude/kit_update_pending.*`) are MERGE tasks — the kit
 version is already current at that point; **NEVER re-run the scaffold because of them** (it cannot
-resolve them; the scaffold refuses redundant runs). Work them through (merge via owning role or
-logged skip) then DELETE them; the nag escalates. Claude frontmatter may sync
+resolve them — a redundant re-run is loud, preserves the reminder state, and resolves nothing).
+Work them through (merge via owning role or logged skip) then DELETE them; the nag escalates. Claude frontmatter may sync
 from the maps. Codex agent TOMLs are read-only harness output: only a user-confirmed full scaffold may
 change them; request explicit filesystem permission escalation when needed and never run the provider
 generator alone. Verify the TOMLs, re-review/re-trust the changed bundle hash in `/hooks`, start a new

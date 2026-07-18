@@ -1,5 +1,14 @@
 # Harness log
 
+## 2026-07-18 — Opus audit fixup of the update-flow round (kits 2026.07.18-3)
+The Opus cross-checker issued Freigabe (all six mechanics verified empirically, chain honest,
+BuyPlugGo repair confirmed 0 mismatches) with three minors, all fixed: the office SKILL claimed
+"the scaffold refuses redundant runs" (factually wrong — re-runs are loud but allowed; wording
+aligned with dev/research); the scaffold never overwrites an UNCONSUMED kit_updated_from marker
+(two scaffolds without a SessionStart in between now announce the EARLIEST from-version instead
+of losing the first transition); the transcript handover hint is suppressed when no session_id
+is present (the newest transcript would have been the PM's OWN session). 243 tests.
+
 ## 2026-07-18 — Update-flow round: the evening-chaos forensics fixed (kits 2026.07.18-2)
 Two Opus investigators reconstructed the user's three restart symptoms from transcripts + state
 files: (1) BuyPlugGo "stale state" = VS Code opened TWO parallel sessions; the fresh one served

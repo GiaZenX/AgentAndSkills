@@ -334,10 +334,12 @@ def main():
     try:
         key = re.sub(r"[^A-Za-z0-9]", "-", os.path.abspath(cwd))
         tdir = os.path.join(os.path.expanduser("~"), ".claude", "projects", key)
-        if os.path.isdir(tdir):
-            sid = str(data.get("session_id") or "")
+        sid = str(data.get("session_id") or "")
+        # no session_id -> no hint: without the exclusion the newest transcript IS our own
+        # session and the PM would be told to skim itself (audit)
+        if sid and os.path.isdir(tdir):
             cands = [os.path.join(tdir, f) for f in os.listdir(tdir)
-                     if f.endswith(".jsonl") and (not sid or sid not in f)]
+                     if f.endswith(".jsonl") and sid not in f]
             if cands:
                 prev_t = max(cands, key=os.path.getmtime)
                 age_h = (time.time() - os.path.getmtime(prev_t)) / 3600.0

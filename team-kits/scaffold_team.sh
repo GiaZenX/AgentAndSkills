@@ -501,7 +501,9 @@ if [ -f "$KIT/VERSION" ]; then
   if [ -f "$REPO/.claude/kit_version" ]; then
     OLD_V="$(head -n 1 "$REPO/.claude/kit_version")"
     NEW_V="$(head -n 1 "$KIT/VERSION")"
-    if [ -n "$OLD_V" ] && [ "$OLD_V" != "$NEW_V" ]; then
+    # never overwrite an unconsumed marker: two scaffolds without a SessionStart in between
+    # must announce the EARLIEST from-version, not lose the first transition (audit)
+    if [ -n "$OLD_V" ] && [ "$OLD_V" != "$NEW_V" ] && [ ! -f "$REPO/.claude/kit_updated_from" ]; then
       printf '%s\n' "$OLD_V" > "$REPO/.claude/kit_updated_from"
     fi
   fi
